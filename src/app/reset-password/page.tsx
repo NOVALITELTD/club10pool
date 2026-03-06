@@ -1,8 +1,9 @@
 'use client'
+import { Suspense } from 'react'
 import { useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [password, setPassword] = useState('')
@@ -71,5 +72,13 @@ export default function ResetPasswordPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: 'var(--accent)' }}>Loading...</div></div>}>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }
