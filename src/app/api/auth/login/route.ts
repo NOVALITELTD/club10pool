@@ -6,32 +6,42 @@ import { ok, error } from '@/lib/api'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { email, password } = body
-
+    const { email, password } = await req.json()
     if (!email || !password) return error('Email and password are required')
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-    if (!user) return error('Invalid credentials', 401)
+    const normalizedEmail = email.toLowerCase()
 
-    const valid = await comparePassword(password, user.passwordHash)
+    // Check admin User first
+    const adminUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    if (adminUser) {
+      const valid = await comparePassword(password, adminUser.passwordHash)
+      if (!valid) return error('Invalid credentials', 401)
+
+      const token = signToken({ memberId: adminUser.id, email: adminUser.email, isAdmin: true })
+      await prisma.auditLog.create({
+        data: { actorId: adminUser.id, actorEmail: adminUser.email, action: 'LOGIN' },
+      })
+      return ok({
+        token,
+        member: { id: adminUser.id, fullName: adminUser.name, email: adminUser.email, isAdmin: true, role: adminUser.role },
+      })
+    }
+
+    // Check Investor
+    const investor = await prisma.investor.findUnique({ where: { email: normalizedEmail } })
+    if (!investor) return error('Invalid credentials', 401)
+    if (!investor.passwordHash) return error('Account has no password set. Contact admin.', 401)
+
+    const valid = await comparePassword(password, investor.passwordHash)
     if (!valid) return error('Invalid credentials', 401)
 
-    const token = signToken({ memberId: user.id, email: user.email, isAdmin: user.role === 'admin' })
-
+    const token = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
     await prisma.auditLog.create({
-      data: { actorId: user.id, actorEmail: user.email, action: 'LOGIN' },
+      data: { actorId: investor.id, actorEmail: investor.email, action: 'LOGIN' },
     })
-
     return ok({
       token,
-      member: {
-        id: user.id,
-        fullName: user.name,
-        email: user.email,
-        isAdmin: user.role === 'admin',
-        role: user.role,
-      },
+      member: { id: investor.id, fullName: investor.fullName, email: investor.email, isAdmin: false },
     })
   } catch (e) {
     console.error(e)
