@@ -77,13 +77,14 @@ export default function AdminDashboard() {
     btn: (variant: 'primary' | 'danger' | 'ghost' = 'primary') => ({
   padding: '8px 18px',
   borderRadius: 8,
-  cursor: 'pointer',
+  cursor: 'pointer' as const,
   fontSize: 13,
   fontWeight: 600,
+  fontFamily: "'DM Mono', 'Courier New', monospace",
   background: variant === 'primary' ? '#c9a84c' : variant === 'danger' ? '#ef4444' : 'transparent',
   color: variant === 'primary' ? '#000' : variant === 'danger' ? '#fff' : '#64748b',
-  border: variant === 'ghost' ? '1px solid #1e2530' : 'none'
-}),
+  border: variant === 'ghost' ? '1px solid #1e2530' : 'none',
+} as React.CSSProperties),
     table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 },
     th: { textAlign: 'left' as const, padding: '10px 14px', color: '#64748b', borderBottom: '1px solid #1e2530', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' as const },
     td: { padding: '12px 14px', borderBottom: '1px solid #0f1520', verticalAlign: 'middle' as const },
@@ -592,4 +593,5 @@ function AuditSection({ token, s }: any) {
     </div>
   )
 }
+
 
