@@ -1,4 +1,3 @@
-// prisma/seed.ts
 import { PrismaClient, BatchStatus, MemberStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -7,23 +6,22 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('🌱 Seeding Club10 Pool database...')
 
-  // Create admin
+  // Create admin User
   const adminHash = await bcrypt.hash('Admin@Club10!', 12)
   const admin = await prisma.user.upsert({
     where: { email: 'admin@club10pool.com' },
     update: {},
     create: {
-      fullName: 'Club10 Admin',
+      name: 'Club10 Admin',
       email: 'admin@club10pool.com',
       passwordHash: adminHash,
-      isAdmin: true,
-      status: MemberStatus.ACTIVE,
+      role: 'admin',
     },
   })
   console.log('✅ Admin created:', admin.email)
 
-  // Create sample members
-  const memberData = [
+  // Create sample investors
+  const investorData = [
     { fullName: 'Alice Johnson', email: 'alice@example.com', phone: '+1234567890' },
     { fullName: 'Bob Smith', email: 'bob@example.com', phone: '+1234567891' },
     { fullName: 'Carol White', email: 'carol@example.com', phone: '+1234567892' },
@@ -36,142 +34,137 @@ async function main() {
     { fullName: 'James Taylor', email: 'james@example.com', phone: '+1234567899' },
   ]
 
-  const memberHash = await bcrypt.hash('Member@123!', 12)
-  const members = []
-  for (const m of memberData) {
-    const member = await prisma.member.upsert({
+  const investors = []
+  for (const m of investorData) {
+    const investor = await prisma.investor.upsert({
       where: { email: m.email },
       update: {},
-      create: { ...m, passwordHash: memberHash, status: MemberStatus.ACTIVE },
+      create: { ...m },
     })
-    members.push(member)
+    investors.push(investor)
   }
-  console.log(`✅ ${members.length} members created`)
+  console.log(`✅ ${investors.length} investors created`)
 
-  // Create Batch A (ACTIVE - currently trading)
+  // Create Batch A (ACTIVE)
   const batchA = await prisma.batch.upsert({
-    where: { name: 'Batch A' },
+    where: { batchCode: 'BATCH-A' },
     update: {},
     create: {
+      batchCode: 'BATCH-A',
       name: 'Batch A',
       description: 'Inaugural batch — 10 members, $10 each',
       status: BatchStatus.ACTIVE,
       targetMembers: 10,
-      capitalPerMember: 10.00,
-      totalCapital: 100.00,
+      contributionPerMember: 10.00,
+      targetCapital: 100.00,
       tradingAccountId: 'MT5-001-CLUB10A',
-      tradingPlatform: 'MT5',
-      managementFeePercent: 5.00,
-      openingDate: new Date('2024-01-01'),
-      activationDate: new Date('2024-01-05'),
-      closingDate: new Date('2024-01-31'),
+      brokerName: 'MT5',
+      startDate: new Date('2024-01-05'),
+      endDate: new Date('2024-01-31'),
     },
   })
 
-  // Add all 10 members to Batch A
-  for (const member of members) {
-    await prisma.batchMember.upsert({
-      where: { batchId_memberId: { batchId: batchA.id, memberId: member.id } },
+  // Add all 10 investors to Batch A
+  const batchAMembers = []
+  for (const investor of investors) {
+    const bm = await prisma.batchMember.upsert({
+      where: { batchId_investorId: { batchId: batchA.id, investorId: investor.id } },
       update: {},
       create: {
         batchId: batchA.id,
-        memberId: member.id,
-        capitalContributed: 10.00,
-        capitalShare: 0.100000,
+        investorId: investor.id,
+        capitalAmount: 10.00,
+        sharePercent: 10.00,
       },
     })
-    // Record deposit transaction
+    batchAMembers.push(bm)
+
     await prisma.transaction.create({
       data: {
-        memberId: member.id,
+        investorId: investor.id,
+        batchMemberId: bm.id,
         type: 'DEPOSIT',
+        status: 'CONFIRMED',
         amount: 10.00,
-        description: `Capital deposit for Batch A`,
-        reference: `DEP-BATCHA-${member.id.slice(-6)}`,
+        reference: `DEP-BATCHA-${investor.id.slice(-6)}`,
+        notes: 'Capital deposit for Batch A',
       },
     })
   }
-  console.log('✅ Batch A created with 10 members')
+  console.log('✅ Batch A created with 10 investors')
 
   // Create Batch B (FORMING)
   const batchB = await prisma.batch.upsert({
-    where: { name: 'Batch B' },
+    where: { batchCode: 'BATCH-B' },
     update: {},
     create: {
+      batchCode: 'BATCH-B',
       name: 'Batch B',
       description: 'Second batch — forming now',
       status: BatchStatus.FORMING,
       targetMembers: 10,
-      capitalPerMember: 20.00,
-      totalCapital: 200.00,
-      managementFeePercent: 5.00,
-      openingDate: new Date('2024-02-01'),
+      contributionPerMember: 20.00,
+      targetCapital: 200.00,
+      startDate: new Date('2024-02-01'),
     },
   })
 
-  // Add 5 members to Batch B (still forming)
   for (let i = 0; i < 5; i++) {
     await prisma.batchMember.upsert({
-      where: { batchId_memberId: { batchId: batchB.id, memberId: members[i].id } },
+      where: { batchId_investorId: { batchId: batchB.id, investorId: investors[i].id } },
       update: {},
       create: {
         batchId: batchB.id,
-        memberId: members[i].id,
-        capitalContributed: 20.00,
-        capitalShare: 0.200000, // will be recalculated when full
+        investorId: investors[i].id,
+        capitalAmount: 20.00,
+        sharePercent: 20.00,
       },
     })
   }
-  console.log('✅ Batch B created (forming, 5/10 members)')
+  console.log('✅ Batch B created (forming, 5/10 investors)')
 
-  // Add monthly result for Batch A
-  const batchAMembers = await prisma.batchMember.findMany({ where: { batchId: batchA.id } })
-  const monthlyResult = await prisma.monthlyResult.create({
-    data: {
+  // Monthly report for Batch A
+  const report = await prisma.monthlyReport.upsert({
+    where: { batchId_reportMonth: { batchId: batchA.id, reportMonth: new Date('2024-01-01') } },
+    update: {},
+    create: {
       batchId: batchA.id,
-      periodStart: new Date('2024-01-05'),
-      periodEnd: new Date('2024-01-31'),
+      reportMonth: new Date('2024-01-01'),
       openingBalance: 100.00,
       closingBalance: 150.00,
       grossProfit: 50.00,
-      managementFee: 2.50,    // 5% of gross
+      platformFeeRate: 0.05,
+      platformFee: 2.50,
       netProfit: 47.50,
-      profitPercent: 47.50,
       notes: 'Strong month — trend-following strategy performed well.',
     },
   })
 
-  // Create pending payouts for each member (profit share = netProfit * capitalShare)
+  // Profit distribution
+  const distribution = await prisma.profitDistribution.create({
+    data: {
+      batchId: batchA.id,
+      reportId: report.id,
+      totalProfit: 47.50,
+    },
+  })
+
   for (const bm of batchAMembers) {
-    const profitShare = 47.50 * 0.1 // 10% share each = $4.75
-    await prisma.payout.create({
+    await prisma.profitShare.create({
       data: {
-        batchId: batchA.id,
+        distributionId: distribution.id,
         batchMemberId: bm.id,
-        monthlyResultId: monthlyResult.id,
-        principalAmount: 0.00,       // not withdrawing
-        profitAmount: profitShare,
-        totalAmount: profitShare,
-        status: 'PENDING',
+        capitalAmount: 10.00,
+        sharePercent: 10.00,
+        profitAmount: 4.75,
       },
     })
   }
-  console.log('✅ Monthly result & payouts seeded for Batch A')
-
-  // Audit log entry
-  await prisma.auditLog.create({
-    data: {
-      actorEmail: 'system@club10pool.com',
-      action: 'DATABASE_SEEDED',
-      entityType: 'System',
-      metadata: { batches: 2, members: 10 },
-    },
-  })
+  console.log('✅ Monthly report & profit distribution seeded for Batch A')
 
   console.log('\n🎉 Seeding complete!')
   console.log('───────────────────────────────')
   console.log('Admin login: admin@club10pool.com / Admin@Club10!')
-  console.log('Member login: alice@example.com / Member@123!')
 }
 
 main()
