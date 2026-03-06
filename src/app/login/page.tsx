@@ -25,8 +25,14 @@ export default function LoginPage() {
       localStorage.setItem('token', d.data.token)
       localStorage.setItem('user', JSON.stringify(d.data.member))
       const user = d.data.member
-      if (!user.isAdmin && !user.emailVerified) return setError('Please verify your email before logging in')
-      if (!user.isAdmin && user.kycStatus !== 'APPROVED') { router.push('/kyc'); return }
+
+      // Admin goes straight to admin dashboard
+      if (user.isAdmin) { router.push('/admin'); return }
+
+      // Investor checks
+      if (user.emailVerified === false) return setError('Please verify your email before logging in')
+      if (user.kycStatus !== 'APPROVED') { router.push('/kyc'); return }
+
       router.push('/dashboard')
     } catch { setError('Server error') } finally { setLoading(false) }
   }
@@ -114,7 +120,7 @@ export default function LoginPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div><label style={labelStyle}>Full Name</label><input type="text" style={inputStyle} value={form.fullName} onChange={e => setForm(p => ({ ...p, fullName: e.target.value }))} placeholder="Jane Doe" /></div>
             <div><label style={labelStyle}>Email</label><input type="email" style={inputStyle} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" /></div>
-            <div><label style={labelStyle}>Phone (optional)</label><input type="text" style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+1 234 567 8900" /></div>
+            <div><label style={labelStyle}>Phone (optional)</label><input type="text" style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+234 801 234 5678" /></div>
             <div><label style={labelStyle}>Password</label><input type="password" style={inputStyle} value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 8 characters" /></div>
             <button onClick={handleRegister} disabled={loading} style={{ width: '100%', background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Creating account...' : 'Create Account'}
