@@ -11,27 +11,27 @@ export async function POST(req: NextRequest) {
 
     if (!email || !password) return error('Email and password are required')
 
-    const member = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-    if (!member) return error('Invalid credentials', 401)
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
+    if (!user) return error('Invalid credentials', 401)
 
-    const valid = await comparePassword(password, member.passwordHash)
+    const valid = await comparePassword(password, user.passwordHash)
     if (!valid) return error('Invalid credentials', 401)
 
-    const token = signToken({ memberId: member.id, email: member.email, isAdmin: member.role === 'admin' })
+    const token = signToken({ memberId: user.id, email: user.email, isAdmin: user.role === 'admin' })
 
     await prisma.auditLog.create({
-      data: { actorId: member.id, actorEmail: member.email, action: 'LOGIN' },
+      data: { actorId: user.id, actorEmail: user.email, action: 'LOGIN' },
     })
 
     return ok({
       token,
-member: {
-  id: member.id,
-  fullName: member.name,        // User model uses 'name' not 'fullName'
-  email: member.email,
-  isAdmin: member.role === 'admin',  // User model uses 'role' not 'isAdmin'
-  status: member.role,          // User model has no 'status' field, use 'role' or remove
-},
+      member: {
+        id: user.id,
+        fullName: user.name,
+        email: user.email,
+        isAdmin: user.role === 'admin',
+        role: user.role,
+      },
     })
   } catch (e) {
     console.error(e)
