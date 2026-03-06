@@ -4,7 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
 import { ok, error, unauthorized, forbidden, notFound } from '@/lib/api'
 
-// PATCH /api/withdrawals/:id — admin approves or rejects
+// PATCH /api/withdrawals/:id — admin approves (keeps WITHDRAWAL_REQUESTED) or rejects (reverts to ACTIVE)
+// :id is the batchMember id
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = getAuthFromRequest(req)
   if (!auth) return unauthorized()
@@ -14,25 +15,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const { action, adminNotes } = await req.json()
     if (!['approve', 'reject'].includes(action)) return error('action must be approve or reject')
 
-    const request = await prisma.withdrawalRequest.findUnique({ where: { id: params.id } })
-    if (!request) return notFound('Withdrawal request')
-    if (request.status !== 'PENDING') return error('Request is not pending')
-
-    const updated = await prisma.withdrawalRequest.update({
+    const batchMember = await prisma.batchMember.findUnique({
       where: { id: params.id },
-      data: {
-        status: action === 'approve' ? 'APPROVED' : 'REJECTED',
-        adminNotes,
-        processedAt: action === 'reject' ? new Date() : null,
-      },
+      include: { investor: true },
+    })
+    if (!batchMember) return notFound('Withdrawal request')
+    if (batchMember.status !== 'WITHDRAWAL_REQUESTED') return error('No pending withdrawal request for this member')
+
+    const updated = await prisma.batchMember.update({
+      where: { id: params.id },
+      data: action === 'reject'
+        ? { status: 'ACTIVE', withdrawalRequestedAt: null }
+        : {}, // approved: leave as WITHDRAWAL_REQUESTED, will be WITHDRAWN at settlement
     })
 
     await prisma.auditLog.create({
       data: {
-        actorId: auth.memberId, actorEmail: auth.email,
+        actorId: auth.memberId,
+        actorEmail: auth.email,
         action: `WITHDRAWAL_${action.toUpperCase()}D`,
-        entityType: 'WithdrawalRequest', entityId: params.id,
-        metadata: { adminNotes },
+        entityType: 'BatchMember',
+        metadata: { batchMemberId: params.id, adminNotes },
       },
     })
 
