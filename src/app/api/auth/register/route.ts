@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, signToken } from '@/lib/auth'
 import { ok, error } from '@/lib/api'
+import { sendVerificationEmail } from '@/lib/email'
+import { randomBytes } from 'crypto'
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,19 +29,26 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    const token = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
+    // Create verification token
+    const token = randomBytes(32).toString('hex')
+    await prisma.$executeRaw`
+      INSERT INTO email_verifications (id, "investorId", token, "expiresAt")
+      VALUES (${crypto.randomUUID()}, ${investor.id}, ${token}, ${new Date(Date.now() + 24 * 60 * 60 * 1000)})
+    `
 
-    await prisma.auditLog.create({
-      data: { actorId: investor.id, actorEmail: investor.email, action: 'REGISTER' },
-    })
+    await sendVerificationEmail(investor.email, investor.fullName, token)
+
+    const authToken = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
 
     return ok({
-      token,
+      token: authToken,
       member: {
         id: investor.id,
         fullName: investor.fullName,
         email: investor.email,
         isAdmin: false,
+        emailVerified: false,
+        kycStatus: 'NOT_SUBMITTED',
       },
     }, 201)
   } catch (e) {
