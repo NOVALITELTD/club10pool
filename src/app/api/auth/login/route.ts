@@ -11,9 +11,8 @@ export async function POST(req: NextRequest) {
 
     if (!email || !password) return error('Email and password are required')
 
-    const member = await prisma.member.findUnique({ where: { email: email.toLowerCase() } })
+    const member = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
     if (!member) return error('Invalid credentials', 401)
-    if (member.status === 'SUSPENDED') return error('Account suspended', 403)
 
     const valid = await comparePassword(password, member.passwordHash)
     if (!valid) return error('Invalid credentials', 401)
