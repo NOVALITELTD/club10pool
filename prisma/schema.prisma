@@ -65,6 +65,7 @@ model Investor {
   nationalId    String?  @unique
   bankName      String?
   bankAccount   String?
+  passwordHash  String?  // nullable so existing investors aren't broken
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
