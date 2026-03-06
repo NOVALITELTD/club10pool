@@ -1,0 +1,193 @@
+// Club10 Pool - Prisma Schema
+// Database: PostgreSQL (Vercel Postgres / Neon / Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum BatchStatus {
+  FORMING      // Accepting new members
+  ACTIVE       // Trading in progress
+  DISTRIBUTING // End-of-month profit distribution
+  CLOSED       // Batch completed / all payouts done
+}
+
+enum MemberStatus {
+  ACTIVE
+  WITHDRAWAL_REQUESTED // Requested to pull out at end of month
+  WITHDRAWN
+}
+
+enum TransactionType {
+  DEPOSIT          // Initial capital contribution
+  PROFIT_SHARE     // End-of-month profit distribution
+  WITHDRAWAL       // Capital withdrawal
+  FEE              // Platform/management fee (optional)
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+// ─────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  phone         String?
+  passwordHash  String
+  role          String   @default("admin") // admin | viewer
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Investor {
+  id            String   @id @default(cuid())
+  fullName      String
+  email         String   @unique
+  phone         String?
+  nationalId    String?  @unique
+  bankName      String?
+  bankAccount   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships   BatchMember[]
+  transactions  Transaction[]
+
+  @@map("investors")
+}
+
+model Batch {
+  id              String      @id @default(cuid())
+  batchCode       String      @unique   // e.g. "BATCH-A", "BATCH-B", "BATCH-2024-01"
+  name            String                // Human-readable name
+  description     String?
+  status          BatchStatus @default(FORMING)
+
+  targetMembers   Int                   // e.g. 10
+  contributionPerMember Decimal        // e.g. 100.00
+  targetCapital   Decimal              // targetMembers × contributionPerMember
+
+  tradingAccountId String?             // External trading account reference
+  brokerName       String?
+
+  startDate       DateTime?            // When trading begins
+  endDate         DateTime?            // Planned end / distribution date
+  actualEndDate   DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members         BatchMember[]
+  monthlyReports  MonthlyReport[]
+  distributions   ProfitDistribution[]
+
+  @@map("batches")
+}
+
+model BatchMember {
+  id              String       @id @default(cuid())
+  batchId         String
+  investorId      String
+  status          MemberStatus @default(ACTIVE)
+  capitalAmount   Decimal      // Actual amount deposited
+  sharePercent    Decimal      // capitalAmount / totalCapital × 100 (computed at distribution)
+
+  joinedAt        DateTime @default(now())
+  withdrawalRequestedAt DateTime?
+  withdrawnAt     DateTime?
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+  investor        Investor @relation(fields: [investorId], references: [id])
+  transactions    Transaction[]
+  profitShares    ProfitShare[]
+
+  @@unique([batchId, investorId])
+  @@map("batch_members")
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  investorId      String
+  batchMemberId   String?
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  amount          Decimal
+  reference       String?           // External payment reference
+  notes           String?
+  processedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  investor        Investor     @relation(fields: [investorId], references: [id])
+  batchMember     BatchMember? @relation(fields: [batchMemberId], references: [id])
+
+  @@map("transactions")
+}
+
+model MonthlyReport {
+  id              String   @id @default(cuid())
+  batchId         String
+  reportMonth     DateTime // First day of the month
+  openingBalance  Decimal
+  closingBalance  Decimal
+  grossProfit     Decimal  // closingBalance - openingBalance
+  platformFeeRate Decimal  @default(0)   // e.g. 0.10 = 10%
+  platformFee     Decimal  @default(0)
+  netProfit       Decimal  // grossProfit - platformFee
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  batch           Batch    @relation(fields: [batchId], references: [id])
+  distribution    ProfitDistribution?
+
+  @@unique([batchId, reportMonth])
+  @@map("monthly_reports")
+}
+
+model ProfitDistribution {
+  id              String   @id @default(cuid())
+  batchId         String
+  reportId        String   @unique
+  totalProfit     Decimal
+  distributedAt   DateTime @default(now())
+  notes           String?
+
+  batch           Batch         @relation(fields: [batchId], references: [id])
+  report          MonthlyReport @relation(fields: [reportId], references: [id])
+  shares          ProfitShare[]
+
+  @@map("profit_distributions")
+}
+
+model ProfitShare {
+  id               String  @id @default(cuid())
+  distributionId   String
+  batchMemberId    String
+  capitalAmount    Decimal
+  sharePercent     Decimal
+  profitAmount     Decimal // Amount this member receives
+  transactionRef   String?
+
+  distribution     ProfitDistribution @relation(fields: [distributionId], references: [id])
+  batchMember      BatchMember        @relation(fields: [batchMemberId], references: [id])
+
+  @@map("profit_shares")
+}
