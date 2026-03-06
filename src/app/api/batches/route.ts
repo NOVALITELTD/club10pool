@@ -1,26 +1,44 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
+import { ok, unauthorized, forbidden, error } from '@/lib/api'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = getAuthFromRequest(req)
+  if (!auth) return unauthorized()
+
   try {
     const batches = await prisma.batch.findMany({
       include: {
-        members: { include: { investor: true } },
-        monthlyReports: { orderBy: { reportMonth: 'desc' }, take: 1 },
         _count: { select: { members: true } },
+        monthlyReports: { orderBy: { reportMonth: 'desc' }, take: 1 },
       },
       orderBy: { createdAt: 'desc' },
-    });
-    return NextResponse.json(batches);
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch batches' }, { status: 500 });
+    })
+
+    // If investor, tag their membership on each batch
+    if (!auth.isAdmin) {
+      const memberships = await prisma.batchMember.findMany({
+        where: { investorId: auth.memberId },
+      })
+      const memberMap = Object.fromEntries(memberships.map(m => [m.batchId, m]))
+      return ok(batches.map((b: any) => ({ ...b, myMembership: memberMap[b.id] || null })))
+    }
+
+    return ok(batches)
+  } catch (e) {
+    return error('Failed to fetch batches', 500)
   }
 }
 
 export async function POST(req: NextRequest) {
+  const auth = getAuthFromRequest(req)
+  if (!auth) return unauthorized()
+  if (!requireAdmin(auth)) return forbidden()
+
   try {
-    const body = await req.json();
-    const { batchCode, name, description, targetMembers, contributionPerMember, brokerName, tradingAccountId, startDate, endDate } = body;
+    const body = await req.json()
+    const { batchCode, name, description, targetMembers, contributionPerMember, brokerName, tradingAccountId, startDate, endDate } = body
 
     const batch = await prisma.batch.create({
       data: {
@@ -35,12 +53,11 @@ export async function POST(req: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
       },
-    });
-    return NextResponse.json(batch, { status: 201 });
-  } catch (error: any) {
-    if (error.code === 'P2002') {
-      return NextResponse.json({ error: 'Batch code already exists' }, { status: 409 });
-    }
-    return NextResponse.json({ error: 'Failed to create batch' }, { status: 500 });
+    })
+
+    return ok(batch, 201)
+  } catch (e: any) {
+    if (e.code === 'P2002') return error('Batch code already exists', 409)
+    return error('Failed to create batch', 500)
   }
 }
