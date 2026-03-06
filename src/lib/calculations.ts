@@ -1,19 +1,17 @@
 // src/lib/calculations.ts
-// Core business logic for Club10 Pool profit distribution
-
 import { Decimal } from '@prisma/client/runtime/library'
 
 export interface MemberCapital {
   batchMemberId: string
-  investorId: string           // was: memberId
-  capitalAmount: number        // was: capitalContributed
+  investorId: string
+  capitalAmount: number
 }
 
 export interface ProfitDistribution {
   batchMemberId: string
-  investorId: string           // was: memberId
-  capitalAmount: number        // was: capitalContributed
-  sharePercent: number         // was: capitalShare
+  investorId: string
+  capitalAmount: number
+  sharePercent: number
   profitShare: number
   totalPayout: number
 }
@@ -21,52 +19,41 @@ export interface ProfitDistribution {
 export interface MonthlyResultInput {
   openingBalance: number
   closingBalance: number
-  platformFeeRate: number      // was: managementFeePercent (e.g. 0.10 = 10%)
+  platformFeeRate: number       // e.g. 0.10 = 10%
   members: MemberCapital[]
-  withdrawingInvestorIds?: string[]  // was: withdrawingMemberIds
+  withdrawingInvestorIds?: string[]
 }
 
 export interface MonthlyResultOutput {
   openingBalance: number
   closingBalance: number
   grossProfit: number
-  managementFee: number
+  platformFee: number
   netProfit: number
   profitPercent: number
   distributions: ProfitDistribution[]
 }
 
-/**
- * Calculates profit distribution for a batch month-end settlement.
- * 
- * Formula:
- *   gross_profit = closing_balance - opening_balance
- *   management_fee = gross_profit * (management_fee_percent / 100)
- *   net_profit = gross_profit - management_fee
- *   member_share = member_capital / total_capital
- *   member_profit = net_profit * member_share
- */
 export function calculateMonthlyDistribution(input: MonthlyResultInput): MonthlyResultOutput {
-  const { openingBalance, closingBalance, managementFeePercent, members, withdrawingMemberIds = [] } = input
+  const { openingBalance, closingBalance, platformFeeRate, members, withdrawingInvestorIds = [] } = input
 
   const grossProfit = closingBalance - openingBalance
-  const managementFee = grossProfit > 0 ? (grossProfit * managementFeePercent) / 100 : 0
-  const netProfit = grossProfit - managementFee
+  const platformFee = grossProfit > 0 ? grossProfit * platformFeeRate : 0
+  const netProfit = grossProfit - platformFee
   const profitPercent = openingBalance > 0 ? (netProfit / openingBalance) * 100 : 0
-
-  const totalCapital = members.reduce((sum, m) => sum + m.capitalContributed, 0)
+  const totalCapital = members.reduce((sum, m) => sum + m.capitalAmount, 0)
 
   const distributions: ProfitDistribution[] = members.map((m) => {
-    const capitalShare = totalCapital > 0 ? m.capitalContributed / totalCapital : 0
-    const profitShare = netProfit * capitalShare
-    const isWithdrawing = withdrawingMemberIds.includes(m.memberId)
-    const totalPayout = isWithdrawing ? m.capitalContributed + profitShare : profitShare
+    const sharePercent = totalCapital > 0 ? m.capitalAmount / totalCapital : 0
+    const profitShare = netProfit * sharePercent
+    const isWithdrawing = withdrawingInvestorIds.includes(m.investorId)
+    const totalPayout = isWithdrawing ? m.capitalAmount + profitShare : profitShare
 
     return {
       batchMemberId: m.batchMemberId,
-      memberId: m.memberId,
-      capitalContributed: m.capitalContributed,
-      capitalShare: parseFloat(capitalShare.toFixed(6)),
+      investorId: m.investorId,
+      capitalAmount: m.capitalAmount,
+      sharePercent: parseFloat(sharePercent.toFixed(6)),
       profitShare: parseFloat(profitShare.toFixed(2)),
       totalPayout: parseFloat(totalPayout.toFixed(2)),
     }
@@ -76,22 +63,18 @@ export function calculateMonthlyDistribution(input: MonthlyResultInput): Monthly
     openingBalance: parseFloat(openingBalance.toFixed(2)),
     closingBalance: parseFloat(closingBalance.toFixed(2)),
     grossProfit: parseFloat(grossProfit.toFixed(2)),
-    managementFee: parseFloat(managementFee.toFixed(2)),
+    platformFee: parseFloat(platformFee.toFixed(2)),
     netProfit: parseFloat(netProfit.toFixed(2)),
     profitPercent: parseFloat(profitPercent.toFixed(4)),
     distributions,
   }
 }
 
-/**
- * Calculate capital shares for all members in a batch.
- * Called when a batch is fully formed or a member joins.
- */
-export function calculateCapitalShares(members: MemberCapital[]): { memberId: string; capitalShare: number }[] {
-  const totalCapital = members.reduce((sum, m) => sum + m.capitalContributed, 0)
+export function calculateCapitalShares(members: MemberCapital[]): { investorId: string; sharePercent: number }[] {
+  const totalCapital = members.reduce((sum, m) => sum + m.capitalAmount, 0)
   return members.map((m) => ({
-    memberId: m.memberId,
-    capitalShare: totalCapital > 0 ? parseFloat((m.capitalContributed / totalCapital).toFixed(6)) : 0,
+    investorId: m.investorId,
+    sharePercent: totalCapital > 0 ? parseFloat((m.capitalAmount / totalCapital).toFixed(6)) : 0,
   }))
 }
 
