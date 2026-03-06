@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const valid = await comparePassword(password, member.passwordHash)
     if (!valid) return error('Invalid credentials', 401)
 
-    const token = signToken({ memberId: member.id, email: member.email, isAdmin: member.isAdmin })
+    const token = signToken({ memberId: member.id, email: member.email, isAdmin: member.role === 'admin' })
 
     await prisma.auditLog.create({
       data: { actorId: member.id, actorEmail: member.email, action: 'LOGIN' },
