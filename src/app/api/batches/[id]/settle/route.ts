@@ -5,15 +5,6 @@ import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
 import { ok, error, unauthorized, forbidden, notFound } from '@/lib/api'
 import { calculateMonthlyDistribution } from '@/lib/calculations'
 
-/**
- * POST /api/batches/:id/settle
- * 
- * Processes month-end settlement for a batch.
- * - Records monthly result (P&L)
- * - Calculates each member's profit share
- * - Creates payout records
- * - Marks withdrawing members
- */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = getAuthFromRequest(req)
   if (!auth) return unauthorized()
@@ -21,122 +12,128 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   try {
     const body = await req.json()
-    const { closingBalance, periodStart, periodEnd, notes } = body
+    const { closingBalance, reportMonth, notes } = body
 
-    if (!closingBalance || !periodStart || !periodEnd) {
-      return error('closingBalance, periodStart, and periodEnd are required')
+    if (!closingBalance || !reportMonth) {
+      return error('closingBalance and reportMonth are required')
     }
 
     const batch = await prisma.batch.findUnique({
       where: { id: params.id },
-      include: { batchMembers: true },
+      include: { members: true },
     })
     if (!batch) return notFound('Batch')
     if (batch.status !== 'ACTIVE') return error('Batch must be ACTIVE to settle')
 
-    // Find pending withdrawal requests
-    const withdrawalRequests = await prisma.withdrawalRequest.findMany({
-      where: { batchId: params.id, status: 'APPROVED' },
+    // Find withdrawing members (WITHDRAWAL_REQUESTED status)
+    const withdrawingMembers = await prisma.batchMember.findMany({
+      where: { batchId: params.id, status: 'WITHDRAWAL_REQUESTED' },
     })
-    const withdrawingMemberIds = withdrawalRequests.map(w => w.memberId)
+    const withdrawingInvestorIds = withdrawingMembers.map(w => w.investorId)
 
-    const members = batch.batchMembers.map(bm => ({
+    const members = batch.members.map(bm => ({
       batchMemberId: bm.id,
-      memberId: bm.memberId,
-      capitalContributed: parseFloat(bm.capitalContributed.toString()),
+      investorId: bm.investorId,
+      capitalAmount: parseFloat(bm.capitalAmount.toString()),
     }))
 
     const result = calculateMonthlyDistribution({
-      openingBalance: parseFloat(batch.totalCapital.toString()),
+      openingBalance: parseFloat(batch.targetCapital.toString()),
       closingBalance: Number(closingBalance),
-      managementFeePercent: parseFloat(batch.managementFeePercent.toString()),
+      platformFeeRate: parseFloat(batch.contributionPerMember.toString()) / 100,
       members,
-      withdrawingMemberIds,
+      withdrawingInvestorIds,
     })
 
-    // Persist in a transaction
-    const [monthlyResult] = await prisma.$transaction(async (tx) => {
-      // 1. Create monthly result
-      const mr = await tx.monthlyResult.create({
+    const [monthlyReport] = await prisma.$transaction(async (tx) => {
+      // 1. Create monthly report
+      const mr = await tx.monthlyReport.create({
         data: {
           batchId: params.id,
-          periodStart: new Date(periodStart),
-          periodEnd: new Date(periodEnd),
+          reportMonth: new Date(reportMonth),
           openingBalance: result.openingBalance,
           closingBalance: result.closingBalance,
           grossProfit: result.grossProfit,
-          managementFee: result.managementFee,
+          platformFeeRate: 0.05,
+          platformFee: result.platformFee,
           netProfit: result.netProfit,
-          profitPercent: result.profitPercent,
           notes,
-          processedAt: new Date(),
         },
       })
 
-      // 2. Create payouts
+      // 2. Create profit distribution
+      const distribution = await tx.profitDistribution.create({
+        data: {
+          batchId: params.id,
+          reportId: mr.id,
+          totalProfit: result.netProfit,
+          notes,
+        },
+      })
+
+      // 3. Create profit shares and transactions
       for (const dist of result.distributions) {
-        const isWithdrawing = withdrawingMemberIds.includes(dist.memberId)
-        await tx.payout.create({
+        const isWithdrawing = withdrawingInvestorIds.includes(dist.investorId)
+
+        await tx.profitShare.create({
           data: {
-            batchId: params.id,
+            distributionId: distribution.id,
             batchMemberId: dist.batchMemberId,
-            monthlyResultId: mr.id,
-            principalAmount: isWithdrawing ? dist.capitalContributed : 0,
+            capitalAmount: dist.capitalAmount,
+            sharePercent: dist.sharePercent,
             profitAmount: dist.profitShare,
-            totalAmount: dist.totalPayout,
-            status: 'PENDING',
           },
         })
 
-        // 3. Record profit credit transaction
+        // Record profit transaction
         await tx.transaction.create({
           data: {
-            memberId: dist.memberId,
-            type: 'PROFIT_CREDIT',
+            investorId: dist.investorId,
+            batchMemberId: dist.batchMemberId,
+            type: 'PROFIT_SHARE',
+            status: 'CONFIRMED',
             amount: dist.profitShare,
-            description: `Profit share for ${batch.name} — period ending ${periodEnd}`,
             reference: `PROFIT-${batch.name.replace(/\s/g, '')}-${mr.id.slice(-6)}`,
+            notes: `Profit share for ${batch.name}`,
+            processedAt: new Date(),
           },
         })
 
-        // 4. If withdrawing: record withdrawal transaction
+        // If withdrawing: record withdrawal transaction and update status
         if (isWithdrawing) {
           await tx.transaction.create({
             data: {
-              memberId: dist.memberId,
+              investorId: dist.investorId,
+              batchMemberId: dist.batchMemberId,
               type: 'WITHDRAWAL',
-              amount: dist.capitalContributed,
-              description: `Capital withdrawal from ${batch.name}`,
-              reference: `WDRAW-${batch.name.replace(/\s/g, '')}-${dist.memberId.slice(-6)}`,
+              status: 'CONFIRMED',
+              amount: dist.capitalAmount,
+              reference: `WDRAW-${batch.name.replace(/\s/g, '')}-${dist.investorId.slice(-6)}`,
+              notes: `Capital withdrawal from ${batch.name}`,
+              processedAt: new Date(),
             },
           })
 
-          // Mark batch member as withdrawn
           await tx.batchMember.update({
             where: { id: dist.batchMemberId },
-            data: { withdrawnAt: new Date() },
+            data: { status: 'WITHDRAWN', withdrawnAt: new Date() },
           })
         }
       }
 
-      // 5. Process withdrawal requests
-      if (withdrawingMemberIds.length > 0) {
-        await tx.withdrawalRequest.updateMany({
-          where: { batchId: params.id, status: 'APPROVED' },
-          data: { status: 'PROCESSED', processedAt: new Date() },
-        })
-      }
-
-      // 6. Audit
+      // 4. Audit
       await tx.auditLog.create({
         data: {
-          actorId: auth.memberId, actorEmail: auth.email,
-          action: 'BATCH_SETTLED', entityType: 'Batch', entityId: params.id,
+          actorId: auth.memberId,
+          actorEmail: auth.email,
+          action: 'BATCH_SETTLED',
+          entityType: 'Batch',
           metadata: {
-            monthlyResultId: mr.id,
+            batchId: params.id,
+            monthlyReportId: mr.id,
             grossProfit: result.grossProfit,
             netProfit: result.netProfit,
-            withdrawals: withdrawingMemberIds.length,
+            withdrawals: withdrawingInvestorIds.length,
           },
         },
       })
@@ -144,7 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return [mr]
     })
 
-    return ok({ monthlyResult, distributions: result.distributions })
+    return ok({ monthlyReport, distributions: result.distributions })
   } catch (e) {
     console.error(e)
     return error('Server error', 500)
