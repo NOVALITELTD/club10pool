@@ -40,9 +40,16 @@ export async function POST(req: NextRequest) {
       data: { actorId: investor.id, actorEmail: investor.email, action: 'LOGIN' },
     })
     return ok({
-      token,
-      member: { id: investor.id, fullName: investor.fullName, email: investor.email, isAdmin: false },
-    })
+  token,
+  member: {
+    id: investor.id,
+    fullName: investor.fullName,
+    email: investor.email,
+    isAdmin: false,
+    emailVerified: (investor as any).emailVerified,
+    kycStatus: (investor as any).kycStatus,
+  },
+})
   } catch (e) {
     console.error(e)
     return error('Server error', 500)
