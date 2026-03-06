@@ -191,3 +191,15 @@ model ProfitShare {
 
   @@map("profit_shares")
 }
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorEmail  String
+  action      String
+  entityType  String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@map("audit_logs")
+}
