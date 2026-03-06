@@ -4,21 +4,28 @@ import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
 import { ok, error, unauthorized, forbidden, notFound } from '@/lib/api'
 
-// GET /api/members/:id
+// GET /api/members/:id — fetches an investor profile
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = getAuthFromRequest(req)
   if (!auth) return unauthorized()
-
-  // Members can only view their own profile unless admin
   if (!requireAdmin(auth) && auth.memberId !== params.id) return forbidden()
 
-  const member = await prisma.member.findUnique({
+  const investor = await prisma.investor.findUnique({
     where: { id: params.id },
     select: {
-      id: true, fullName: true, email: true, phone: true,
-      isAdmin: true, status: true, createdAt: true,
-      batchMembers: {
-        include: { batch: { select: { id: true, name: true, status: true, capitalPerMember: true } } },
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true,
+      bankName: true,
+      bankAccount: true,
+      createdAt: true,
+      memberships: {
+        include: {
+          batch: {
+            select: { id: true, name: true, status: true, contributionPerMember: true },
+          },
+        },
       },
       transactions: {
         orderBy: { createdAt: 'desc' },
@@ -26,12 +33,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       },
     },
   })
-
-  if (!member) return notFound('Member')
-  return ok(member)
+  if (!investor) return notFound('Investor')
+  return ok(investor)
 }
 
-// PATCH /api/members/:id
+// PATCH /api/members/:id — updates an investor profile
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const auth = getAuthFromRequest(req)
   if (!auth) return unauthorized()
@@ -39,23 +45,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   try {
     const body = await req.json()
-    const { fullName, phone, status } = body
+    const { fullName, phone, bankName, bankAccount } = body
 
-    const member = await prisma.member.update({
+    const investor = await prisma.investor.update({
       where: { id: params.id },
       data: {
         fullName: fullName ?? undefined,
         phone: phone ?? undefined,
-        status: status ?? undefined,
+        bankName: bankName ?? undefined,
+        bankAccount: bankAccount ?? undefined,
       },
       select: {
-        id: true, fullName: true, email: true, phone: true, isAdmin: true, status: true,
+        id: true, fullName: true, email: true, phone: true, bankName: true, bankAccount: true,
       },
     })
-
-    return ok(member)
+    return ok(investor)
   } catch (e: any) {
-    if (e.code === 'P2025') return notFound('Member')
+    if (e.code === 'P2025') return notFound('Investor')
     return error('Server error', 500)
   }
 }
