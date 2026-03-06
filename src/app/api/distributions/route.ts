@@ -4,17 +4,22 @@ import { prisma } from '@/lib/prisma';
 export async function POST(req: NextRequest) {
   try {
     const { reportId } = await req.json();
-
+    
     const report = await prisma.monthlyReport.findUnique({
-      where: { id: reportId },
+  where: { id: reportId },
+  include: {
+    distribution: true, // ✅ load relation
+    batch: {
       include: {
-        batch: {
-          include: {
-            members: { where: { status: { in: ['ACTIVE', 'WITHDRAWAL_REQUESTED'] } } },
+        members: {
+          where: {
+            status: { in: ['ACTIVE', 'WITHDRAWAL_REQUESTED'] },
           },
         },
       },
-    });
+    },
+  },
+});
 
     if (!report) return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     if (report.distribution) return NextResponse.json({ error: 'Distribution already done for this report' }, { status: 409 });
