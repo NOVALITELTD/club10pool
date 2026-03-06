@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
 
     return ok({
       token,
-      member: {
-        id: member.id,
-        fullName: member.fullName,
-        email: member.email,
-        isAdmin: member.isAdmin,
-        status: member.status,
-      },
+member: {
+  id: member.id,
+  fullName: member.name,        // User model uses 'name' not 'fullName'
+  email: member.email,
+  isAdmin: member.role === 'admin',  // User model uses 'role' not 'isAdmin'
+  status: member.role,          // User model has no 'status' field, use 'role' or remove
+},
     })
   } catch (e) {
     console.error(e)
