@@ -108,8 +108,4 @@ export default function LoginPage() {
     </div>
   )
 }
-```
 
-**After making these changes, also run `prisma db push`** via the Vercel build command to add the `passwordHash` column to your investors table in Supabase. Temporarily set build command to:
-```
-prisma db push && prisma generate && next build
