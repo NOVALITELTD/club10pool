@@ -18,12 +18,22 @@ export async function POST(req: NextRequest) {
       if (!valid) return error('Invalid credentials', 401)
 
       const token = signToken({ memberId: adminUser.id, email: adminUser.email, isAdmin: true })
+
       await prisma.auditLog.create({
         data: { actorId: adminUser.id, actorEmail: adminUser.email, action: 'LOGIN' },
       })
+
       return ok({
         token,
-        member: { id: adminUser.id, fullName: adminUser.name, email: adminUser.email, isAdmin: true, role: adminUser.role },
+        member: {
+          id: adminUser.id,
+          fullName: adminUser.name,
+          email: adminUser.email,
+          isAdmin: true,
+          role: adminUser.role,
+          emailVerified: true,
+          kycStatus: 'APPROVED',
+        },
       })
     }
 
@@ -35,21 +45,30 @@ export async function POST(req: NextRequest) {
     const valid = await comparePassword(password, investor.passwordHash)
     if (!valid) return error('Invalid credentials', 401)
 
+    // Fetch live emailVerified and kycStatus from database
+    const investorData = await prisma.$queryRaw<any[]>`
+      SELECT "emailVerified", "kycStatus" FROM investors WHERE id = ${investor.id}
+    `
+    const emailVerified = investorData[0]?.emailVerified ?? false
+    const kycStatus = investorData[0]?.kycStatus ?? 'NOT_SUBMITTED'
+
     const token = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
+
     await prisma.auditLog.create({
       data: { actorId: investor.id, actorEmail: investor.email, action: 'LOGIN' },
     })
+
     return ok({
-  token,
-  member: {
-    id: investor.id,
-    fullName: investor.fullName,
-    email: investor.email,
-    isAdmin: false,
-    emailVerified: (investor as any).emailVerified,
-    kycStatus: (investor as any).kycStatus,
-  },
-})
+      token,
+      member: {
+        id: investor.id,
+        fullName: investor.fullName,
+        email: investor.email,
+        isAdmin: false,
+        emailVerified,
+        kycStatus,
+      },
+    })
   } catch (e) {
     console.error(e)
     return error('Server error', 500)
