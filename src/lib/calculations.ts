@@ -5,25 +5,25 @@ import { Decimal } from '@prisma/client/runtime/library'
 
 export interface MemberCapital {
   batchMemberId: string
-  memberId: string
-  capitalContributed: number
+  investorId: string           // was: memberId
+  capitalAmount: number        // was: capitalContributed
 }
 
 export interface ProfitDistribution {
   batchMemberId: string
-  memberId: string
-  capitalContributed: number
-  capitalShare: number          // e.g. 0.10 = 10%
-  profitShare: number           // absolute profit amount
-  totalPayout: number           // capital + profit (for withdrawing members)
+  investorId: string           // was: memberId
+  capitalAmount: number        // was: capitalContributed
+  sharePercent: number         // was: capitalShare
+  profitShare: number
+  totalPayout: number
 }
 
 export interface MonthlyResultInput {
   openingBalance: number
   closingBalance: number
-  managementFeePercent: number  // e.g. 5 means 5%
+  platformFeeRate: number      // was: managementFeePercent (e.g. 0.10 = 10%)
   members: MemberCapital[]
-  withdrawingMemberIds?: string[] // members pulling out this month
+  withdrawingInvestorIds?: string[]  // was: withdrawingMemberIds
 }
 
 export interface MonthlyResultOutput {
