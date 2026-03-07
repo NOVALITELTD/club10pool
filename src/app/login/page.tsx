@@ -30,7 +30,9 @@ export default function LoginPage() {
       const user = d.data.member
       if (user.isAdmin) { router.push('/admin'); return }
       if (user.emailVerified === false) return setError('Please verify your email before logging in')
-      if (user.kycStatus !== 'APPROVED') { router.push('/kyc'); return }
+      if (user.kycStatus === 'NOT_SUBMITTED') { router.push('/kyc'); return }
+      if (user.kycStatus === 'PENDING') return setSuccess('Your KYC documents are under review. You will be notified by email once approved.')
+      if (user.kycStatus === 'REJECTED') return setError('Your KYC was rejected. Please check email for reason / re-upload with the right documents / contact support at nova.liteltd@gmail.com for assistance.')
       router.push('/dashboard')
     } catch { setError('Server error') } finally { setLoading(false) }
   }
@@ -388,3 +390,4 @@ function TermsContent() {
     </div>
   )
 }
+
