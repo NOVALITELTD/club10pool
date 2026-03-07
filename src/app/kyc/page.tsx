@@ -19,6 +19,13 @@ const FILE_FIELDS: { key: FileField; label: string; desc: string; required: bool
   { key: 'proofOfAddress', label: 'Proof of Address', desc: 'Utility bill or bank statement (last 3 months)', required: true },
 ]
 
+const MAX_PER_FILE = 3 * 1024 * 1024  // 3MB
+const MAX_TOTAL   = 5 * 1024 * 1024  // 5MB
+
+function formatMB(bytes: number) {
+  return (bytes / (1024 * 1024)).toFixed(1) + 'MB'
+}
+
 export default function KYCPage() {
   const router = useRouter()
   const [idType, setIdType] = useState('')
@@ -40,14 +47,26 @@ export default function KYCPage() {
     proofOfAddress: useRef<HTMLInputElement>(null),
   }
 
+  function getTotalSize(currentFiles: Record<FileField, File | null>) {
+    return Object.values(currentFiles).reduce((sum, f) => sum + (f?.size || 0), 0)
+  }
+
   function handleFile(key: FileField, file: File | null) {
     if (!file) return
-    // 10MB limit per file
-    if (file.size > 10 * 1024 * 1024) {
-      setError(`${key}: File must be under 10MB`)
+
+    if (file.size > MAX_PER_FILE) {
+      setError(`"${file.name}" is ${formatMB(file.size)} — each file must be under 3MB.`)
       return
     }
-    setFiles(p => ({ ...p, [key]: file }))
+
+    const updatedFiles = { ...files, [key]: file }
+    const totalSize = getTotalSize(updatedFiles)
+    if (totalSize > MAX_TOTAL) {
+      setError(`Total size would be ${formatMB(totalSize)} — all files combined must be under 5MB. Please use smaller or compressed images.`)
+      return
+    }
+
+    setFiles(updatedFiles)
     const reader = new FileReader()
     reader.onload = e => setPreviews(p => ({ ...p, [key]: e.target?.result as string }))
     reader.readAsDataURL(file)
@@ -62,13 +81,17 @@ export default function KYCPage() {
       if (f.required && !files[f.key]) return setError(`Please upload: ${f.label}`)
     }
 
+    const totalSize = getTotalSize(files)
+    if (totalSize > MAX_TOTAL) {
+      return setError(`Total file size is ${formatMB(totalSize)} — must be under 5MB. Please use smaller or compressed images.`)
+    }
+
     const token = localStorage.getItem('token')
     if (!token) { router.push('/login'); return }
 
     setUploading(true)
 
     try {
-      // Step 1: Upload files to Google Drive via API
       setProgress('Uploading documents to secure storage...')
       const formData = new FormData()
       for (const f of FILE_FIELDS) {
@@ -86,7 +109,6 @@ export default function KYCPage() {
 
       const { urls } = uploadData.data
 
-      // Step 2: Submit KYC record with Drive URLs
       setProgress('Submitting KYC application...')
       const submitRes = await fetch('/api/kyc', {
         method: 'POST',
@@ -103,7 +125,6 @@ export default function KYCPage() {
       const submitData = await submitRes.json()
       if (!submitRes.ok) throw new Error(submitData.error || 'Submission failed')
 
-      // Update local user cache
       const userData = localStorage.getItem('user')
       if (userData) {
         const parsed = JSON.parse(userData)
@@ -129,6 +150,10 @@ export default function KYCPage() {
     fontSize: 10, color: '#64748b', display: 'block', marginBottom: 7,
     letterSpacing: 1.5, textTransform: 'uppercase' as const, fontFamily: "'JetBrains Mono', monospace",
   }
+
+  const totalSize = getTotalSize(files)
+  const totalPct  = Math.min((totalSize / MAX_TOTAL) * 100, 100)
+  const totalColor = totalPct > 90 ? '#ef4444' : totalPct > 70 ? '#f59e0b' : '#00d4aa'
 
   if (success) return (
     <div style={{ minHeight: '100vh', background: '#06080d', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Syne', Georgia, serif" }}>
@@ -194,7 +219,6 @@ export default function KYCPage() {
               <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ width: 24, height: 24, borderRadius: '50%', background: i === 2 ? '#c9a84c' : i < 2 ? 'rgba(0,212,170,0.2)' : 'rgba(255,255,255,0.05)', border: i < 2 ? '1px solid #00d4aa' : i === 2 ? 'none' : '1px solid #1e2530', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: i === 2 ? '#000' : i < 2 ? '#00d4aa' : '#475569', flexShrink: 0 }}>{i < 2 ? '✓' : i + 1}</div>
-                  <span style={{ fontSize: 10, color: i === 2 ? '#c9a84c' : i < 2 ? '#00d4aa' : '#475569', display: 'none' }}>{step}</span>
                 </div>
                 {i < 3 && <div style={{ width: 20, height: 1, background: i < 2 ? 'rgba(0,212,170,0.3)' : '#1e2530' }} />}
               </div>
@@ -221,13 +245,37 @@ export default function KYCPage() {
 
           {/* File uploads */}
           <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 14, padding: 24, marginBottom: 20 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Upload Documents</div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>Accepted formats: JPG, PNG, PDF · Max 10MB per file</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>Upload Documents</div>
+              <div style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
+                Max 3MB per file · 5MB total
+              </div>
+            </div>
+
+            {/* Total size progress bar */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
+                  Accepted formats: JPG, PNG
+                </div>
+                <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: totalColor }}>
+                  {formatMB(totalSize)} / 5.0MB
+                </div>
+              </div>
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${totalPct}%`, background: totalColor, borderRadius: 2, transition: 'width 0.3s, background 0.3s' }} />
+              </div>
+            </div>
 
             <div className="kyc-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {FILE_FIELDS.map(field => (
                 <div key={field.key}>
-                  <label style={labelStyle}>{field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                  <label style={labelStyle}>
+                    {field.label} {field.required && <span style={{ color: '#ef4444' }}>*</span>}
+                    {files[field.key] && (
+                      <span style={{ color: '#475569', marginLeft: 6 }}>({formatMB(files[field.key]!.size)})</span>
+                    )}
+                  </label>
                   <div
                     className="file-drop"
                     onClick={() => refs[field.key].current?.click()}
@@ -248,7 +296,7 @@ export default function KYCPage() {
                     <input
                       ref={refs[field.key]}
                       type="file"
-                      accept="image/jpeg,image/png,image/jpg,application/pdf"
+                      accept="image/jpeg,image/png,image/jpg"
                       style={{ display: 'none' }}
                       onChange={e => handleFile(field.key, e.target.files?.[0] || null)}
                     />
