@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 export const metadata: Metadata = {
   title: 'Nova-Lite Club10 Pool — Investment Pool Manager',
   description: 'Automated investment pool management system',
+  icons: { icon: '/logo.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
