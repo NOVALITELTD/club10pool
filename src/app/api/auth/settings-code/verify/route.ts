@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     // Look up the code (stored with SC- prefix)
     const record = await prisma.$queryRaw<any[]>`
       SELECT * FROM email_verifications
-      WHERE "investorId" = ${payload.id}
+      WHERE "investorId" = ${payload.memberId}
         AND token = ${'SC-' + code}
         AND "expiresAt" > NOW()
         AND "usedAt" IS NULL
@@ -40,3 +40,4 @@ export async function POST(req: NextRequest) {
   }
 
 }
+
