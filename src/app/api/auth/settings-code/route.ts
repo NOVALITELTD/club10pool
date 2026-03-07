@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const payload = verifyToken(auth) as any
     if (!payload || payload.isAdmin) return unauthorized()
 
-    const investor = await prisma.investor.findUnique({ where: { id: payload.id } })
+    const investor = await prisma.investor.findUnique({ where: { id: payload.memberId } })
     if (!investor) return error('Investor not found', 404)
 
     // Generate 6-digit code
@@ -57,3 +57,4 @@ export async function POST(req: NextRequest) {
   }
 
 }
+
