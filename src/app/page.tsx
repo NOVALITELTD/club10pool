@@ -58,7 +58,7 @@ export default function LandingPage() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
-        ::selection { background: rgba(201,168,76,0.3); }
+        ::selection { background: rgba(255, 255, 255, 0.3); }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #06080d; }
         ::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 2px; }
@@ -94,7 +94,7 @@ export default function LandingPage() {
         .pool-card { transition: all 0.3s ease; cursor: default; }
         .pool-card:hover { transform: scale(1.03); }
         .feature-card { transition: all 0.3s ease; }
-        .feature-card:hover { border-color: rgba(201,168,76,0.3) !important; background: rgba(201,168,76,0.03) !important; }
+        .feature-card:hover { border-color: rgba(255, 255, 255, 0.3) !important; background: rgba(201,168,76,0.03) !important; }
         .cta-btn { position: relative; overflow: hidden; transition: all 0.3s ease; }
         .cta-btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); transition: left 0.5s ease; }
         .cta-btn:hover::before { left: 100%; }
@@ -329,7 +329,7 @@ export default function LandingPage() {
           <div className="steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
             {steps.map((step, i) => (
               <div key={i} className={`step-card ${activeStep === i ? 'active' : ''}`} style={{ background: '#080b12', border: '1px solid rgba(201,168,76,0.08)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 20, right: 20, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'rgba(201,168,76,0.3)', fontWeight: 700 }}>{step.num}</div>
+                <div style={{ position: 'absolute', top: 20, right: 20, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'rgba(255, 255, 255, 0.3)', fontWeight: 700 }}>{step.num}</div>
                 <div style={{ fontSize: 28, marginBottom: 16, color: activeStep === i ? '#c9a84c' : '#475569' }}>{step.icon}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: activeStep === i ? '#e2e8f0' : '#94a3b8' }}>{step.title}</div>
                 <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{step.desc}</div>
