@@ -17,8 +17,8 @@ export async function sendVerificationEmail(email: string, name: string, token: 
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0f1117;color:#e2e8f0;border-radius:12px">
         <div style="text-align:center;margin-bottom:24px">
-          <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#a07830);display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#0a0c0f">C</div>
-          <h1 style="font-size:20px;font-weight:800;margin:12px 0 4px">Club10 Pool</h1>
+          <img src="${process.env.NEXTAUTH_URL}/logo.png" alt="Club10 Pool" style="width:48px;height:48px;border-radius:12px;object-fit:contain;display:block;margin:0 auto;" />
+          <h1 style="font-size:20px;font-weight:800;margin:12px 0 4px">Nova-Lite Club10 Pool</h1>
           <p style="color:#94a3b8;font-size:13px;margin:0">Investment Pool Manager</p>
         </div>
         <h2 style="font-size:16px;font-weight:600;margin-bottom:8px">Hi ${name},</h2>
@@ -33,7 +33,14 @@ export async function sendVerificationEmail(email: string, name: string, token: 
     `,
   })
 }
-
+export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+  await transporter.sendMail({
+    from: `"Nova-Lite Club10 Pool" <${process.env.GMAIL_USER}>`,
+    to,
+    subject,
+    html,
+  })
+}
 export async function sendPasswordResetEmail(email: string, name: string, token: string) {
   const url = `${process.env.NEXTAUTH_URL}/reset-password?token=${token}`
   await transporter.sendMail({
@@ -43,8 +50,8 @@ export async function sendPasswordResetEmail(email: string, name: string, token:
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0f1117;color:#e2e8f0;border-radius:12px">
         <div style="text-align:center;margin-bottom:24px">
-          <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#c9a84c,#a07830);display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#0a0c0f">C</div>
-          <h1 style="font-size:20px;font-weight:800;margin:12px 0 4px">Club10 Pool</h1>
+          <img src="${process.env.NEXTAUTH_URL}/logo.png" alt="Club10 Pool" style="width:48px;height:48px;border-radius:12px;object-fit:contain;display:block;margin:0 auto;" />
+          <h1 style="font-size:20px;font-weight:800;margin:12px 0 4px">Nova-Lite Club10 Pool</h1>
         </div>
         <h2 style="font-size:16px;font-weight:600;margin-bottom:8px">Hi ${name},</h2>
         <p style="color:#94a3b8;font-size:14px;line-height:1.6">We received a request to reset your password.</p>
