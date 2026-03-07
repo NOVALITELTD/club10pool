@@ -87,7 +87,6 @@ export default function LoginPage() {
         body { background: #06080d; }
         input:focus { border-color: rgba(201,168,76,0.4) !important; }
         input::placeholder { color: #334155; }
-        select:focus { border-color: rgba(201,168,76,0.4) !important; outline: none; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
         .fade-in { animation: fadeIn 0.4s ease forwards; }
@@ -97,21 +96,35 @@ export default function LoginPage() {
         ::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 2px; }
         .terms-link { color: #c9a84c; text-decoration: underline; cursor: pointer; background: none; border: none; font-size: 13px; font-family: 'Syne', Georgia, serif; padding: 0; }
         .terms-link:hover { color: #f0d080; }
-        .checkbox-wrap { display: flex; align-items: flex-start; gap: 10; cursor: pointer; }
+        .checkbox-wrap { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
         .custom-checkbox { width: 18px; height: 18px; border: 1.5px solid rgba(201,168,76,0.3); border-radius: 4px; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; transition: all 0.2s; cursor: pointer; }
         .custom-checkbox.checked { background: #c9a84c; border-color: #c9a84c; }
+
+        .left-panel { display: flex !important; }
+        .mobile-logo { display: none !important; }
+
+        @media (max-width: 768px) {
+          .left-panel { display: none !important; }
+          .right-panel {
+            width: 100% !important;
+            padding: 40px 24px !important;
+            min-height: 100vh;
+          }
+          .mobile-logo { display: flex !important; }
+          .login-root { flex-direction: column !important; }
+        }
       `}</style>
 
-      {/* Background */}
-      <div style={{ minHeight: '100vh', background: '#06080d', display: 'flex', fontFamily: "'Syne', Georgia, serif", position: 'relative', overflow: 'hidden' }}>
+      <div className="login-root" style={{ minHeight: '100vh', background: '#06080d', display: 'flex', fontFamily: "'Syne', Georgia, serif" }}>
 
-        {/* Left panel — branding */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 80px', position: 'relative', borderRight: '1px solid rgba(201,168,76,0.08)' }}>
+        {/* LEFT PANEL — hidden on mobile */}
+        <div className="left-panel" style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: '60px 80px', position: 'relative', borderRight: '1px solid rgba(201,168,76,0.08)' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(201,168,76,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.025) 1px, transparent 1px)', backgroundSize: '50px 50px', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', top: '30%', left: '20%', width: 300, height: 300, background: 'radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
 
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 64, textDecoration: 'none', position: 'relative', zIndex: 1 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#c9a84c,#8b5e1a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 20, color: '#fff' }}>C</div>
+            <img src="/logo.png" alt="Nova-Lite" style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'contain' }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0', letterSpacing: 0.5 }}>NOVA-LITE</div>
               <div style={{ fontSize: 9, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace" }}>CLUB10 POOL</div>
@@ -126,7 +139,6 @@ export default function LoginPage() {
             <p style={{ color: '#64748b', fontSize: 15, lineHeight: 1.7, marginBottom: 40 }}>
               Join Nova-Lite Club10 Pool — a transparent community forex trading pool with proportional profits, real-time MT4 monitoring and monthly withdrawals.
             </p>
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
                 { icon: '◎', text: 'Complete KYC verification & security' },
@@ -141,16 +153,25 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-
           <div style={{ position: 'absolute', bottom: 40, left: 80, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#334155' }}>
             Built on Transparency. Driven by Integrity.
           </div>
         </div>
 
-        {/* Right panel — form */}
-        <div style={{ width: 480, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 48px', flexShrink: 0 }}>
-          <div className="fade-in">
+        {/* RIGHT PANEL */}
+        <div className="right-panel" style={{ width: 480, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 48px', flexShrink: 0 }}>
 
+          {/* Mobile-only logo */}
+          <div className="mobile-logo" style={{ alignItems: 'center', gap: 12, marginBottom: 32, justifyContent: 'center' }}>
+            <img src="/logo.png" alt="Nova-Lite" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain' }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0', letterSpacing: 0.5 }}>NOVA-LITE</div>
+              <div style={{ fontSize: 9, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace" }}>CLUB10 POOL</div>
+            </div>
+          </div>
+
+          <div className="fade-in">
             {tab !== 'forgot' && (
               <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 4, marginBottom: 32, border: '1px solid rgba(201,168,76,0.1)' }}>
                 {(['login', 'register'] as const).map(t => (
@@ -191,7 +212,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* LOGIN FORM */}
+            {/* LOGIN */}
             {tab === 'login' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                 <div>
@@ -211,7 +232,7 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* REGISTER FORM */}
+            {/* REGISTER */}
             {tab === 'register' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
@@ -230,8 +251,6 @@ export default function LoginPage() {
                   <label style={labelStyle}>Password</label>
                   <input type="password" style={inputStyle} value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Minimum 8 characters" />
                 </div>
-
-                {/* Terms & Conditions checkbox */}
                 <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10, padding: '14px 16px' }}>
                   <div className="checkbox-wrap" onClick={() => setAgreedToTerms(p => !p)}>
                     <div className={`custom-checkbox ${agreedToTerms ? 'checked' : ''}`}>
@@ -239,25 +258,20 @@ export default function LoginPage() {
                     </div>
                     <span style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5, userSelect: 'none' }}>
                       I have read and agree to the{' '}
-                      <button className="terms-link" onClick={e => { e.stopPropagation(); setShowTerms(true) }}>
-                        Terms & Conditions
-                      </button>
+                      <button className="terms-link" onClick={e => { e.stopPropagation(); setShowTerms(true) }}>Terms & Conditions</button>
                       {' '}and{' '}
-                      <button className="terms-link" onClick={e => { e.stopPropagation(); setShowTerms(true) }}>
-                        Club10 Pool Agreement
-                      </button>
+                      <button className="terms-link" onClick={e => { e.stopPropagation(); setShowTerms(true) }}>Club10 Pool Agreement</button>
                       . I understand that forex trading involves risk and profits are not guaranteed.
                     </span>
                   </div>
                 </div>
-
                 <button onClick={handleRegister} disabled={loading || !agreedToTerms} style={{ width: '100%', background: agreedToTerms ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: agreedToTerms ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: loading || !agreedToTerms ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.3s' }}>
                   {loading ? 'Creating Account...' : 'Create Account →'}
                 </button>
               </div>
             )}
 
-            {/* FORGOT PASSWORD */}
+            {/* FORGOT */}
             {tab === 'forgot' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                 <div>
@@ -280,26 +294,20 @@ export default function LoginPage() {
 
       {/* TERMS MODAL */}
       {showTerms && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowTerms(false)}>
-          <div className="modal-in" onClick={e => e.stopPropagation()} style={{ background: '#0d1117', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, maxWidth: 680, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-            {/* Modal header */}
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowTerms(false)}>
+          <div className="modal-in" onClick={e => e.stopPropagation()} style={{ background: '#0d1117', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, maxWidth: 680, width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: 18, color: '#e2e8f0' }}>Terms & Conditions</div>
-                <div style={{ fontSize: 11, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2, marginTop: 2 }}>CLUB10 POOL AGREEMENT</div>
+                <div style={{ fontWeight: 800, fontSize: 17, color: '#e2e8f0' }}>Terms & Conditions</div>
+                <div style={{ fontSize: 10, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2, marginTop: 2 }}>CLUB10 POOL AGREEMENT</div>
               </div>
               <button onClick={() => setShowTerms(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 36, height: 36, cursor: 'pointer', color: '#94a3b8', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
-
-            {/* Modal content */}
-            <div style={{ overflowY: 'auto', padding: '28px 32px', flex: 1 }}>
+            <div style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
               <TermsContent />
             </div>
-
-            {/* Modal footer */}
-            <div style={{ padding: '20px 32px', borderTop: '1px solid rgba(201,168,76,0.1)', display: 'flex', gap: 12, flexShrink: 0 }}>
-              <button onClick={() => { setAgreedToTerms(true); setShowTerms(false) }} style={{ flex: 1, background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: "'Syne', Georgia, serif" }}>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(201,168,76,0.1)', display: 'flex', gap: 12, flexShrink: 0, flexWrap: 'wrap' }}>
+              <button onClick={() => { setAgreedToTerms(true); setShowTerms(false) }} style={{ flex: 1, minWidth: 160, background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 8, padding: '12px', fontWeight: 800, fontSize: 13, cursor: 'pointer', fontFamily: "'Syne', Georgia, serif" }}>
                 ✓ I Agree to These Terms
               </button>
               <button onClick={() => setShowTerms(false)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b', borderRadius: 8, padding: '12px 20px', fontSize: 13, cursor: 'pointer', fontFamily: "'Syne', Georgia, serif" }}>
@@ -318,47 +326,43 @@ function TermsContent() {
     h2: { fontSize: 15, fontWeight: 700, color: '#c9a84c', marginBottom: 10, marginTop: 28, letterSpacing: 0.5 } as React.CSSProperties,
     p: { fontSize: 13, color: '#94a3b8', lineHeight: 1.8, marginBottom: 12 } as React.CSSProperties,
     li: { fontSize: 13, color: '#94a3b8', lineHeight: 1.8, marginBottom: 6, paddingLeft: 16, position: 'relative' as const },
-    badge: { display: 'inline-block', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 4, padding: '2px 8px', fontSize: 10, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", letterSpacing: 1, marginRight: 8 },
   }
-
   return (
     <div style={{ fontFamily: "'Syne', Georgia, serif" }}>
       <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '14px 18px', marginBottom: 24 }}>
         <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>⚠ Risk Warning</div>
         <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>Forex trading involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. Only invest funds you can afford to lose entirely.</div>
       </div>
-
       <div style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace", marginBottom: 20 }}>Last Updated: January 2025 · Nova-Lite Ltd</div>
 
       <h2 style={s.h2}>1. Introduction & Acceptance</h2>
       <p style={s.p}>By registering an account and joining Nova-Lite Club10 Pool, you ("Member") confirm that you have read, understood, and agreed to be bound by these Terms & Conditions and the Club10 Pool Agreement. If you do not agree, do not register or participate.</p>
 
       <h2 style={s.h2}>2. About Nova-Lite Club10 Pool</h2>
-      <p style={s.p}>Nova-Lite Club10 Pool is a community-driven capital pooling system that combines member contributions into a shared forex trading account. The system operates on principles of full transparency, proportional profit distribution, and strict risk management.</p>
-      <p style={s.p}>Nova-Lite Ltd manages trading operations under a defined risk management framework. Members do not directly control trading activity but retain real-time read-only monitoring access via MT4 investor login.</p>
+      <p style={s.p}>Nova-Lite Club10 Pool is a community-driven capital pooling system that combines member contributions into a shared forex trading account, operating on principles of full transparency, proportional profit distribution, and strict risk management. Members retain real-time read-only monitoring access via MT4 investor login.</p>
 
       <h2 style={s.h2}>3. Eligibility & Verification</h2>
       <p style={s.p}>To participate in Club10 Pool you must:</p>
       <ul style={{ paddingLeft: 0, listStyle: 'none', marginBottom: 16 }}>
-        {['Be at least 18 years of age', 'Complete email verification', 'Pass KYC (Know Your Customer) identity verification', 'Provide accurate and truthful personal information', 'Not be subject to any legal restriction preventing investment participation'].map(item => (
+        {['Be at least 18 years of age', 'Complete email verification', 'Pass KYC identity verification', 'Provide accurate and truthful personal information', 'Not be subject to any legal restriction preventing investment participation'].map(item => (
           <li key={item} style={s.li}><span style={{ color: '#c9a84c', marginRight: 8 }}>◆</span>{item}</li>
         ))}
       </ul>
 
       <h2 style={s.h2}>4. Batch Pool Participation</h2>
-      <p style={s.p}>Members join a specific batch pool cycle. Each batch has a defined target capital amount. Once a batch reaches its target, it closes and funds are deployed to a dedicated trading account. Members cannot withdraw during an active trading cycle except at designated month-end periods.</p>
+      <p style={s.p}>Members join a specific batch pool cycle. Once a batch reaches its target, it closes and funds are deployed to a dedicated trading account. Members cannot withdraw during an active trading cycle except at designated month-end periods.</p>
 
       <h2 style={s.h2}>5. Profit Distribution</h2>
-      <p style={s.p}>Profits generated by the pool are distributed proportionally based on each member's contribution share of the total pool capital. Distribution occurs at the end of each monthly trading cycle after platform fees (if applicable) are deducted. Profit calculations are transparent and verifiable.</p>
+      <p style={s.p}>Profits are distributed proportionally based on each member's contribution share of the total pool capital. Distribution occurs at the end of each monthly trading cycle after applicable fees are deducted.</p>
 
       <h2 style={s.h2}>6. Risk Management & Equity Protection</h2>
-      <p style={s.p}>A strict 50% equity hard cap is enforced across all trading accounts. This means trading will be suspended if drawdown reaches 50% of pool equity, protecting the remaining capital. Despite this protection, losses remain possible and capital is never fully guaranteed.</p>
+      <p style={s.p}>A strict 50% equity hard cap is enforced across all trading accounts. Trading will be suspended if drawdown reaches 50% of pool equity. Despite this protection, losses remain possible and capital is never fully guaranteed.</p>
 
       <h2 style={s.h2}>7. Withdrawals</h2>
-      <p style={s.p}>Members may request withdrawals at the end of any trading month with zero penalties. Withdrawal options include: profits only, full capital contribution, or continued participation. Withdrawals are processed within the timeframe specified by Nova-Lite administration.</p>
+      <p style={s.p}>Members may request withdrawals at the end of any trading month with zero penalties. Options include: profits only, full capital contribution, or continued participation into the next cycle.</p>
 
-      <h2 style={s.h2}>8. MT4 Investor Access & Transparency</h2>
-      <p style={s.p}>Upon batch activation, members receive MT4 investor login credentials providing real-time read-only access to the trading account. This access is provided solely for monitoring purposes. Members must not share, misuse, or attempt to interfere with trading operations through this access.</p>
+      <h2 style={s.h2}>8. MT4 Investor Access</h2>
+      <p style={s.p}>Upon batch activation, members receive MT4 investor login credentials providing real-time read-only access. Members must not share, misuse, or attempt to interfere with trading operations through this access.</p>
 
       <h2 style={s.h2}>9. Risk Acknowledgement</h2>
       <p style={s.p}>By agreeing to these terms, you explicitly acknowledge that:</p>
@@ -371,16 +375,10 @@ function TermsContent() {
       <h2 style={s.h2}>10. Member Obligations</h2>
       <p style={s.p}>Members agree to provide accurate information, maintain account security, not engage in fraudulent activity, comply with all applicable laws, and not attempt to manipulate pool operations or other members.</p>
 
-      <h2 style={s.h2}>11. Privacy & Data</h2>
-      <p style={s.p}>Nova-Lite Ltd collects KYC and personal information to comply with verification requirements. This data is stored securely and not shared with third parties except as required by law. By registering, you consent to this data collection and processing.</p>
+      <h2 style={s.h2}>11. Limitation of Liability</h2>
+      <p style={s.p}>Nova-Lite Ltd's liability to any member is limited to the amount of capital contributed to the pool. Nova-Lite Ltd is not liable for trading losses, market conditions, technical failures, or any indirect or consequential damages.</p>
 
-      <h2 style={s.h2}>12. Limitation of Liability</h2>
-      <p style={s.p}>Nova-Lite Ltd's liability to any member is limited to the amount of capital contributed to the pool. Nova-Lite Ltd is not liable for trading losses, market conditions, technical failures, or any indirect or consequential damages arising from participation.</p>
-
-      <h2 style={s.h2}>13. Amendments</h2>
-      <p style={s.p}>Nova-Lite Ltd reserves the right to amend these terms at any time. Members will be notified of material changes. Continued participation after notification constitutes acceptance of the amended terms.</p>
-
-      <h2 style={s.h2}>14. Governing Law</h2>
+      <h2 style={s.h2}>12. Governing Law</h2>
       <p style={s.p}>These terms are governed by the laws of the Federal Republic of Nigeria. Any disputes shall be resolved through the appropriate legal channels in Nigeria.</p>
 
       <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '16px 18px', marginTop: 24 }}>
