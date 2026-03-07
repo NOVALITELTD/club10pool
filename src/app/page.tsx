@@ -204,7 +204,7 @@ export default function LandingPage() {
 
       {/* TICKER */}
       <div style={{ position: 'fixed', top: 72, left: 0, right: 0, zIndex: 99, background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.1)', padding: '6px 0', overflow: 'hidden' }}>
-        <div className="ticker-inner" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#c9a84c', letterSpacing: 1 }}>
+        <div className="ticker-inner" style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#c9a84c', letterSpacing: 1 }}>
           {Array(4).fill(null).map((_, i) => (
             <span key={i} style={{ display: 'inline-flex', gap: 60, paddingRight: 60 }}>
               <span>EUR/USD +0.42%</span><span>•</span><span>GBP/USD +0.18%</span><span>•</span>
@@ -229,7 +229,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1, width: '100%' }}>
           <div className="fade-up" style={{ animationDelay: '0.1s', opacity: 0, display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 20, padding: '6px 16px', marginBottom: 32 }}>
             <div style={{ width: 6, height: 6, background: '#00d4aa', borderRadius: '50%', boxShadow: '0 0 8px #00d4aa' }} />
-            <span style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace" }}>COMMUNITY FOREX POOL — EST. NIGERIA</span>
+            <span style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace" }}>COMMUNITY FOREX POOL — EST. NIGERIA</span>
           </div>
 
           <h1 className="hero-title fade-up" style={{ animationDelay: '0.2s', opacity: 0, fontSize: 72, fontWeight: 800, lineHeight: 1.05, marginBottom: 24, letterSpacing: -2 }}>
@@ -258,7 +258,7 @@ export default function LandingPage() {
             ].map((s, i) => (
               <div key={i} style={{ background: 'rgba(6,8,13,0.8)', padding: '28px 20px', textAlign: 'center' }}>
                 <div style={{ fontSize: 36, fontWeight: 800, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>{s.val}</div>
-                <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 14, color: '#64748b', letterSpacing: 1 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -270,7 +270,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div className="what-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 4, marginBottom: 16, fontFamily: "'JetBrains Mono', monospace" }}>WHAT IS CLUB10 POOL</div>
+              <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 16, fontFamily: "'JetBrains Mono', monospace" }}>WHAT IS CLUB10 POOL</div>
               <h2 style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.1, marginBottom: 24, letterSpacing: -1 }}>
                 Collective Equity.<br />
                 <span style={{ color: '#c9a84c' }}>Individual Gains.</span>
@@ -292,7 +292,7 @@ export default function LandingPage() {
             </div>
 
             <div className="sim-card" style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(0,212,170,0.04))', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 20, padding: 36 }}>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#c9a84c', marginBottom: 20, letterSpacing: 2 }}>LIVE POOL SIMULATION</div>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#c9a84c', marginBottom: 20, letterSpacing: 2 }}>LIVE POOL SIMULATION</div>
               {[
                 { member: 'Member A', amount: '$1,000', share: '20%', profit: '+$48.20' },
                 { member: 'Member B', amount: '$2,500', share: '50%', profit: '+$120.50' },
@@ -300,17 +300,17 @@ export default function LandingPage() {
               ].map((m, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < 2 ? '1px solid rgba(201,168,76,0.08)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `rgba(201,168,76,${0.2 + i * 0.1})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#c9a84c', flexShrink: 0 }}>{i + 1}</div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `rgba(201,168,76,${0.2 + i * 0.1})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#c9a84c', flexShrink: 0 }}>{i + 1}</div>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 600 }}>{m.member}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>{m.amount} · {m.share}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{m.amount} · {m.share}</div>
                     </div>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#00d4aa', fontFamily: "'JetBrains Mono', monospace" }}>{m.profit}</div>
                 </div>
               ))}
               <div style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(201,168,76,0.06)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>Total Pool Profit (Month)</span>
+                <span style={{ fontSize: 14, color: '#64748b' }}>Total Pool Profit (Month)</span>
                 <span style={{ fontSize: 14, fontWeight: 800, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace" }}>+$241.00 (+4.82%)</span>
               </div>
             </div>
@@ -322,14 +322,14 @@ export default function LandingPage() {
       <section id="how-it-works" className="section-pad grid-bg" style={{ padding: '100px 40px', background: '#06080d' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>THE PROCESS</div>
+            <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>THE PROCESS</div>
             <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>How It Works</h2>
             <p style={{ color: '#64748b', fontSize: 15, maxWidth: 500, margin: '0 auto' }}>Six simple steps from registration to profit withdrawal.</p>
           </div>
           <div className="steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
             {steps.map((step, i) => (
               <div key={i} className={`step-card ${activeStep === i ? 'active' : ''}`} style={{ background: '#080b12', border: '1px solid rgba(201,168,76,0.08)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 20, right: 20, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'rgba(255, 255, 255, 0.3)', fontWeight: 700 }}>{step.num}</div>
+                <div style={{ position: 'absolute', top: 20, right: 20, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'rgba(255, 255, 255, 0.3)', fontWeight: 700 }}>{step.num}</div>
                 <div style={{ fontSize: 28, marginBottom: 16, color: activeStep === i ? '#c9a84c' : '#475569' }}>{step.icon}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: activeStep === i ? '#e2e8f0' : '#94a3b8' }}>{step.title}</div>
                 <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{step.desc}</div>
@@ -344,7 +344,7 @@ export default function LandingPage() {
       <section id="pool-sizes" className="section-pad" style={{ padding: '100px 40px', background: '#080b12' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>AVAILABLE POOLS</div>
+            <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>AVAILABLE POOLS</div>
             <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>Choose Your Pool</h2>
             <p style={{ color: '#64748b', fontSize: 15, maxWidth: 500, margin: '0 auto' }}>Join the pool that matches your investment level. All pools operate under the same transparent rules.</p>
           </div>
@@ -352,12 +352,12 @@ export default function LandingPage() {
             {pools.map((pool, i) => (
               <div key={i} className="pool-card hover-lift" style={{ background: '#06080d', border: `1px solid ${pool.color}22`, borderRadius: 20, padding: 32, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${pool.color}, transparent)` }} />
-                <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 3, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>{pool.desc.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 3, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>{pool.desc.toUpperCase()}</div>
                 <div style={{ fontSize: 52, fontWeight: 800, color: pool.color, fontFamily: "'JetBrains Mono', monospace", marginBottom: 8, letterSpacing: -2 }}>{pool.size}</div>
-                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 24 }}>Target pool size</div>
+                <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>Target pool size</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
                   {['Up to 10 members', 'Proportional profits', 'MT4 investor access', 'Monthly withdrawal'].map(f => (
-                    <div key={f} style={{ fontSize: 12, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                    <div key={f} style={{ fontSize: 14, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
                       <span style={{ color: pool.color, fontSize: 10 }}>◆</span> {f}
                     </div>
                   ))}
@@ -375,7 +375,7 @@ export default function LandingPage() {
       <section id="features" className="section-pad grid-bg" style={{ padding: '100px 40px', background: '#06080d' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>WHY CLUB10 POOL</div>
+            <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>WHY CLUB10 POOL</div>
             <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>Built on Transparency</h2>
             <p style={{ color: '#64748b', fontSize: 15, maxWidth: 500, margin: '0 auto' }}>Every feature exists to protect members and ensure a fair, accountable system.</p>
           </div>
@@ -395,7 +395,7 @@ export default function LandingPage() {
       <section id="faq" className="section-pad" style={{ padding: '100px 40px', background: '#080b12' }}>
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
-            <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>COMMON QUESTIONS</div>
+            <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>COMMON QUESTIONS</div>
             <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1 }}>FAQ</h2>
           </div>
           <FAQSection />
@@ -406,7 +406,7 @@ export default function LandingPage() {
       <section className="section-pad" style={{ padding: '100px 40px', background: 'linear-gradient(135deg, #0a0c10, #0d1117)', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 4, marginBottom: 20, fontFamily: "'JetBrains Mono', monospace" }}>JOIN THE POOL TODAY</div>
+          <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 20, fontFamily: "'JetBrains Mono', monospace" }}>JOIN THE POOL TODAY</div>
           <h2 className="cta-heading" style={{ fontSize: 52, fontWeight: 800, letterSpacing: -1, marginBottom: 20, lineHeight: 1.1 }}>
             Ready to Trade<br />
             <span style={{ color: '#c9a84c', fontFamily: "'DM Serif Display', Georgia, serif", fontStyle: 'italic' }}>Bigger Together?</span>
@@ -433,7 +433,7 @@ export default function LandingPage() {
               <img src="/logo.png" alt="Nova-Lite" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
               <span style={{ fontWeight: 700, fontSize: 13 }}>Nova-Lite Club10 Pool</span>
             </div>
-            <div style={{ fontSize: 12, color: '#475569' }}>Built on Transparency. Driven by Integrity.</div>
+            <div style={{ fontSize: 14, color: '#ffffff' }}>Built on Transparency. Driven by Integrity.</div>
           </div>
           <div className="footer-links" style={{ display: 'flex', gap: 24 }}>
             {[
@@ -441,14 +441,14 @@ export default function LandingPage() {
               { label: 'Terms & Conditions', key: 'terms' as ModalType },
               { label: 'Contact Support', key: 'contact' as ModalType },
             ].map(link => (
-              <button key={link.label} onClick={() => setModal(link.key)} style={{ background: 'none', border: 'none', fontSize: 12, color: '#475569', cursor: 'pointer', padding: 0, transition: 'color 0.2s', fontFamily: 'inherit' }} className="nav-link">{link.label}</button>
+              <button key={link.label} onClick={() => setModal(link.key)} style={{ background: 'none', border: 'none', fontSize: 14, color: '#ffffff', cursor: 'pointer', padding: 0, transition: 'color 0.2s', fontFamily: 'inherit' }} className="nav-link">{link.label}</button>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontSize: 12, color: '#ffffff', fontFamily: "'JetBrains Mono', monospace" }}>
             © 2025 Nova-Lite Ltd. All rights reserved.
           </div>
         </div>
-        <div style={{ maxWidth: 1100, margin: '24px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.04)', fontSize: 11, color: '#334155', lineHeight: 1.7 }}>
+        <div style={{ maxWidth: 1100, margin: '24px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.04)', fontSize: 12, color: '#ffffff', lineHeight: 1.7 }}>
           ⚠ Risk Disclaimer: Forex trading involves substantial risk of loss. Past performance is not indicative of future results. Nova-Lite Club10 Pool is a community investment vehicle — profits are not guaranteed. Only invest what you can afford to lose.
         </div>
       </footer>
@@ -607,16 +607,16 @@ function ContactContent() {
           <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'flex-start', gap: 16, background: '#080b12', border: `1px solid ${item.color}22`, borderRadius: 12, padding: '18px 20px', textDecoration: 'none', transition: 'border-color 0.2s' }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: `${item.color}18`, border: `1px solid ${item.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
             <div>
-              <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 2, marginBottom: 4, fontFamily: "'JetBrains Mono', monospace" }}>{item.label.toUpperCase()}</div>
+              <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 2, marginBottom: 4, fontFamily: "'JetBrains Mono', monospace" }}>{item.label.toUpperCase()}</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: item.color, marginBottom: 4 }}>{item.value}</div>
-              <div style={{ fontSize: 12, color: '#475569' }}>{item.sub}</div>
+              <div style={{ fontSize: 14, color: '#475569' }}>{item.sub}</div>
             </div>
           </a>
         ))}
       </div>
 
       <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.1)', borderRadius: 10 }}>
-        <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7 }}>
+        <div style={{ fontSize: 14, color: '#ffffff', lineHeight: 1.7 }}>
           🕐 <strong style={{ color: '#94a3b8' }}>Support hours:</strong> Monday – Saturday, 9:00 AM – 6:00 PM (WAT). We aim to respond to all inquiries within one business day.
         </div>
       </div>
