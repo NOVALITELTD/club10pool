@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = req.headers.get('authorization')?.replace('Bearer ', '')
     if (!auth) return unauthorized()
-    const payload = verifyToken(auth)
+    const payload = verifyToken(auth) as any
     if (!payload || payload.isAdmin) return unauthorized()
 
     const { code } = await req.json()
@@ -38,4 +38,5 @@ export async function POST(req: NextRequest) {
     console.error(err)
     return error('Verification failed')
   }
+
 }
