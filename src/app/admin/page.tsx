@@ -74,29 +74,16 @@ export default function AdminDashboard() {
     grid4: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 },
     grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
     tag: (color: string) => ({ display: 'inline-block', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: `${color}22`, color, border: `1px solid ${color}44` }),
-    btn: (variant: 'primary' | 'danger' | 'ghost' = 'primary'): React.CSSProperties => {
-  return {
-    padding: '8px 18px',
-    borderRadius: 8,
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: 600,
-    fontFamily: "'DM Mono', 'Courier New', monospace",
-    background:
-      variant === 'primary'
-        ? '#c9a84c'
-        : variant === 'danger'
-        ? '#ef4444'
-        : 'transparent',
-    color:
-      variant === 'primary'
-        ? '#000'
-        : variant === 'danger'
-        ? '#fff'
-        : '#64748b',
-    border: variant === 'ghost' ? '1px solid #1e2530' : 'none',
-  }
-},
+    btn: (variant: 'primary' | 'danger' | 'ghost' = 'primary') => ({
+  padding: '10px 20px',
+  borderRadius: 8,
+  cursor: 'pointer',
+  fontSize: 13,
+  fontWeight: 600,
+  background: variant === 'primary' ? '#00d4aa' : variant === 'danger' ? '#ef4444' : 'transparent',
+  color: variant === 'primary' ? '#000' : variant === 'danger' ? '#fff' : '#64748b',
+  border: variant === 'ghost' ? '1px solid #1e2530' : 'none'
+}),
     table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: 13 },
     th: { textAlign: 'left' as const, padding: '10px 14px', color: '#64748b', borderBottom: '1px solid #1e2530', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase' as const },
     td: { padding: '12px 14px', borderBottom: '1px solid #0f1520', verticalAlign: 'middle' as const },
@@ -605,6 +592,7 @@ function AuditSection({ token, s }: any) {
     </div>
   )
 }
+
 
 
 
