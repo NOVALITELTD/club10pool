@@ -107,7 +107,9 @@ export async function PATCH(req: NextRequest) {
 
     // Send rejection email
     if (action === 'reject') {
-      const resubmitUrl = `${baseUrl}/kyc`
+      const { signToken } = await import('@/lib/auth')
+      const resubmitToken = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
+      const resubmitUrl = `${baseUrl}/kyc?token=${resubmitToken}`
       const reason = adminNotes || 'Your documents did not meet our verification requirements.'
 
       await sendEmail({
@@ -173,3 +175,4 @@ export async function PATCH(req: NextRequest) {
     return error('Server error', 500)
   }
 }
+
