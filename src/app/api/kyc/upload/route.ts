@@ -1,80 +1,34 @@
 import { NextRequest } from 'next/server'
-import { google } from 'googleapis'
-import { Readable } from 'stream'
+import { v2 as cloudinary } from 'cloudinary'
 import { verifyToken } from '@/lib/auth'
 import { ok, error, unauthorized } from '@/lib/api'
 
-const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID!
-const SERVICE_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL!
-const PRIVATE_KEY = (process.env.GOOGLE_PRIVATE_KEY || '').replace(/\\n/g, '\n')
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+})
 
-function getDriveClient() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: SERVICE_EMAIL,
-      private_key: PRIVATE_KEY,
-    },
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  })
-  return google.drive({ version: 'v3', auth })
-}
-
-async function getOrCreateSubfolder(drive: any, investorId: string): Promise<string> {
-  // Check if subfolder already exists
-  const res = await drive.files.list({
-    q: `'${FOLDER_ID}' in parents and name='${investorId}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    fields: 'files(id, name)',
-  })
-
-  if (res.data.files && res.data.files.length > 0) {
-    return res.data.files[0].id
-  }
-
-  // Create subfolder
-  const folder = await drive.files.create({
-    requestBody: {
-      name: investorId,
-      mimeType: 'application/vnd.google-apps.folder',
-      parents: [FOLDER_ID],
-    },
-    fields: 'id',
-  })
-
-  return folder.data.id
-}
-
-async function uploadFileToDrive(
-  drive: any,
-  folderId: string,
-  fileName: string,
+async function uploadToCloudinary(
   buffer: Buffer,
-  mimeType: string
+  fileName: string,
+  investorId: string
 ): Promise<string> {
-  const stream = Readable.from(buffer)
-
-  const file = await drive.files.create({
-    requestBody: {
-      name: fileName,
-      parents: [folderId],
-    },
-    media: {
-      mimeType,
-      body: stream,
-    },
-    fields: 'id, webViewLink',
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `club10-kyc/${investorId}`,
+        public_id: fileName,
+        resource_type: 'auto',
+        access_mode: 'authenticated',
+      },
+      (error, result) => {
+        if (error) return reject(error)
+        resolve(result!.secure_url)
+      }
+    )
+    uploadStream.end(buffer)
   })
-
-  // Make file publicly viewable (anyone with link)
-  await drive.permissions.create({
-    fileId: file.data.id,
-    requestBody: {
-      role: 'reader',
-      type: 'anyone',
-    },
-  })
-
-  // Return direct view link
-  return `https://drive.google.com/file/d/${file.data.id}/view`
 }
 
 export async function POST(req: NextRequest) {
@@ -87,14 +41,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const investorId = payload.id
 
-    const drive = getDriveClient()
-
-    // Get or create investor subfolder
-    const subFolderId = await getOrCreateSubfolder(drive, investorId)
-
-    const results: Record<string, string> = {}
-
     const fileFields = ['idFront', 'idBack', 'passportPhoto', 'proofOfAddress']
+    const results: Record<string, string> = {}
 
     for (const field of fileFields) {
       const file = formData.get(field) as File | null
@@ -104,14 +52,13 @@ export async function POST(req: NextRequest) {
       const ext = file.name.split('.').pop() || 'jpg'
       const fileName = `${field}.${ext}`
 
-      const url = await uploadFileToDrive(drive, subFolderId, fileName, buffer, file.type)
+      const url = await uploadToCloudinary(buffer, fileName, investorId)
       results[field] = url
     }
 
     return ok({ urls: results })
   } catch (err: any) {
-    console.error('Drive upload error:', err)
+    console.error('Cloudinary upload error:', err)
     return error(err.message || 'Upload failed')
   }
-
 }
