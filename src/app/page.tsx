@@ -108,7 +108,7 @@ export default function LandingPage() {
         /* MOBILE */
         @media (max-width: 768px) {
           .hero-title { font-size: 42px !important; letter-spacing: -1px !important; }
-          .hero-sub { font-size: 15px !important; }
+          .hero-sub { font-size: 17px !important; }
           .hide-mobile { display: none !important; }
           .pools-grid { grid-template-columns: 1fr 1fr !important; }
           .features-grid { grid-template-columns: 1fr !important; }
@@ -145,7 +145,7 @@ export default function LandingPage() {
                 <div style={{ fontSize: 10, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace", marginBottom: 4 }}>
                   {modal === 'terms' ? 'LEGAL' : modal === 'privacy' ? 'LEGAL' : 'SUPPORT'}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
                   {modal === 'terms' ? 'Terms & Conditions' : modal === 'privacy' ? 'Privacy Policy' : 'Contact Support'}
                 </div>
               </div>
@@ -173,20 +173,20 @@ export default function LandingPage() {
             <img src="/logo.png" alt="Nova-Lite" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling!.removeAttribute('style') }} />
             <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#c9a84c,#8b5e1a)', display: 'none', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18, color: '#fff' }}>C</div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 14, letterSpacing: 1 }}>NOVA-LITE</div>
+              <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: 1, color: '#e2e8f0' }}>NOVA-LITE</div>
               <div style={{ fontSize: 10, color: '#c9a84c', letterSpacing: 3, marginTop: -2 }}>CLUB10 POOL</div>
             </div>
           </div>
 
           <div className="hide-mobile" style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
             {['How It Works', 'Pool Sizes', 'Features', 'FAQ'].map(item => (
-              <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} className="nav-link" style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'none', letterSpacing: 0.5 }}>{item}</a>
+              <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} className="nav-link" style={{ fontSize: 14, color: '#c8d4e0', textDecoration: 'none', letterSpacing: 0.5 }}>{item}</a>
             ))}
           </div>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Link href="/login" style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'none', padding: '8px 18px', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, transition: 'all 0.2s' }} className="nav-link hide-mobile">Sign In</Link>
-            <Link href="/login" className="cta-btn" style={{ fontSize: 13, fontWeight: 700, color: '#000', background: 'linear-gradient(135deg,#c9a84c,#a07830)', padding: '8px 20px', borderRadius: 8, textDecoration: 'none', display: 'block' }}>Join Pool</Link>
+            <Link href="/login" style={{ fontSize: 14, color: '#c8d4e0', textDecoration: 'none', padding: '8px 18px', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, transition: 'all 0.2s' }} className="nav-link hide-mobile">Sign In</Link>
+            <Link href="/login" className="cta-btn" style={{ fontSize: 14, fontWeight: 700, color: '#000', background: 'linear-gradient(135deg,#c9a84c,#a07830)', padding: '8px 20px', borderRadius: 8, textDecoration: 'none', display: 'block' }}>Join Pool</Link>
             <button className="hide-desktop" onClick={() => setMenuOpen(p => !p)} style={{ display: 'none', background: 'none', border: '1px solid rgba(201,168,76,0.2)', color: '#c9a84c', borderRadius: 8, width: 38, height: 38, cursor: 'pointer', fontSize: 18, alignItems: 'center', justifyContent: 'center' }}>☰</button>
           </div>
         </div>
@@ -195,9 +195,9 @@ export default function LandingPage() {
         {menuOpen && (
           <div style={{ background: 'rgba(6,8,13,0.98)', borderTop: '1px solid rgba(201,168,76,0.1)', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             {['How It Works', 'Pool Sizes', 'Features', 'FAQ'].map(item => (
-              <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} onClick={() => setMenuOpen(false)} style={{ fontSize: 14, color: '#94a3b8', textDecoration: 'none', padding: '10px 12px', borderRadius: 8, display: 'block' }}>{item}</a>
+              <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} onClick={() => setMenuOpen(false)} style={{ fontSize: 15, color: '#c8d4e0', textDecoration: 'none', padding: '10px 12px', borderRadius: 8, display: 'block' }}>{item}</a>
             ))}
-            <Link href="/login" style={{ fontSize: 14, color: '#94a3b8', padding: '10px 12px', textDecoration: 'none', display: 'block' }}>Sign In</Link>
+            <Link href="/login" style={{ fontSize: 15, color: '#c8d4e0', padding: '10px 12px', textDecoration: 'none', display: 'block' }}>Sign In</Link>
           </div>
         )}
       </nav>
@@ -233,19 +233,19 @@ export default function LandingPage() {
           </div>
 
           <h1 className="hero-title fade-up" style={{ animationDelay: '0.2s', opacity: 0, fontSize: 72, fontWeight: 800, lineHeight: 1.05, marginBottom: 24, letterSpacing: -2 }}>
-            <span style={{ display: 'block', color: '#e2e8f0' }}>Trade Bigger.</span>
+            <span style={{ display: 'block', color: '#ffffff' }}>Trade Bigger.</span>
             <span className="shimmer-text" style={{ display: 'block', fontFamily: "'DM Serif Display', Georgia, serif", fontStyle: 'italic' }}>Together.</span>
           </h1>
 
-          <p className="hero-sub fade-up" style={{ animationDelay: '0.3s', opacity: 0, fontSize: 18, color: '#94a3b8', lineHeight: 1.7, maxWidth: 620, margin: '0 auto 48px', fontWeight: 400 }}>
+          <p className="hero-sub fade-up" style={{ animationDelay: '0.3s', opacity: 0, fontSize: 20, color: '#c8d4e0', lineHeight: 1.8, maxWidth: 620, margin: '0 auto 48px', fontWeight: 400 }}>
             Nova-Lite Club10 Pool combines smaller contributions into powerful forex trading capital — giving every member institutional-level market access with complete transparency.
           </p>
 
           <div className="fade-up hero-btns" style={{ animationDelay: '0.4s', opacity: 0, display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/login" className="cta-btn" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontWeight: 800, fontSize: 15, padding: '16px 36px', borderRadius: 12, textDecoration: 'none', letterSpacing: 0.5 }}>
+            <Link href="/login" className="cta-btn" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontWeight: 800, fontSize: 16, padding: '16px 36px', borderRadius: 12, textDecoration: 'none', letterSpacing: 0.5 }}>
               Start Investing →
             </Link>
-            <a href="#how-it-works" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid rgba(201,168,76,0.2)', color: '#94a3b8', fontSize: 14, padding: '16px 28px', borderRadius: 12, textDecoration: 'none', transition: 'all 0.2s' }} className="nav-link">
+            <a href="#how-it-works" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid rgba(201,168,76,0.2)', color: '#c8d4e0', fontSize: 16, padding: '16px 28px', borderRadius: 12, textDecoration: 'none', transition: 'all 0.2s' }} className="nav-link">
               How It Works ↓
             </a>
           </div>
@@ -257,8 +257,8 @@ export default function LandingPage() {
               { val: '0', label: 'Withdrawal Penalties' },
             ].map((s, i) => (
               <div key={i} style={{ background: 'rgba(6,8,13,0.8)', padding: '28px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: 36, fontWeight: 800, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>{s.val}</div>
-                <div style={{ fontSize: 14, color: '#64748b', letterSpacing: 1 }}>{s.label}</div>
+                <div style={{ fontSize: 36, fontWeight: 800, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginBottom: 8 }}>{s.val}</div>
+                <div style={{ fontSize: 14, color: '#c8d4e0', letterSpacing: 0.5 }}>{s.label}</div>
               </div>
             ))}
           </div>
@@ -271,21 +271,21 @@ export default function LandingPage() {
           <div className="what-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 80, alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 16, fontFamily: "'JetBrains Mono', monospace" }}>WHAT IS CLUB10 POOL</div>
-              <h2 style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.1, marginBottom: 24, letterSpacing: -1 }}>
+              <h2 style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.1, marginBottom: 24, letterSpacing: -1, color: '#ffffff' }}>
                 Collective Equity.<br />
                 <span style={{ color: '#c9a84c' }}>Individual Gains.</span>
               </h2>
-              <p style={{ color: '#94a3b8', fontSize: 15, lineHeight: 1.8, marginBottom: 20 }}>
+              <p style={{ color: '#d0dae6', fontSize: 17, lineHeight: 1.9, marginBottom: 20 }}>
                 Nova-Lite Club10 Pool is a transparent, community-driven capital pooling system designed to build sustainable trading equity in the forex market through collaboration, discipline, and integrity.
               </p>
-              <p style={{ color: '#64748b', fontSize: 14, lineHeight: 1.8, marginBottom: 32 }}>
+              <p style={{ color: '#b0bec8', fontSize: 16, lineHeight: 1.9, marginBottom: 32 }}>
                 Instead of trading alone with limited capital, members combine smaller contributions into a single, powerful trading account — unlocking access to stronger positions while sharing profits proportionally and fairly.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {['Built on complete financial transparency', 'Every member monitors trades in real time', 'Profits distributed by contribution share', 'Strict 50% equity protection enforced'].map(point => (
-                  <div key={point} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(0,212,170,0.15)', border: '1px solid rgba(0,212,170,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#00d4aa', flexShrink: 0 }}>✓</div>
-                    <span style={{ fontSize: 14, color: '#94a3b8' }}>{point}</span>
+                  <div key={point} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(0,212,170,0.15)', border: '1px solid rgba(0,212,170,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#00d4aa', flexShrink: 0 }}>✓</div>
+                    <span style={{ fontSize: 16, color: '#d0dae6' }}>{point}</span>
                   </div>
                 ))}
               </div>
@@ -298,20 +298,20 @@ export default function LandingPage() {
                 { member: 'Member B', amount: '$2,500', share: '50%', profit: '+$120.50' },
                 { member: 'Member C', amount: '$1,500', share: '30%', profit: '+$72.30' },
               ].map((m, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: i < 2 ? '1px solid rgba(201,168,76,0.08)' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `rgba(201,168,76,${0.2 + i * 0.1})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#c9a84c', flexShrink: 0 }}>{i + 1}</div>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < 2 ? '1px solid rgba(201,168,76,0.08)' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: `rgba(201,168,76,${0.2 + i * 0.1})`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#c9a84c', flexShrink: 0 }}>{i + 1}</div>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{m.member}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{m.amount} · {m.share}</div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0' }}>{m.member}</div>
+                      <div style={{ fontSize: 13, color: '#94a3b8' }}>{m.amount} · {m.share}</div>
                     </div>
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#00d4aa', fontFamily: "'JetBrains Mono', monospace" }}>{m.profit}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#00d4aa', fontFamily: "'JetBrains Mono', monospace" }}>{m.profit}</div>
                 </div>
               ))}
               <div style={{ marginTop: 20, padding: '14px 16px', background: 'rgba(201,168,76,0.06)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <span style={{ fontSize: 14, color: '#64748b' }}>Total Pool Profit (Month)</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace" }}>+$241.00 (+4.82%)</span>
+                <span style={{ fontSize: 14, color: '#b0bec8' }}>Total Pool Profit (Month)</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace" }}>+$241.00 (+4.82%)</span>
               </div>
             </div>
           </div>
@@ -323,16 +323,16 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>THE PROCESS</div>
-            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>How It Works</h2>
-            <p style={{ color: '#64748b', fontSize: 15, maxWidth: 500, margin: '0 auto' }}>Six simple steps from registration to profit withdrawal.</p>
+            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16, color: '#ffffff' }}>How It Works</h2>
+            <p style={{ color: '#b0bec8', fontSize: 17, maxWidth: 500, margin: '0 auto' }}>Six simple steps from registration to profit withdrawal.</p>
           </div>
           <div className="steps-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
             {steps.map((step, i) => (
               <div key={i} className={`step-card ${activeStep === i ? 'active' : ''}`} style={{ background: '#080b12', border: '1px solid rgba(201,168,76,0.08)', borderRadius: 16, padding: 28, position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', top: 20, right: 20, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'rgba(255, 255, 255, 0.3)', fontWeight: 700 }}>{step.num}</div>
-                <div style={{ fontSize: 28, marginBottom: 16, color: activeStep === i ? '#c9a84c' : '#475569' }}>{step.icon}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: activeStep === i ? '#e2e8f0' : '#94a3b8' }}>{step.title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{step.desc}</div>
+                <div style={{ position: 'absolute', top: 20, right: 20, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: 'rgba(255, 255, 255, 0.4)', fontWeight: 700 }}>{step.num}</div>
+                <div style={{ fontSize: 30, marginBottom: 16, color: activeStep === i ? '#c9a84c' : '#64748b' }}>{step.icon}</div>
+                <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 10, color: activeStep === i ? '#ffffff' : '#c8d4e0' }}>{step.title}</div>
+                <div style={{ fontSize: 15, color: activeStep === i ? '#b0bec8' : '#7a8a9a', lineHeight: 1.7 }}>{step.desc}</div>
                 {activeStep === i && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #c9a84c, #a07830)' }} />}
               </div>
             ))}
@@ -345,24 +345,24 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>AVAILABLE POOLS</div>
-            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>Choose Your Pool</h2>
-            <p style={{ color: '#64748b', fontSize: 15, maxWidth: 500, margin: '0 auto' }}>Join the pool that matches your investment level. All pools operate under the same transparent rules.</p>
+            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16, color: '#ffffff' }}>Choose Your Pool</h2>
+            <p style={{ color: '#b0bec8', fontSize: 17, maxWidth: 500, margin: '0 auto' }}>Join the pool that matches your investment level. All pools operate under the same transparent rules.</p>
           </div>
           <div className="pools-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
             {pools.map((pool, i) => (
               <div key={i} className="pool-card hover-lift" style={{ background: '#06080d', border: `1px solid ${pool.color}22`, borderRadius: 20, padding: 32, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${pool.color}, transparent)` }} />
-                <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 3, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>{pool.desc.toUpperCase()}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8', letterSpacing: 3, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>{pool.desc.toUpperCase()}</div>
                 <div style={{ fontSize: 52, fontWeight: 800, color: pool.color, fontFamily: "'JetBrains Mono', monospace", marginBottom: 8, letterSpacing: -2 }}>{pool.size}</div>
-                <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>Target pool size</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28 }}>
+                <div style={{ fontSize: 14, color: '#94a3b8', marginBottom: 24 }}>Target pool size</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
                   {['Up to 10 members', 'Proportional profits', 'MT4 investor access', 'Monthly withdrawal'].map(f => (
-                    <div key={f} style={{ fontSize: 14, color: '#475569', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                    <div key={f} style={{ fontSize: 14, color: '#c8d4e0', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                       <span style={{ color: pool.color, fontSize: 10 }}>◆</span> {f}
                     </div>
                   ))}
                 </div>
-                <Link href="/login" style={{ display: 'block', background: `${pool.color}15`, border: `1px solid ${pool.color}33`, color: pool.color, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none', transition: 'all 0.2s' }}>
+                <Link href="/login" style={{ display: 'block', background: `${pool.color}15`, border: `1px solid ${pool.color}33`, color: pool.color, padding: '12px', borderRadius: 8, fontSize: 14, fontWeight: 700, textDecoration: 'none', transition: 'all 0.2s' }}>
                   Join This Pool →
                 </Link>
               </div>
@@ -376,15 +376,15 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>WHY CLUB10 POOL</div>
-            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16 }}>Built on Transparency</h2>
-            <p style={{ color: '#64748b', fontSize: 15, maxWidth: 500, margin: '0 auto' }}>Every feature exists to protect members and ensure a fair, accountable system.</p>
+            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, marginBottom: 16, color: '#ffffff' }}>Built on Transparency</h2>
+            <p style={{ color: '#b0bec8', fontSize: 17, maxWidth: 500, margin: '0 auto' }}>Every feature exists to protect members and ensure a fair, accountable system.</p>
           </div>
           <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
             {features.map((f, i) => (
               <div key={i} className="feature-card" style={{ background: '#080b12', border: '1px solid rgba(201,168,76,0.06)', borderRadius: 16, padding: 28 }}>
-                <div style={{ fontSize: 32, marginBottom: 16, color: '#c9a84c' }}>{f.icon}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 10 }}>{f.title}</div>
-                <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>{f.desc}</div>
+                <div style={{ fontSize: 34, marginBottom: 16, color: '#c9a84c' }}>{f.icon}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: '#ffffff' }}>{f.title}</div>
+                <div style={{ fontSize: 15, color: '#b0bec8', lineHeight: 1.8 }}>{f.desc}</div>
               </div>
             ))}
           </div>
@@ -396,7 +396,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 800, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: 64 }}>
             <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 12, fontFamily: "'JetBrains Mono', monospace" }}>COMMON QUESTIONS</div>
-            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1 }}>FAQ</h2>
+            <h2 className="section-heading" style={{ fontSize: 48, fontWeight: 800, letterSpacing: -1, color: '#ffffff' }}>FAQ</h2>
           </div>
           <FAQSection />
         </div>
@@ -407,18 +407,18 @@ export default function LandingPage() {
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, rgba(201,168,76,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
           <div style={{ fontSize: 12, color: '#c9a84c', letterSpacing: 4, marginBottom: 20, fontFamily: "'JetBrains Mono', monospace" }}>JOIN THE POOL TODAY</div>
-          <h2 className="cta-heading" style={{ fontSize: 52, fontWeight: 800, letterSpacing: -1, marginBottom: 20, lineHeight: 1.1 }}>
+          <h2 className="cta-heading" style={{ fontSize: 52, fontWeight: 800, letterSpacing: -1, marginBottom: 20, lineHeight: 1.1, color: '#ffffff' }}>
             Ready to Trade<br />
             <span style={{ color: '#c9a84c', fontFamily: "'DM Serif Display', Georgia, serif", fontStyle: 'italic' }}>Bigger Together?</span>
           </h2>
-          <p style={{ color: '#64748b', fontSize: 15, lineHeight: 1.7, marginBottom: 40 }}>
+          <p style={{ color: '#b0bec8', fontSize: 18, lineHeight: 1.8, marginBottom: 40 }}>
             Register, verify your identity, and join a batch pool. Complete transparency, proportional profits, and monthly withdrawal flexibility await.
           </p>
           <div className="cta-btns" style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/login" className="cta-btn" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontWeight: 800, fontSize: 16, padding: '18px 44px', borderRadius: 12, textDecoration: 'none' }}>
+            <Link href="/login" className="cta-btn" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontWeight: 800, fontSize: 17, padding: '18px 44px', borderRadius: 12, textDecoration: 'none' }}>
               Create Account →
             </Link>
-            <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid rgba(201,168,76,0.2)', color: '#94a3b8', fontSize: 14, padding: '18px 32px', borderRadius: 12, textDecoration: 'none' }}>
+            <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: '1px solid rgba(201,168,76,0.2)', color: '#c8d4e0', fontSize: 16, padding: '18px 32px', borderRadius: 12, textDecoration: 'none' }}>
               Sign In Instead
             </Link>
           </div>
@@ -431,9 +431,9 @@ export default function LandingPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <img src="/logo.png" alt="Nova-Lite" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-              <span style={{ fontWeight: 700, fontSize: 13 }}>Nova-Lite Club10 Pool</span>
+              <span style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0' }}>Nova-Lite Club10 Pool</span>
             </div>
-            <div style={{ fontSize: 14, color: '#ffffff' }}>Built on Transparency. Driven by Integrity.</div>
+            <div style={{ fontSize: 14, color: '#94a3b8' }}>Built on Transparency. Driven by Integrity.</div>
           </div>
           <div className="footer-links" style={{ display: 'flex', gap: 24 }}>
             {[
@@ -441,14 +441,14 @@ export default function LandingPage() {
               { label: 'Terms & Conditions', key: 'terms' as ModalType },
               { label: 'Contact Support', key: 'contact' as ModalType },
             ].map(link => (
-              <button key={link.label} onClick={() => setModal(link.key)} style={{ background: 'none', border: 'none', fontSize: 14, color: '#ffffff', cursor: 'pointer', padding: 0, transition: 'color 0.2s', fontFamily: 'inherit' }} className="nav-link">{link.label}</button>
+              <button key={link.label} onClick={() => setModal(link.key)} style={{ background: 'none', border: 'none', fontSize: 14, color: '#94a3b8', cursor: 'pointer', padding: 0, transition: 'color 0.2s', fontFamily: 'inherit' }} className="nav-link">{link.label}</button>
             ))}
           </div>
-          <div style={{ fontSize: 12, color: '#ffffff', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontSize: 13, color: '#64748b', fontFamily: "'JetBrains Mono', monospace" }}>
             © 2025 Nova-Lite Ltd. All rights reserved.
           </div>
         </div>
-        <div style={{ maxWidth: 1100, margin: '24px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.04)', fontSize: 12, color: '#ffffff', lineHeight: 1.7 }}>
+        <div style={{ maxWidth: 1100, margin: '24px auto 0', paddingTop: 24, borderTop: '1px solid rgba(255,255,255,0.04)', fontSize: 13, color: '#64748b', lineHeight: 1.8 }}>
           ⚠ Risk Disclaimer: Forex trading involves substantial risk of loss. Past performance is not indicative of future results. Nova-Lite Club10 Pool is a community investment vehicle — profits are not guaranteed. Only invest what you can afford to lose.
         </div>
       </footer>
@@ -470,14 +470,14 @@ function FAQSection() {
     { q: 'Can I join multiple batches?', a: 'Yes. Members may participate in multiple batches depending on availability, allowing you to diversify participation across different pool cycles and sizes.' },
   ]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {faqs.map((faq, i) => (
         <div key={i} style={{ background: '#06080d', border: `1px solid ${open === i ? 'rgba(201,168,76,0.2)' : 'rgba(201,168,76,0.06)'}`, borderRadius: 12, overflow: 'hidden', transition: 'border-color 0.3s' }}>
-          <button onClick={() => setOpen(open === i ? null : i)} style={{ width: '100%', background: 'none', border: 'none', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', textAlign: 'left' }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: open === i ? '#c9a84c' : '#e2e8f0' }}>{faq.q}</span>
-            <span style={{ color: '#c9a84c', fontSize: 18, flexShrink: 0, marginLeft: 12, transition: 'transform 0.3s', transform: open === i ? 'rotate(45deg)' : 'none' }}>+</span>
+          <button onClick={() => setOpen(open === i ? null : i)} style={{ width: '100%', background: 'none', border: 'none', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', textAlign: 'left' }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: open === i ? '#c9a84c' : '#e2e8f0' }}>{faq.q}</span>
+            <span style={{ color: '#c9a84c', fontSize: 20, flexShrink: 0, marginLeft: 12, transition: 'transform 0.3s', transform: open === i ? 'rotate(45deg)' : 'none' }}>+</span>
           </button>
-          {open === i && <div style={{ padding: '0 24px 18px', fontSize: 13, color: '#64748b', lineHeight: 1.7 }}>{faq.a}</div>}
+          {open === i && <div style={{ padding: '0 24px 20px', fontSize: 16, color: '#b0bec8', lineHeight: 1.8 }}>{faq.a}</div>}
         </div>
       ))}
     </div>
@@ -486,84 +486,68 @@ function FAQSection() {
 
 // ── MODAL CONTENTS ────────────────────────────────────────
 function TermsContent() {
-  const s = { h2: { fontSize: 15, fontWeight: 700, color: '#c9a84c', marginBottom: 8, marginTop: 24 } as React.CSSProperties, p: { fontSize: 13, color: '#94a3b8', lineHeight: 1.8, marginBottom: 12 } as React.CSSProperties }
+  const s = {
+    h2: { fontSize: 16, fontWeight: 700, color: '#c9a84c', marginBottom: 10, marginTop: 28 } as React.CSSProperties,
+    p: { fontSize: 15, color: '#c8d4e0', lineHeight: 1.9, marginBottom: 14 } as React.CSSProperties
+  }
   return (
     <div>
-      <p style={{ ...s.p, color: '#64748b', fontSize: 12 }}>Last updated: January 2025</p>
+      <p style={{ ...s.p, color: '#94a3b8', fontSize: 13 }}>Last updated: January 2025</p>
       <p style={s.p}>By registering and using Nova-Lite Club10 Pool ("the Platform"), you agree to be bound by these Terms and Conditions. Please read them carefully before proceeding.</p>
-
       <h2 style={s.h2}>1. Eligibility</h2>
       <p style={s.p}>You must be at least 18 years of age and legally permitted to participate in investment activities in your jurisdiction. By registering, you confirm that your participation is lawful in your country of residence.</p>
-
       <h2 style={s.h2}>2. KYC Verification</h2>
       <p style={s.p}>All members are required to complete identity verification (KYC) before participating in any pool. Providing false or misleading information during KYC is grounds for immediate account termination and potential legal action.</p>
-
       <h2 style={s.h2}>3. Investment Risk</h2>
       <p style={s.p}>Forex trading involves substantial risk of loss. Past performance of any pool does not guarantee future results. You may lose some or all of your capital contribution. Only participate with funds you can afford to lose entirely.</p>
-
       <h2 style={s.h2}>4. Pool Participation</h2>
       <p style={s.p}>Once a batch pool reaches its target and trading begins, contributions are deployed to a live forex trading account. You will receive read-only MT4 investor access to monitor trading activity. You may not interfere with or instruct trading operations.</p>
-
       <h2 style={s.h2}>5. Profit Distribution</h2>
-      <p style={s.p}>Profits are distributed proportionally based on your capital contribution as a percentage of the total pool. Distributions are processed at month-end following the receipt of a verified monthly report. Nova-Lite reserves the right to withhold distributions pending any dispute resolution.</p>
-
+      <p style={s.p}>Profits are distributed proportionally based on your capital contribution as a percentage of the total pool. Distributions are processed at month-end following the receipt of a verified monthly report.</p>
       <h2 style={s.h2}>6. Withdrawals</h2>
-      <p style={s.p}>Members may request withdrawal of profits or full capital at month-end with no penalty. Withdrawals are processed to the bank account registered on your profile. Nova-Lite is not responsible for delays caused by banking intermediaries.</p>
-
+      <p style={s.p}>Members may request withdrawal of profits or full capital at month-end with no penalty. Withdrawals are processed to the bank account registered on your profile.</p>
       <h2 style={s.h2}>7. 50% Equity Protection</h2>
       <p style={s.p}>A strict 50% equity drawdown cap is enforced on all pools. Trading is suspended if total pool equity falls to 50% of its starting value. This is a protection mechanism, not a guarantee against losses below this threshold in extreme market conditions.</p>
-
       <h2 style={s.h2}>8. Account Termination</h2>
       <p style={s.p}>Nova-Lite reserves the right to suspend or permanently terminate accounts that violate these terms, engage in fraudulent activity, or act in bad faith against other pool members or the integrity of the platform.</p>
-
       <h2 style={s.h2}>9. Limitation of Liability</h2>
       <p style={s.p}>Nova-Lite Ltd shall not be liable for trading losses, market disruptions, or force majeure events. Our liability is limited to the administrative handling of contributions and distributions in accordance with these terms.</p>
-
       <h2 style={s.h2}>10. Governing Law</h2>
       <p style={s.p}>These Terms are governed by the laws of the Federal Republic of Nigeria. Any disputes shall be resolved through good-faith negotiation, and where necessary, through appropriate Nigerian legal channels.</p>
-
       <h2 style={s.h2}>11. Amendments</h2>
       <p style={s.p}>Nova-Lite reserves the right to amend these Terms at any time. Continued use of the Platform following notification of changes constitutes acceptance of the revised Terms.</p>
-
-      <p style={{ ...s.p, marginTop: 24, color: '#64748b', fontSize: 12 }}>For questions regarding these Terms, contact us at nova.liteltd@gmail.com</p>
+      <p style={{ ...s.p, marginTop: 24, color: '#94a3b8', fontSize: 13 }}>For questions regarding these Terms, contact us at nova.liteltd@gmail.com</p>
     </div>
   )
 }
 
 function PrivacyContent() {
-  const s = { h2: { fontSize: 15, fontWeight: 700, color: '#c9a84c', marginBottom: 8, marginTop: 24 } as React.CSSProperties, p: { fontSize: 13, color: '#94a3b8', lineHeight: 1.8, marginBottom: 12 } as React.CSSProperties }
+  const s = {
+    h2: { fontSize: 16, fontWeight: 700, color: '#c9a84c', marginBottom: 10, marginTop: 28 } as React.CSSProperties,
+    p: { fontSize: 15, color: '#c8d4e0', lineHeight: 1.9, marginBottom: 14 } as React.CSSProperties
+  }
   return (
     <div>
-      <p style={{ ...s.p, color: '#64748b', fontSize: 12 }}>Last updated: January 2025</p>
+      <p style={{ ...s.p, color: '#94a3b8', fontSize: 13 }}>Last updated: January 2025</p>
       <p style={s.p}>Nova-Lite Ltd ("we", "us", "our") is committed to protecting your personal information. This Privacy Policy explains how we collect, use, store, and protect your data when you use the Club10 Pool platform.</p>
-
       <h2 style={s.h2}>1. Information We Collect</h2>
       <p style={s.p}>We collect information you provide directly: full name, email address, phone number, government-issued identity documents (for KYC), bank account details, and profile photographs. We also collect usage data such as login activity, IP addresses, and browser type for security purposes.</p>
-
       <h2 style={s.h2}>2. How We Use Your Information</h2>
       <p style={s.p}>Your data is used to: verify your identity and comply with KYC obligations, manage your pool membership and profit distributions, process withdrawals to your registered bank account, send transactional notifications and monthly reports, and maintain the security and integrity of the platform.</p>
-
       <h2 style={s.h2}>3. KYC Document Storage</h2>
       <p style={s.p}>Identity documents submitted during KYC verification are stored securely in encrypted cloud storage. Documents are accessible only to authorised Nova-Lite administrators for verification purposes. We do not sell, share, or transfer your identity documents to third parties.</p>
-
       <h2 style={s.h2}>4. Data Sharing</h2>
-      <p style={s.p}>We do not sell your personal data. We may share data with: our technology service providers (hosting, database, email) strictly for operational purposes under confidentiality agreements, and regulatory or law enforcement authorities where required by Nigerian law.</p>
-
+      <p style={s.p}>We do not sell your personal data. We may share data with our technology service providers strictly for operational purposes under confidentiality agreements, and regulatory or law enforcement authorities where required by Nigerian law.</p>
       <h2 style={s.h2}>5. Data Retention</h2>
       <p style={s.p}>We retain your personal data for as long as your account is active and for a minimum of 5 years after account closure, in compliance with financial record-keeping obligations under Nigerian law.</p>
-
       <h2 style={s.h2}>6. Data Security</h2>
       <p style={s.p}>We implement industry-standard security measures including encrypted data transmission (HTTPS/TLS), bcrypt password hashing, access controls, and regular security reviews. No system is 100% secure — we encourage strong passwords and caution against sharing login credentials.</p>
-
       <h2 style={s.h2}>7. Your Rights</h2>
       <p style={s.p}>You have the right to request access to your personal data, request correction of inaccurate information, request deletion of your account and associated data (subject to legal retention obligations), and withdraw consent for marketing communications at any time.</p>
-
       <h2 style={s.h2}>8. Cookies</h2>
       <p style={s.p}>We use essential cookies and local storage tokens for authentication and session management. We do not use third-party advertising or tracking cookies.</p>
-
       <h2 style={s.h2}>9. Children's Privacy</h2>
       <p style={s.p}>The Platform is not intended for individuals under 18 years of age. We do not knowingly collect personal data from minors.</p>
-
       <h2 style={s.h2}>10. Contact</h2>
       <p style={s.p}>For privacy-related inquiries or to exercise your data rights, contact our team at nova.liteltd@gmail.com. We aim to respond within 5 business days.</p>
     </div>
@@ -573,51 +557,28 @@ function PrivacyContent() {
 function ContactContent() {
   return (
     <div>
-      <p style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.8, marginBottom: 28 }}>
+      <p style={{ fontSize: 16, color: '#c8d4e0', lineHeight: 1.9, marginBottom: 28 }}>
         Our support team is available to assist you with account questions, KYC issues, withdrawal inquiries, and general platform guidance.
       </p>
-
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {[
-          {
-            icon: '✉',
-            label: 'Email',
-            value: 'nova.liteltd@gmail.com',
-            sub: 'Best for detailed inquiries. We respond within 24 hours.',
-            href: 'mailto:nova.liteltd@gmail.com',
-            color: '#00d4aa',
-          },
-          {
-            icon: '✈',
-            label: 'Telegram',
-            value: '@novalitesignal',
-            sub: 'Join our Telegram channel for updates and announcements.',
-            href: 'https://t.me/novalitesignal',
-            color: '#818cf8',
-          },
-          {
-            icon: '☎',
-            label: 'Phone / WhatsApp',
-            value: '+234 703 092 3585',
-            sub: '+234 814 424 1060',
-            href: 'tel:+2347030923585',
-            color: '#c9a84c',
-          },
+          { icon: '✉', label: 'Email', value: 'nova.liteltd@gmail.com', sub: 'Best for detailed inquiries. We respond within 24 hours.', href: 'mailto:nova.liteltd@gmail.com', color: '#00d4aa' },
+          { icon: '✈', label: 'Telegram', value: '@novalitesignal', sub: 'Join our Telegram channel for updates and announcements.', href: 'https://t.me/novalitesignal', color: '#818cf8' },
+          { icon: '☎', label: 'Phone / WhatsApp', value: '+234 703 092 3585', sub: '+234 814 424 1060', href: 'tel:+2347030923585', color: '#c9a84c' },
         ].map(item => (
           <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'flex-start', gap: 16, background: '#080b12', border: `1px solid ${item.color}22`, borderRadius: 12, padding: '18px 20px', textDecoration: 'none', transition: 'border-color 0.2s' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${item.color}18`, border: `1px solid ${item.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: `${item.color}18`, border: `1px solid ${item.color}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{item.icon}</div>
             <div>
-              <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 2, marginBottom: 4, fontFamily: "'JetBrains Mono', monospace" }}>{item.label.toUpperCase()}</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: item.color, marginBottom: 4 }}>{item.value}</div>
-              <div style={{ fontSize: 14, color: '#475569' }}>{item.sub}</div>
+              <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 2, marginBottom: 4, fontFamily: "'JetBrains Mono', monospace" }}>{item.label.toUpperCase()}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: item.color, marginBottom: 4 }}>{item.value}</div>
+              <div style={{ fontSize: 14, color: '#94a3b8' }}>{item.sub}</div>
             </div>
           </a>
         ))}
       </div>
-
-      <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.1)', borderRadius: 10 }}>
-        <div style={{ fontSize: 14, color: '#ffffff', lineHeight: 1.7 }}>
-          🕐 <strong style={{ color: '#94a3b8' }}>Support hours:</strong> Monday – Saturday, 9:00 AM – 6:00 PM (WAT). We aim to respond to all inquiries within one business day.
+      <div style={{ marginTop: 24, padding: '16px 18px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.1)', borderRadius: 10 }}>
+        <div style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.8 }}>
+          🕐 <strong style={{ color: '#c8d4e0' }}>Support hours:</strong> Monday – Saturday, 9:00 AM – 6:00 PM (WAT). We aim to respond to all inquiries within one business day.
         </div>
       </div>
     </div>
