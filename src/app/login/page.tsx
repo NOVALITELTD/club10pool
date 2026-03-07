@@ -32,7 +32,7 @@ export default function LoginPage() {
       if (user.emailVerified === false) return setError('Please verify your email before logging in')
       if (user.kycStatus === 'NOT_SUBMITTED') { router.push('/kyc'); return }
       if (user.kycStatus === 'PENDING') return setSuccess('Your KYC documents are under review. You will be notified by email once approved.')
-      if (user.kycStatus === 'REJECTED') return setError('Your KYC was rejected. Please check email for reason / re-upload with the right documents / contact support at nova.liteltd@gmail.com for assistance.')
+      if (user.kycStatus === 'REJECTED') { router.push('/kyc'); return }
       router.push('/dashboard')
     } catch { setError('Server error') } finally { setLoading(false) }
   }
@@ -390,4 +390,5 @@ function TermsContent() {
     </div>
   )
 }
+
 
