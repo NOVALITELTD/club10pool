@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!payload) return unauthorized()
 
     const formData = await req.formData()
-    const investorId = payload.id
+    const investorId = payload.memberId
 
     const fileFields = ['idFront', 'idBack', 'passportPhoto', 'proofOfAddress']
     const results: Record<string, string> = {}
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
       const buffer = Buffer.from(await file.arrayBuffer())
       const ext = file.name.split('.').pop() || 'jpg'
-      const fileName = `${field}.${ext}`
+      const fileName = field
 
       const url = await uploadToCloudinary(buffer, fileName, investorId)
       results[field] = url
@@ -62,3 +62,4 @@ export async function POST(req: NextRequest) {
     return error(err.message || 'Upload failed')
   }
 }
+
