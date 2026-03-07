@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = req.headers.get('authorization')?.replace('Bearer ', '')
     if (!auth) return unauthorized()
-    const payload = verifyToken(auth)
+    const payload = verifyToken(auth) as any
     if (!payload) return unauthorized()
 
     const formData = await req.formData()
@@ -113,4 +113,5 @@ export async function POST(req: NextRequest) {
     console.error('Drive upload error:', err)
     return error(err.message || 'Upload failed')
   }
+
 }
