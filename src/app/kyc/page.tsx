@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -47,6 +47,16 @@ export default function KYCPage() {
     proofOfAddress: useRef<HTMLInputElement>(null),
   }
 
+  // Auto-load token from URL (for email resubmit links)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+    if (urlToken) {
+      localStorage.setItem('token', urlToken)
+      window.history.replaceState({}, '', '/kyc')
+    }
+  }, [])
+
   function getTotalSize(currentFiles: Record<FileField, File | null>) {
     return Object.values(currentFiles).reduce((sum, f) => sum + (f?.size || 0), 0)
   }
@@ -92,7 +102,7 @@ export default function KYCPage() {
     setUploading(true)
 
     try {
-      setProgress('Uploading documents to secure storage...')
+      setProgress('Uploading Documents...')
       const formData = new FormData()
       for (const f of FILE_FIELDS) {
         if (files[f.key]) formData.append(f.key, files[f.key]!)
