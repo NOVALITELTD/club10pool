@@ -129,17 +129,38 @@ export default function AdminDashboard() {
     <>
       <style>{`
         @media (max-width: 768px) {
-          .admin-sidebar { display: none !important; }
+          .admin-sidebar {
+            position: fixed !important;
+            top: 0; left: 0; bottom: 0;
+            z-index: 200;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease !important;
+            width: 260px !important;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+          }
+          .admin-sidebar.open {
+            transform: translateX(0) !important;
+          }
+          .admin-mobile-overlay {
+            display: none;
+            position: fixed; inset: 0; z-index: 199;
+            background: rgba(0,0,0,0.6);
+          }
+          .admin-mobile-overlay.open { display: block; }
           .admin-content { padding: 16px !important; }
           .admin-topbar { padding: 12px 16px !important; }
           .admin-grid2 { grid-template-columns: 1fr !important; }
           .kyc-split { grid-template-columns: 1fr !important; }
         }
+        @media (min-width: 769px) {
+          .admin-mobile-overlay { display: none !important; }
+        }
       `}</style>
 
       <div style={s.app}>
         {/* SIDEBAR */}
-        <div className="admin-sidebar" style={s.sidebar}>
+        <div className={`admin-mobile-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+        <div className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`} style={s.sidebar}>
           <div style={s.logo}>
             <img
               src="/logo.png"
@@ -163,7 +184,7 @@ export default function AdminDashboard() {
 
           <div style={s.nav}>
             {navItems.map(item => (
-              <div key={item.id} style={s.navItem(section === item.id)} onClick={() => setSection(item.id)}>
+              <div key={item.id} style={s.navItem(section === item.id)} onClick={() => { setSection(item.id); if (window.innerWidth < 768) setSidebarOpen(false) }}>
                 <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
                 {sidebarOpen && <span style={{ flex: 1 }}>{item.label}</span>}
                 {sidebarOpen && item.badge ? (
