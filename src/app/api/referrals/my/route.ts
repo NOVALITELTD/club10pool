@@ -1,7 +1,6 @@
 // src/app/api/referrals/my/route.ts
 // GET  /api/referrals/my  — investor's own referral pools + rebates
 // POST /api/referrals/my  — create a new referral pool for a category
-
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest } from '@/lib/auth'
@@ -62,10 +61,17 @@ export async function POST(req: NextRequest) {
     return error('Invalid pool category. Must be CENT, STANDARD_1K, STANDARD_5K, or STANDARD_10K')
   }
 
-  // Check KYC
+  // Check investor exists
   const investor = await prisma.investor.findUnique({ where: { id: auth.memberId } })
   if (!investor) return error('Investor not found')
-  if ((investor as any).kycStatus !== 'APPROVED') return error('KYC must be approved before creating a referral pool')
+
+  // Check KYC via kyc_submissions table (not investor.kycStatus)
+  const kyc = await prisma.$queryRaw<{ status: string }[]>`
+    SELECT status FROM kyc_submissions WHERE "investorId" = ${auth.memberId} LIMIT 1
+  `
+  if (!kyc.length || kyc[0].status !== 'APPROVED') {
+    return error('KYC must be approved before creating a referral pool')
+  }
 
   // Check if investor already has an active/open pool in this category
   const existing = await prisma.referralPool.findFirst({
@@ -83,7 +89,6 @@ export async function POST(req: NextRequest) {
 
   // Generate a unique referral code
   let referralCode = nanoid(8).toUpperCase()
-  // Ensure uniqueness
   let attempts = 0
   while (await prisma.referralPool.findUnique({ where: { referralCode } })) {
     referralCode = nanoid(8).toUpperCase()
