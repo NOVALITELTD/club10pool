@@ -410,8 +410,11 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                       <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 6 }}>→ Rounded to nearest $10: <strong>${rounded}</strong></div>
                     )}
                     {rounded > 0 && rate && (
-                      <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(rounded * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })} at checkout</div>
+                      <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(rounded * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
                     )}
+                  </div>
+                  <div style={{ background: 'rgba(0,212,170,0.05)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
+                    💎 Payment is processed in <strong style={{ color: '#00d4aa' }}>USDT (TRC20)</strong> via NowPayments. You will be redirected to complete the crypto payment.
                   </div>
                   {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
                   <button
@@ -419,7 +422,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                     disabled={payLoading || !amountInput}
                     style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
                   >
-                    {payLoading ? 'Redirecting to payment...' : `💳 Pay $${rounded || cfg.min} →`}
+                    {payLoading ? 'Redirecting to payment...' : `💎 Pay $${rounded || cfg.min} in USDT →`}
                   </button>
                 </>
               )
@@ -973,7 +976,7 @@ function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
         disabled={loading}
         style={{ background: `linear-gradient(135deg,${color},${color}aa)`, color: '#000', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 13, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit' }}
       >
-        {loading ? 'Redirecting...' : `💳 Pay $${amount.toLocaleString()} to Confirm Slot`}
+        {loading ? 'Redirecting...' : `💎 Pay $${amount.toLocaleString()} in USDT →`}
       </button>
     </div>
   )
