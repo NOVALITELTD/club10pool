@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
-import { BatchStatus, ReferralPoolStatus } from '@prisma/client'
+import { ReferralPoolStatus } from '@prisma/client'
 import crypto from 'crypto'
 
 const NP_IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET || ''
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
             where: { id: payment.batchId! },
             data: {
               currentAmount: newAmount,
-              ...(batchFull ? { status: BatchStatus.FULL } : {}),
+              ...(batchFull ? { status: 'FULL' as any } : {}),
             },
           })
 
