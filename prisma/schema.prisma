@@ -17,6 +17,7 @@ datasource db {
 
 enum BatchStatus {
   FORMING      // Accepting new members
+  FULL
   ACTIVE       // Trading in progress
   DISTRIBUTING // End-of-month profit distribution
   CLOSED       // Batch completed / all payouts done
