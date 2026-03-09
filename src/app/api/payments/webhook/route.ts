@@ -1,6 +1,7 @@
 // src/app/api/payments/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { BatchStatus, ReferralPoolStatus } from '@prisma/client'
 import { sendEmail } from '@/lib/email'
 
 const FLW_WEBHOOK_SECRET = process.env.FLW_WEBHOOK_SECRET || 'your-webhook-secret-hash'
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
 
       await tx.referralPool.update({
         where: { id: pool.id },
-        data: { currentAmount: newAmount, status: poolFull ? 'FULL' : 'OPEN' },
+        data: { currentAmount: newAmount, status: poolFull ? ReferralPoolStatus.FULL : ReferralPoolStatus.OPEN },
       })
 
       if (poolFull) {
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
 
           await tx.batch.update({
             where: { id: payment.batchId! },
-            data: { currentAmount: newAmount, ...(batchFull ? { status: 'FULL' } : {}) },
+            data: { currentAmount: newAmount, ...(batchFull ? { status: BatchStatus.FULL } : {}) },
           })
 
           if (batchFull) {
