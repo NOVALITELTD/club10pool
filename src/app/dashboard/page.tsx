@@ -437,7 +437,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
           const current = Number(b.currentAmount || 0)
           const progress = target ? (current / target) * 100 : ((b._count?.members || 0) / (b.targetMembers || 1)) * 100
           const isFull = b.status === 'FULL' || current >= target
-          const canJoin = ['FORMING', 'FULL'].includes(b.status) && !isMyBatch && !myBatch && !isFull
+          const canJoin = ['FORMING', 'FULL'].includes(b.status) && !isMyBatch && !isFull
           return (
             <div key={b.id} style={{ ...s.card, border: isMyBatch ? '1px solid rgba(0,212,170,0.3)' : '1px solid #1e2530' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -1160,7 +1160,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Used for profit withdrawals. Ensure accuracy before saving.</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={form.bankName} onChange={e => setForm(p => ({ ...p, bankName: e.target.value }))} placeholder="e.g. Opay, Access, Zenith" /></div>
+              <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={form.bankName} onChange={e => setForm(p => ({ ...p, bankName: e.target.value }))} placeholder="e.g. GTBank, Access, Zenith" /></div>
               <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={form.bankAccount} onChange={e => setForm(p => ({ ...p, bankAccount: e.target.value }))} placeholder="10-digit account number" /></div>
             </div>
           </div>
