@@ -1,12 +1,13 @@
-'use client'
 // src/app/payment/verify/page.tsx
-// Shown after Flutterwave redirects user back to the apps
+'use client'
 
+import { Suspense } from 'react'
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function PaymentVerifyPage() {
+// Create a separate component that uses useSearchParams
+function PaymentVerifyContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const txRef = searchParams.get('tx_ref')
@@ -14,10 +15,16 @@ export default function PaymentVerifyPage() {
   const [data, setData] = useState<any>(null)
 
   useEffect(() => {
-    if (!txRef) { router.push('/dashboard'); return }
+    if (!txRef) { 
+      router.push('/dashboard'); 
+      return 
+    }
 
     const token = localStorage.getItem('token')
-    if (!token) { router.push('/login'); return }
+    if (!token) { 
+      router.push('/login'); 
+      return 
+    }
 
     // Poll for payment status (webhook may take a few seconds)
     let attempts = 0
@@ -47,7 +54,7 @@ export default function PaymentVerifyPage() {
     }
 
     poll()
-  }, [txRef])
+  }, [txRef, router])
 
   const base: React.CSSProperties = {
     minHeight: '100vh',
@@ -128,5 +135,30 @@ export default function PaymentVerifyPage() {
         </Link>
       </div>
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function PaymentVerifyPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ 
+        minHeight: '100vh', 
+        background: '#080a0f', 
+        color: '#e2e8f0', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        fontFamily: "'DM Mono', 'Courier New', monospace"
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 60, height: 60, border: '3px solid #1e2530', borderTopColor: '#00d4aa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 24px' }} />
+          <div>Loading...</div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    }>
+      <PaymentVerifyContent />
+    </Suspense>
   )
 }
