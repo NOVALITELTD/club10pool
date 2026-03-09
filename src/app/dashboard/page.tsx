@@ -28,6 +28,11 @@ export default function InvestorDashboard() {
     if (parsed.kycStatus !== 'APPROVED') { router.push('/kyc'); return }
     setUser(parsed)
     loadData(token)
+    // Fetch fresh profile from DB (localStorage may be stale after settings update)
+    fetch('/api/investors/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.data) setUser((prev: any) => ({ ...prev, ...d.data })) })
+      .catch(() => {})
   }, [])
 
   async function loadData(token: string) {
@@ -1155,7 +1160,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Used for profit withdrawals. Ensure accuracy before saving.</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={form.bankName} onChange={e => setForm(p => ({ ...p, bankName: e.target.value }))} placeholder="e.g. GTBank, Access, Zenith" /></div>
+              <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={form.bankName} onChange={e => setForm(p => ({ ...p, bankName: e.target.value }))} placeholder="e.g. Opay, Access, Zenith" /></div>
               <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={form.bankAccount} onChange={e => setForm(p => ({ ...p, bankAccount: e.target.value }))} placeholder="10-digit account number" /></div>
             </div>
           </div>
