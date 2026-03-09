@@ -94,13 +94,31 @@ export default function InvestorDashboard() {
     <>
       <style>{`
         @media (max-width: 768px) {
-          .dash-sidebar { display: none !important; }
+          .dash-sidebar {
+            position: fixed !important;
+            top: 0; left: 0; bottom: 0;
+            z-index: 200;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease !important;
+            width: 240px !important;
+            box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+          }
+          .dash-sidebar.open {
+            transform: translateX(0) !important;
+          }
+          .dash-mobile-overlay {
+            display: none;
+            position: fixed; inset: 0; z-index: 199;
+            background: rgba(0,0,0,0.6);
+          }
+          .dash-mobile-overlay.open { display: block; }
           .dash-mobile-nav { display: flex !important; }
           .dash-content { padding: 16px !important; }
           .dash-topbar { padding: 12px 16px !important; }
         }
         @media (min-width: 769px) {
           .dash-mobile-nav { display: none !important; }
+          .dash-mobile-overlay { display: none !important; }
         }
         .dash-mobile-nav {
           position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
@@ -124,7 +142,8 @@ export default function InvestorDashboard() {
 
       <div style={s.app}>
         {/* SIDEBAR — desktop only */}
-        <div className="dash-sidebar" style={s.sidebar}>
+        <div className={`dash-mobile-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
+        <div className={`dash-sidebar ${sidebarOpen ? 'open' : ''}`} style={s.sidebar}>
           <div style={s.logo}>
             <img
               src="/logo.png"
@@ -149,7 +168,7 @@ export default function InvestorDashboard() {
 
           <div style={s.nav}>
             {navItems.map(item => (
-              <div key={item.id} style={s.navItem(section === item.id)} onClick={() => setSection(item.id as Section)}>
+              <div key={item.id} style={s.navItem(section === item.id)} onClick={() => { setSection(item.id as Section); if (window.innerWidth < 768) setSidebarOpen(false) }}>
                 <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
                 {sidebarOpen && <span>{item.label}</span>}
               </div>
