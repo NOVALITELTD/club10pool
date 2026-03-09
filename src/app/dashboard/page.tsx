@@ -59,6 +59,7 @@ export default function InvestorDashboard() {
     { id: 'portfolio', label: 'My Portfolio', icon: '◈' },
     { id: 'batches', label: 'Batches', icon: '⬡' },
     { id: 'withdrawals', label: 'Withdrawals', icon: '⟁' },
+    { id: 'referral' as any, label: 'Referral', icon: '🔗' },
     { id: 'settings', label: 'Settings', icon: '⚙' },
   ]
 
@@ -143,7 +144,7 @@ export default function InvestorDashboard() {
 
           <div style={s.nav}>
             {navItems.map(item => (
-              <div key={item.id} style={s.navItem(section === item.id)} onClick={() => setSection(item.id)}>
+              <div key={item.id} style={s.navItem(section === item.id)} onClick={() => setSection(item.id as Section)}>
                 <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
                 {sidebarOpen && <span>{item.label}</span>}
               </div>
@@ -159,7 +160,6 @@ export default function InvestorDashboard() {
               onClick={logout}
               title="Logout"
             >
-              {/* Logout SVG icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
@@ -183,7 +183,6 @@ export default function InvestorDashboard() {
                   <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              {/* Mobile logo */}
               <div className="dash-mobile-logo" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <img src="/logo.png" alt="Club10" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
                 <span style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0' }}>Club10 Pool</span>
@@ -194,7 +193,6 @@ export default function InvestorDashboard() {
                 <span style={{ color: '#00d4aa', fontSize: 8 }}>●</span>
                 <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</span>
               </div>
-              {/* Mobile logout */}
               <button
                 onClick={logout}
                 title="Logout"
@@ -218,6 +216,7 @@ export default function InvestorDashboard() {
                 {section === 'portfolio' && <PortfolioSection myBatch={myBatch} transactions={transactions} s={s} setSection={setSection} />}
                 {section === 'batches' && <BatchesSection batches={batches} myBatch={myBatch} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'withdrawals' && <WithdrawalsSection withdrawal={withdrawal} myBatch={myBatch} user={user} token={token!} s={s} reload={() => loadData(token!)} />}
+                {(section as any) === 'referral' && <ReferralSection token={token!} user={user} s={s} />}
                 {section === 'settings' && <SettingsSection user={user} token={token!} s={s} setUser={setUser} />}
               </>
             )}
@@ -230,7 +229,7 @@ export default function InvestorDashboard() {
             <button
               key={item.id}
               className={`mobile-nav-item ${section === item.id ? 'active' : ''}`}
-              onClick={() => setSection(item.id)}
+              onClick={() => setSection(item.id as Section)}
             >
               <span className="icon">{item.icon}</span>
               <span>{item.label}</span>
@@ -424,6 +423,426 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   )
 }
 
+// ── REFERRAL ──────────────────────────────────────────────
+const REFERRAL_CATEGORIES = [
+  { key: 'CENT',         label: '$100 Pool',    target: 100,   min: 10,   max: 50,   color: '#00d4aa', icon: '💎', desc: 'Entry-level pool for new investors' },
+  { key: 'STANDARD_1K', label: '$1,000 Pool',  target: 1000,  min: 100,  max: 500,  color: '#818cf8', icon: '⭐', desc: 'Standard pool for growing portfolios' },
+  { key: 'STANDARD_5K', label: '$5,000 Pool',  target: 5000,  min: 1000, max: 2500, color: '#f59e0b', icon: '🏆', desc: 'Advanced pool for serious investors' },
+  { key: 'STANDARD_10K',label: '$10,000 Pool', target: 10000, min: 2500, max: 5000, color: '#c9a84c', icon: '👑', desc: 'Premium pool — maximum potential' },
+]
+
+type ReferralStep = 'list' | 'terms' | 'select-category' | 'created' | 'view-pool'
+
+function ReferralSection({ token, user, s }: any) {
+  const [pools, setPools] = useState<any[]>([])
+  const [joinedPools, setJoinedPools] = useState<any[]>([])
+  const [rebatePending, setRebatePending] = useState(0)
+  const [rebateCredited, setRebateCredited] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [step, setStep] = useState<ReferralStep>('list')
+  const [selectedPool, setSelectedPool] = useState<any>(null)
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [newPoolData, setNewPoolData] = useState<any>(null)
+  const [copied, setCopied] = useState(false)
+  const APP_URL = typeof window !== 'undefined' ? window.location.origin : ''
+
+  useEffect(() => { loadData() }, [])
+
+  async function loadData() {
+    setLoading(true)
+    try {
+      const headers = { Authorization: `Bearer ${token}` }
+      const [poolRes, rebateRes] = await Promise.all([
+        fetch('/api/referrals/my', { headers }),
+        fetch('/api/referrals/rebates', { headers }),
+      ])
+      if (poolRes.ok) { const d = await poolRes.json(); setPools(d.data?.pools || []); setJoinedPools(d.data?.joinedPools || []) }
+      if (rebateRes.ok) { const d = await rebateRes.json(); setRebatePending(d.data?.totalPending || 0); setRebateCredited(d.data?.totalCredited || 0) }
+    } finally { setLoading(false) }
+  }
+
+  async function createPool(category: string) {
+    setCreateError(''); setCreating(true)
+    try {
+      const r = await fetch('/api/referrals/my', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ category }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setCreateError(d.error || 'Failed to create pool'); return }
+      setNewPoolData(d.data); setStep('created'); loadData()
+    } finally { setCreating(false) }
+  }
+
+  function copyLink(url: string) {
+    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+  }
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>Loading referral data...</div>
+
+  // TERMS
+  if (step === 'terms') return (
+    <div style={{ maxWidth: 600 }}>
+      <div style={s.card}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>📋 Referral Pool Terms & Conditions</div>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>Read carefully before proceeding</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: '#94a3b8', lineHeight: 1.7, marginBottom: 28 }}>
+          {[
+            ['One Pool Per Category', 'You may only have one active referral pool per category at a time.'],
+            ['10% Monthly Rebate Bonus', "As pool creator, you earn 10% of your pool's monthly trading account rebate, credited by admin each month."],
+            ['Member Contributions', 'Referred members must complete KYC, choose a contribution within the allowed range, and pay via Flutterwave to confirm their slot.'],
+            ['Pool Activation', 'Once the pool reaches its target, admin reviews and activates it with MT4/MT5 trading credentials sent to all members.'],
+            ['Non-Refundable After Activation', 'Contributions are non-refundable once a pool is activated. Funds returned within 7 business days if cancelled before activation.'],
+            ['Profit Distributions', "Monthly profits are distributed based on each member's contribution percentage of the pool."],
+          ].map(([title, text]) => (
+            <div key={title} style={{ background: '#080a0f', borderRadius: 8, padding: '12px 16px' }}>
+              <div style={{ fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>{title}</div>
+              <div>{text}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button style={s.btn()} onClick={() => setStep('select-category')}>✓ Accept & Continue →</button>
+          <button style={s.btn('ghost')} onClick={() => setStep('list')}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  // SELECT CATEGORY
+  if (step === 'select-category') return (
+    <div style={{ maxWidth: 640 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <button onClick={() => setStep('terms')} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Back</button>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>Choose Pool Category</div>
+      </div>
+      {createError && (
+        <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>⚠ {createError}</div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+        {REFERRAL_CATEGORIES.map(cat => {
+          const hasActive = pools.some(p => p.category === cat.key && ['OPEN', 'FULL'].includes(p.status))
+          return (
+            <div
+              key={cat.key}
+              onClick={() => !hasActive && !creating && createPool(cat.key)}
+              style={{ background: '#0d1117', border: `1px solid ${hasActive ? '#1e2530' : cat.color + '44'}`, borderRadius: 14, padding: 20, cursor: hasActive ? 'not-allowed' : 'pointer', opacity: hasActive ? 0.5 : 1, transition: 'border-color 0.15s' }}
+            >
+              <div style={{ fontSize: 28, marginBottom: 10 }}>{cat.icon}</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: cat.color, marginBottom: 4 }}>{cat.label}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>{cat.desc}</div>
+              <div style={{ fontSize: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: '#64748b' }}>Pool Target</span>
+                  <span style={{ color: cat.color, fontWeight: 700 }}>${cat.target.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Contribution Range</span>
+                  <span>${cat.min}–${cat.max}</span>
+                </div>
+              </div>
+              {hasActive && <div style={{ marginTop: 10, fontSize: 11, color: '#f59e0b' }}>⚠ You already have an active pool in this category</div>}
+              {creating && <div style={{ marginTop: 10, fontSize: 11, color: '#64748b' }}>Creating...</div>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+
+  // CREATED
+  if (step === 'created' && newPoolData) {
+    const refUrl = `${APP_URL}/${newPoolData.referralCode}`
+    const cat = REFERRAL_CATEGORIES.find(c => c.key === newPoolData.pool?.category) || REFERRAL_CATEGORIES[0]
+    return (
+      <div style={{ maxWidth: 540 }}>
+        <div style={{ ...s.card, border: `1px solid ${cat.color}44`, textAlign: 'center', marginBottom: 16 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎉</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: cat.color }}>Referral Pool Created!</div>
+          <div style={{ color: '#64748b', fontSize: 13, marginBottom: 24 }}>Share your link to invite members to your {cat.label}</div>
+          <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Referral Link</div>
+            <div style={{ fontSize: 14, color: '#00d4aa', wordBreak: 'break-all', fontWeight: 600, marginBottom: 12 }}>{refUrl}</div>
+            <button
+              onClick={() => copyLink(refUrl)}
+              style={{ background: copied ? 'rgba(0,212,170,0.15)' : 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.3)', borderRadius: 8, padding: '8px 20px', color: '#00d4aa', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
+            >
+              {copied ? '✓ Copied!' : 'Copy Link'}
+            </button>
+          </div>
+        </div>
+        <button style={s.btn()} onClick={() => { setStep('list'); setNewPoolData(null) }}>View My Pools →</button>
+      </div>
+    )
+  }
+
+  // VIEW SINGLE POOL
+  if (step === 'view-pool' && selectedPool) {
+    const cat = REFERRAL_CATEGORIES.find(c => c.key === selectedPool.category) || REFERRAL_CATEGORIES[0]
+    const refUrl = `${APP_URL}/${selectedPool.referralCode}`
+    const paidMembers = selectedPool.members?.filter((m: any) => ['PAID', 'ACTIVE'].includes(m.status)) || []
+    const totalPaid = paidMembers.reduce((sum: number, m: any) => sum + Number(m.contribution), 0)
+    const progress = (totalPaid / Number(selectedPool.targetAmount)) * 100
+    const batch = selectedPool.batch
+    return (
+      <div style={{ maxWidth: 620 }}>
+        <button onClick={() => { setStep('list'); setSelectedPool(null) }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', marginBottom: 16 }}>← Back to Pools</button>
+        <div style={{ ...s.card, border: `1px solid ${cat.color}44`, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+            <span style={{ fontSize: 32 }}>{cat.icon}</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: cat.color }}>{cat.label}</div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Code: {selectedPool.referralCode}</div>
+            </div>
+            <span style={s.tag(cat.color)}>{selectedPool.status}</span>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 6 }}>
+              <span>Pool Progress</span>
+              <span style={{ color: cat.color }}>${totalPaid.toLocaleString()} / ${Number(selectedPool.targetAmount).toLocaleString()}</span>
+            </div>
+            <div style={{ height: 8, background: '#1e2530', borderRadius: 4, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.min(100, progress)}%`, background: cat.color, borderRadius: 4 }} />
+            </div>
+          </div>
+          {selectedPool.status === 'OPEN' && (
+            <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Referral Link</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 13, color: '#00d4aa', flex: 1, wordBreak: 'break-all' }}>{refUrl}</div>
+                <button onClick={() => copyLink(refUrl)} style={{ background: 'none', border: '1px solid rgba(0,212,170,0.3)', borderRadius: 6, padding: '6px 14px', color: '#00d4aa', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {copied ? '✓' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Trading details if activated */}
+        {batch?.status === 'ACTIVE' && (
+          <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', marginBottom: 16 }}>
+            <div style={{ fontWeight: 700, color: '#00d4aa', marginBottom: 14 }}>📊 Trading Account Details</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, fontSize: 13 }}>
+              {[
+                ['Platform', batch.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'],
+                ['Broker', batch.brokerName],
+                ['Account ID', batch.tradingAccountId],
+                ['Investor Password', batch.investorPassword],
+                ['Server', batch.tradingServer],
+              ].map(([label, value]) => value ? (
+                <div key={label} style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px' }}>
+                  <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontWeight: 700, color: '#e2e8f0', fontFamily: 'monospace', wordBreak: 'break-all' }}>{value}</div>
+                </div>
+              ) : null)}
+            </div>
+          </div>
+        )}
+
+        {/* Members */}
+        <div style={{ ...s.card, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 14 }}>Members ({paidMembers.length})</div>
+          {paidMembers.length === 0
+            ? <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>No paid members yet. Share your link!</div>
+            : paidMembers.map((m: any, i: number) => (
+              <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#080a0f', borderRadius: 8, padding: '10px 14px', marginBottom: 6 }}>
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: '#64748b', marginRight: 8 }}>#{i + 1}</span>
+                  {m.investor?.fullName}
+                  <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>{m.investor?.email}</span>
+                </div>
+                <span style={{ color: cat.color, fontWeight: 700 }}>${Number(m.contribution).toLocaleString()}</span>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* Rebate history */}
+        {selectedPool.rebates?.length > 0 && (
+          <div style={s.card}>
+            <div style={{ fontWeight: 700, marginBottom: 14 }}>💰 Rebate History (Your 10% Bonus)</div>
+            {selectedPool.rebates.map((r: any) => (
+              <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #1e2530' }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{new Date(r.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</div>
+                  <div style={{ fontSize: 11, color: '#64748b' }}>Pool rebate: ${Number(r.totalRebate).toLocaleString()}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontWeight: 800, color: '#c9a84c' }}>${Number(r.creatorBonus).toLocaleString()}</div>
+                  <span style={{ fontSize: 11, color: r.status === 'CREDITED' ? '#00d4aa' : '#f59e0b' }}>{r.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // MAIN LIST VIEW
+  return (
+    <div>
+      {(rebatePending > 0 || rebateCredited > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 20 }}>
+          {[
+            { label: 'Pending Rebate Bonus', value: `$${rebatePending.toLocaleString()}`, color: '#f59e0b' },
+            { label: 'Total Rebate Earned', value: `$${rebateCredited.toLocaleString()}`, color: '#00d4aa' },
+          ].map(stat => (
+            <div key={stat.label} style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 12, padding: 18 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: stat.color }}>{stat.value}</div>
+              <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ fontSize: 14, color: '#64748b' }}>{pools.length} referral pool{pools.length !== 1 ? 's' : ''}</div>
+        <button style={s.btn()} onClick={() => setStep('terms')}>+ Create Referral Pool</button>
+      </div>
+
+      {/* Pools I created */}
+      {pools.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>My Pools (Creator)</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {pools.map(pool => {
+              const cat = REFERRAL_CATEGORIES.find(c => c.key === pool.category) || REFERRAL_CATEGORIES[0]
+              const paidMembers = pool.members?.filter((m: any) => ['PAID', 'ACTIVE'].includes(m.status)) || []
+              const totalPaid = paidMembers.reduce((sum: number, m: any) => sum + Number(m.contribution), 0)
+              const progress = (totalPaid / Number(pool.targetAmount)) * 100
+              const refUrl = `${APP_URL}/${pool.referralCode}`
+              return (
+                <div key={pool.id} style={{ background: '#0d1117', border: `1px solid ${cat.color}33`, borderRadius: 14, padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 24 }}>{cat.icon}</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 15, color: cat.color }}>{cat.label}</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>/{pool.referralCode}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={s.tag(cat.color)}>{pool.status}</span>
+                      <button
+                        onClick={() => { setSelectedPool(pool); setStep('view-pool') }}
+                        style={{ background: 'none', border: '1px solid #1e2530', borderRadius: 8, padding: '5px 14px', color: '#94a3b8', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+                      >View →</button>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
+                      <span>{paidMembers.length} member{paidMembers.length !== 1 ? 's' : ''}</span>
+                      <span>${totalPaid.toLocaleString()} / ${Number(pool.targetAmount).toLocaleString()}</span>
+                    </div>
+                    <div style={{ height: 6, background: '#1e2530', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, progress)}%`, background: cat.color, borderRadius: 3 }} />
+                    </div>
+                  </div>
+                  {pool.status === 'OPEN' && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#080a0f', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                      <span style={{ color: '#64748b', flexShrink: 0 }}>Link:</span>
+                      <span style={{ color: '#00d4aa', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{refUrl}</span>
+                      <button onClick={() => copyLink(refUrl)} style={{ background: 'none', border: 'none', color: copied ? '#00d4aa' : '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+                        {copied ? '✓ Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Pools I joined as member */}
+      {joinedPools.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>Pools I've Joined (Member)</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {joinedPools.map(jm => {
+              const pool = jm.referralPool
+              const cat = REFERRAL_CATEGORIES.find(c => c.key === pool?.category) || REFERRAL_CATEGORIES[0]
+              const batch = pool?.batch
+              const isPaid = ['PAID', 'ACTIVE'].includes(jm.status)
+              return (
+                <div key={jm.id} style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 14, padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 24 }}>{cat.icon}</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: cat.color }}>{cat.label}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>By {pool?.creator?.fullName} · <strong style={{ color: '#c9a84c' }}>${Number(jm.contribution).toLocaleString()}</strong></div>
+                      </div>
+                    </div>
+                    <span style={{ background: isPaid ? 'rgba(0,212,170,0.15)' : 'rgba(245,158,11,0.15)', color: isPaid ? '#00d4aa' : '#f59e0b', border: `1px solid ${isPaid ? 'rgba(0,212,170,0.3)' : 'rgba(245,158,11,0.3)'}`, padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{jm.status}</span>
+                  </div>
+                  {jm.status === 'PENDING_PAYMENT' && <ReferralPayButton token={token} referralMemberId={jm.id} amount={Number(jm.contribution)} color={cat.color} />}
+                  {batch?.status === 'ACTIVE' && isPaid && (
+                    <div style={{ background: '#080a0f', borderRadius: 8, padding: '12px 14px', marginTop: 10 }}>
+                      <div style={{ fontSize: 11, color: '#00d4aa', fontWeight: 700, marginBottom: 8 }}>📊 Trading Access</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+                        <div><span style={{ color: '#64748b' }}>Platform: </span>{batch.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'}</div>
+                        <div><span style={{ color: '#64748b' }}>Broker: </span>{batch.brokerName}</div>
+                        <div><span style={{ color: '#64748b' }}>Account: </span><span style={{ color: '#00d4aa', fontFamily: 'monospace' }}>{batch.tradingAccountId}</span></div>
+                        <div><span style={{ color: '#64748b' }}>Password: </span><span style={{ fontFamily: 'monospace' }}>{batch.investorPassword}</span></div>
+                        <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b' }}>Server: </span>{batch.tradingServer}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {pools.length === 0 && joinedPools.length === 0 && (
+        <div style={{ ...s.card, textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Referral Pools Yet</div>
+          <div style={{ color: '#64748b', fontSize: 14, marginBottom: 28, maxWidth: 380, margin: '0 auto 28px' }}>
+            Create a referral pool, share your link, and earn 10% monthly rebate bonus when your pool trades.
+          </div>
+          <button style={s.btn()} onClick={() => setStep('terms')}>+ Create Your First Pool</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  async function pay() {
+    setLoading(true); setError('')
+    try {
+      const r = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type: 'referral', referralMemberId }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Failed'); return }
+      window.location.href = d.data.paymentLink
+    } finally { setLoading(false) }
+  }
+  return (
+    <div>
+      {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {error}</div>}
+      <button
+        onClick={pay}
+        disabled={loading}
+        style={{ background: `linear-gradient(135deg,${color},${color}aa)`, color: '#000', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 13, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit' }}
+      >
+        {loading ? 'Redirecting...' : `💳 Pay $${amount.toLocaleString()} to Confirm Slot`}
+      </button>
+    </div>
+  )
+}
+
 // ── SETTINGS ──────────────────────────────────────────────
 type SettingsStep = 'locked' | 'verify' | 'unlocked'
 
@@ -441,7 +860,6 @@ function SettingsSection({ user, token, s, setUser }: any) {
   const [message, setMessage] = useState('')
   const [saveError, setSaveError] = useState('')
 
-  // Countdown timer for resend
   useEffect(() => {
     if (countdown <= 0) return
     const t = setTimeout(() => setCountdown(c => c - 1), 1000)
@@ -491,7 +909,6 @@ function SettingsSection({ user, token, s, setUser }: any) {
       localStorage.setItem('user', JSON.stringify(updated))
       setUser(updated)
       setMessage('Settings saved successfully')
-      // Re-lock after saving for security
       setTimeout(() => { setStep('locked'); setCodeInput(''); setCodeSent(false) }, 3000)
     } finally { setSaving(false) }
   }
@@ -499,7 +916,6 @@ function SettingsSection({ user, token, s, setUser }: any) {
   const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
   const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
 
-  // ── LOCKED STATE ──
   if (step === 'locked') return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ ...s.card, textAlign: 'center', padding: '48px 32px' }}>
@@ -515,15 +931,10 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <span style={{ color: '#00d4aa', fontWeight: 600 }}>{user?.email}</span><br />
           before you can edit your settings.
         </div>
-        <button
-          onClick={() => { setStep('verify'); sendCode() }}
-          style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}
-        >
+        <button onClick={() => { setStep('verify'); sendCode() }} style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}>
           Send Verification Code
         </button>
       </div>
-
-      {/* Read-only account info */}
       <div style={{ ...s.card, marginTop: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>Account Info</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -545,7 +956,6 @@ function SettingsSection({ user, token, s, setUser }: any) {
     </div>
   )
 
-  // ── VERIFY CODE STATE ──
   if (step === 'verify') return (
     <div style={{ maxWidth: 440 }}>
       <div style={s.card}>
@@ -561,61 +971,30 @@ function SettingsSection({ user, token, s, setUser }: any) {
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Code sent to {user?.email}</div>
           </div>
         </div>
-
         {codeError && (
-          <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>
-            ⚠ {codeError}
-          </div>
+          <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>⚠ {codeError}</div>
         )}
-
         <div style={{ marginBottom: 20 }}>
           <label style={labelStyle}>6-Digit Verification Code</label>
-          <input
-            type="text"
-            maxLength={6}
-            placeholder="000000"
-            value={codeInput}
-            onChange={e => setCodeInput(e.target.value.replace(/\D/g, ''))}
-            onKeyDown={e => e.key === 'Enter' && verifyCode()}
-            style={{ ...inputStyle, fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: 700 }}
-          />
+          <input type="text" maxLength={6} placeholder="000000" value={codeInput} onChange={e => setCodeInput(e.target.value.replace(/\D/g, ''))} onKeyDown={e => e.key === 'Enter' && verifyCode()}
+            style={{ ...inputStyle, fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: 700 }} />
         </div>
-
-        <button
-          onClick={verifyCode}
-          disabled={verifyLoading || codeInput.length < 6}
-          style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 14, opacity: codeInput.length < 6 ? 0.5 : 1 }}
-        >
+        <button onClick={verifyCode} disabled={verifyLoading || codeInput.length < 6} style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 14, opacity: codeInput.length < 6 ? 0.5 : 1 }}>
           {verifyLoading ? 'Verifying...' : 'Verify & Unlock Settings'}
         </button>
-
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-          <button
-            onClick={() => { setStep('locked'); setCodeInput(''); setCodeError('') }}
-            style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
-          >
-            ← Cancel
-          </button>
-          {countdown > 0 ? (
-            <span style={{ fontSize: 12, color: '#475569' }}>Resend in {countdown}s</span>
-          ) : (
-            <button
-              onClick={sendCode}
-              disabled={codeLoading}
-              style={{ background: 'none', border: 'none', color: '#00d4aa', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}
-            >
-              {codeLoading ? 'Sending...' : 'Resend Code'}
-            </button>
-          )}
+          <button onClick={() => { setStep('locked'); setCodeInput(''); setCodeError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Cancel</button>
+          {countdown > 0
+            ? <span style={{ fontSize: 12, color: '#475569' }}>Resend in {countdown}s</span>
+            : <button onClick={sendCode} disabled={codeLoading} style={{ background: 'none', border: 'none', color: '#00d4aa', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>{codeLoading ? 'Sending...' : 'Resend Code'}</button>
+          }
         </div>
       </div>
     </div>
   )
 
-  // ── UNLOCKED STATE ──
   return (
     <div style={{ maxWidth: 520 }}>
-      {/* Unlocked badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(0,212,170,0.06)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 10, padding: '10px 16px', marginBottom: 16 }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00d4aa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -624,7 +1003,6 @@ function SettingsSection({ user, token, s, setUser }: any) {
         <span style={{ fontSize: 12, color: '#00d4aa', fontWeight: 600 }}>Settings Unlocked</span>
         <span style={{ fontSize: 11, color: '#475569', marginLeft: 'auto' }}>Will re-lock after saving</span>
       </div>
-
       <div style={s.card}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 20 }}>Edit Account Details</div>
         {saveError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {saveError}</div>}
@@ -633,11 +1011,9 @@ function SettingsSection({ user, token, s, setUser }: any) {
             ✓ {message} — re-locking settings...
           </div>
         )}
-
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div><label style={labelStyle}>Full Name</label><input style={inputStyle} value={form.fullName} onChange={e => setForm(p => ({ ...p, fullName: e.target.value }))} /></div>
           <div><label style={labelStyle}>Phone</label><input style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></div>
-
           <div style={{ borderTop: '1px solid #1e2530', paddingTop: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -652,7 +1028,6 @@ function SettingsSection({ user, token, s, setUser }: any) {
               <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={form.bankAccount} onChange={e => setForm(p => ({ ...p, bankAccount: e.target.value }))} placeholder="10-digit account number" /></div>
             </div>
           </div>
-
           <button style={s.btn()} onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
         </div>
       </div>
