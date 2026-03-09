@@ -21,6 +21,26 @@ const CATEGORY_COLORS: Record<string, string> = {
   STANDARD_5K: '#f59e0b', STANDARD_10K: '#c9a84c',
 }
 
+function useUsdNgnRate() {
+  const [rate, setRate] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      .then(r => r.json())
+      .then(d => setRate(d.rates?.NGN || null))
+      .catch(() => setRate(null))
+  }, [])
+  return rate
+}
+
+function NgnEquiv({ usd, rate }: { usd: number; rate: number | null }) {
+  if (!rate || !usd) return null
+  return (
+    <div style={{ fontSize: 11, color: '#475569', marginTop: 3 }}>
+      ≈ ₦{(usd * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}
+    </div>
+  )
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [section, setSection] = useState<Section>('overview')
@@ -224,19 +244,21 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
   const activeBatches = batches.filter((b: any) => b.status === 'ACTIVE').length
   const fullPools = referralPools.filter((p: any) => p.status === 'FULL').length
   const totalCapital = batches.reduce((sum: number, b: any) => sum + parseFloat(b.targetCapital || 0), 0)
+  const rate = useUsdNgnRate()
 
   return (
     <div>
       <div style={s.grid4}>
         {[
-          { label: 'Total Investors', value: investors.length, color: '#c9a84c', icon: '◎' },
-          { label: 'Active Batches', value: activeBatches, color: '#00d4aa', icon: '⬡' },
-          { label: 'Total Capital', value: `₦${totalCapital.toLocaleString()}`, color: '#818cf8', icon: '◈' },
-          { label: 'Pending KYC', value: pendingKyc, color: '#f59e0b', icon: '⊡' },
+          { label: 'Total Investors', value: investors.length, usd: null, color: '#c9a84c', icon: '◎' },
+          { label: 'Active Batches', value: activeBatches, usd: null, color: '#00d4aa', icon: '⬡' },
+          { label: 'Total Capital', value: `$${totalCapital.toLocaleString()}`, usd: totalCapital, color: '#818cf8', icon: '◈' },
+          { label: 'Pending KYC', value: pendingKyc, usd: null, color: '#f59e0b', icon: '⊡' },
         ].map(stat => (
           <div key={stat.label} style={s.statCard}>
             <div style={{ fontSize: 24, color: stat.color }}>{stat.icon}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: stat.color }}>{stat.value}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
+            {stat.usd !== null && <NgnEquiv usd={stat.usd as number} rate={rate} />}
             <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>{stat.label}</div>
           </div>
         ))}
@@ -662,35 +684,50 @@ function KYCSection({ kycList, token, s, reload }: any) {
 }
 
 // ── BATCHES ───────────────────────────────────────────────
+const ADMIN_CATEGORY_CONFIG: Record<string, { target: number; min: number; max: number; label: string; color: string }> = {
+  CENT:         { target: 100,   min: 10,   max: 50,   label: '$100 Pool',    color: '#00d4aa' },
+  STANDARD_1K:  { target: 1000,  min: 100,  max: 500,  label: '$1,000 Pool',  color: '#818cf8' },
+  STANDARD_5K:  { target: 5000,  min: 1000, max: 2500, label: '$5,000 Pool',  color: '#f59e0b' },
+  STANDARD_10K: { target: 10000, min: 2500, max: 5000, label: '$10,000 Pool', color: '#c9a84c' },
+}
+
 function BatchSection({ batches, token, s, reload }: any) {
+  const rate = useUsdNgnRate()
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState({ batchCode: '', name: '', description: '', targetMembers: '', contributionPerMember: '', brokerName: '' })
+  const [category, setCategory] = useState('CENT')
+  const [form, setForm] = useState({ batchCode: '', name: '', description: '', brokerName: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function createBatch() {
     setError(''); setLoading(true)
+    const cfg = ADMIN_CATEGORY_CONFIG[category]
     try {
       const r = await fetch('/api/batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           ...form,
-          targetMembers: parseInt(form.targetMembers),
-          contributionPerMember: parseFloat(form.contributionPerMember),
-          targetCapital: parseInt(form.targetMembers) * parseFloat(form.contributionPerMember),
+          category,
+          targetMembers: 10,
+          contributionPerMember: cfg.min,
+          targetCapital: cfg.target,
+          targetAmount: cfg.target,
+          minContribution: cfg.min,
+          maxContribution: cfg.max,
         }),
       })
       const d = await r.json()
       if (!r.ok) return setError(d.error)
       setShowCreate(false)
-      setForm({ batchCode: '', name: '', description: '', targetMembers: '', contributionPerMember: '', brokerName: '' })
+      setForm({ batchCode: '', name: '', description: '', brokerName: '' })
       reload()
     } finally { setLoading(false) }
   }
 
   const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
   const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
+  const cfg = ADMIN_CATEGORY_CONFIG[category]
 
   return (
     <div>
@@ -703,12 +740,18 @@ function BatchSection({ batches, token, s, reload }: any) {
         <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.2)' }}>
           <div style={{ fontWeight: 700, marginBottom: 16 }}>New Batch</div>
           {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 14 }}>
+            <div>
+              <label style={labelStyle}>Pool Category</label>
+              <select value={category} onChange={e => setCategory(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                {Object.entries(ADMIN_CATEGORY_CONFIG).map(([key, val]) => (
+                  <option key={key} value={key}>{val.label}</option>
+                ))}
+              </select>
+            </div>
             {[
               { key: 'batchCode', label: 'Batch Code', placeholder: 'BATCH-A' },
               { key: 'name', label: 'Name', placeholder: 'Batch Alpha' },
-              { key: 'targetMembers', label: 'Target Members', placeholder: '10' },
-              { key: 'contributionPerMember', label: 'Contribution Per Member (₦)', placeholder: '100000' },
               { key: 'brokerName', label: 'Broker Name', placeholder: 'Optional' },
               { key: 'description', label: 'Description', placeholder: 'Optional' },
             ].map(f => (
@@ -718,7 +761,14 @@ function BatchSection({ batches, token, s, reload }: any) {
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          {cfg && (
+            <div style={{ background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
+              <strong style={{ color: cfg.color }}>{cfg.label}</strong> — Pool target: <strong style={{ color: '#e2e8f0' }}>${cfg.target.toLocaleString()}</strong>
+              {rate && <span style={{ color: '#475569' }}> (≈ ₦{(cfg.target * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })})</span>}
+              {' '}· Member contribution: <strong style={{ color: '#e2e8f0' }}>${cfg.min}–${cfg.max}</strong>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10 }}>
             <button style={s.btn()} onClick={createBatch} disabled={loading}>{loading ? 'Creating...' : 'Create Batch'}</button>
             <button style={s.btn('ghost')} onClick={() => setShowCreate(false)}>Cancel</button>
           </div>
@@ -726,36 +776,92 @@ function BatchSection({ batches, token, s, reload }: any) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {batches.map((b: any) => (
-          <div key={b.id} style={s.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>{b.name}</span>
-                  <span style={{ fontSize: 12, color: '#64748b' }}>{b.batchCode}</span>
-                  <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : '#64748b')}>{b.status}</span>
+        {batches.map((b: any) => {
+          const bCfg = ADMIN_CATEGORY_CONFIG[b.category]
+          const color = bCfg?.color || '#818cf8'
+          const target = Number(b.targetAmount || b.targetCapital || 0)
+          const current = Number(b.currentAmount || 0)
+          const progress = target ? (current / target) * 100 : 0
+          return (
+            <div key={b.id} style={s.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: 15 }}>{b.name}</span>
+                    <span style={{ fontSize: 12, color: '#64748b' }}>{b.batchCode}</span>
+                    <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : b.status === 'FULL' ? '#f59e0b' : '#64748b')}>{b.status}</span>
+                    {b.category && <span style={s.tag(color)}>{bCfg?.label || b.category}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+                    {bCfg
+                      ? `Contribution $${bCfg.min}–$${bCfg.max} · Target $${target.toLocaleString()}`
+                      : `$${parseFloat(b.contributionPerMember || 0).toLocaleString()} · Target $${target.toLocaleString()}`
+                    }
+                    {b.brokerName && ` · ${b.brokerName}`}
+                  </div>
+                  {target > 0 && (
+                    <div style={{ maxWidth: 320 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+                        <span>Pool filled</span>
+                        <span style={{ color }}>${current.toLocaleString()} / ${target.toLocaleString()}</span>
+                      </div>
+                      <div style={{ background: '#080a0f', borderRadius: 6, height: 5, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', background: color, width: `${Math.min(100, progress)}%`, borderRadius: 6 }} />
+                      </div>
+                    </div>
+                  )}
+                  {/* Show trading details if active */}
+                  {b.status === 'ACTIVE' && b.tradingAccountId && (
+                    <div style={{ marginTop: 10, background: '#080a0f', borderRadius: 8, padding: '10px 12px', fontSize: 12 }}>
+                      <div style={{ color: '#00d4aa', fontWeight: 700, marginBottom: 6 }}>📊 {b.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 6 }}>
+                        {[['Broker', b.brokerName], ['Account ID', b.tradingAccountId], ['Password', b.investorPassword], ['Server', b.tradingServer]].map(([label, value]) => value ? (
+                          <div key={label}><span style={{ color: '#64748b' }}>{label}: </span><span style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>{value}</span></div>
+                        ) : null)}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b' }}>
-                  Target: {b.targetMembers} members · ₦{parseFloat(b.contributionPerMember).toLocaleString()} each · Total ₦{parseFloat(b.targetCapital).toLocaleString()}
-                </div>
+                <BatchActivateOrAdvance batch={b} token={token} s={s} reload={reload} rate={rate} />
               </div>
-              <BatchStatusChanger batch={b} token={token} s={s} reload={reload} />
             </div>
-          </div>
-        ))}
+          )
+        })}
         {!batches.length && <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 60 }}>No batches yet. Create your first batch above.</div>}
       </div>
     </div>
   )
 }
 
-function BatchStatusChanger({ batch, token, s, reload }: any) {
-  const [loading, setLoading] = useState(false)
-  const next: any = { FORMING: 'ACTIVE', ACTIVE: 'DISTRIBUTING', DISTRIBUTING: 'CLOSED' }
-  const nextStatus = next[batch.status]
+function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
+  const [showActivate, setShowActivate] = useState(false)
+  const [activateForm, setActivateForm] = useState({ tradingPlatform: 'MT4', brokerName: batch.brokerName || '', tradingAccountId: '', investorPassword: '', tradingServer: '' })
+  const [activateLoading, setActivateLoading] = useState(false)
+  const [activateError, setActivateError] = useState('')
+  const [statusLoading, setStatusLoading] = useState(false)
 
-  async function updateStatus() {
-    setLoading(true)
+  const next: any = { FORMING: null, FULL: null, ACTIVE: 'DISTRIBUTING', DISTRIBUTING: 'CLOSED' }
+  const nextStatus = next[batch.status]
+  const canActivate = ['FORMING', 'FULL'].includes(batch.status)
+
+  const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
+
+  async function activateBatch() {
+    setActivateError(''); setActivateLoading(true)
+    try {
+      const r = await fetch('/api/batches/admin-activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ batchId: batch.id, ...activateForm }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setActivateError(d.error || 'Failed'); return }
+      setShowActivate(false); reload()
+    } finally { setActivateLoading(false) }
+  }
+
+  async function advanceStatus() {
+    setStatusLoading(true)
     try {
       await fetch(`/api/batches/${batch.id}`, {
         method: 'PATCH',
@@ -763,11 +869,48 @@ function BatchStatusChanger({ batch, token, s, reload }: any) {
         body: JSON.stringify({ status: nextStatus }),
       })
       reload()
-    } finally { setLoading(false) }
+    } finally { setStatusLoading(false) }
   }
 
-  if (!nextStatus) return null
-  return <button style={{ ...s.btn('ghost'), fontSize: 12 }} onClick={updateStatus} disabled={loading}>→ {nextStatus}</button>
+  if (batch.status === 'CLOSED') return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+      {canActivate && (
+        <button
+          style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontSize: 12, whiteSpace: 'nowrap' as const }}
+          onClick={() => setShowActivate(p => !p)}
+        >
+          ⚡ {showActivate ? 'Cancel' : 'Activate with MT4/MT5'}
+        </button>
+      )}
+      {nextStatus && (
+        <button style={{ ...s.btn('ghost'), fontSize: 12 }} onClick={advanceStatus} disabled={statusLoading}>→ {nextStatus}</button>
+      )}
+      {showActivate && (
+        <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 14, minWidth: 260 }}>
+          {activateError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {activateError}</div>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+            <select value={activateForm.tradingPlatform} onChange={e => setActivateForm(p => ({ ...p, tradingPlatform: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="MT4">MetaTrader 4 (MT4)</option>
+              <option value="MT5">MetaTrader 5 (MT5)</option>
+            </select>
+            {[
+              ['brokerName', 'Broker Name'],
+              ['tradingAccountId', 'Account ID'],
+              ['investorPassword', 'Investor Password'],
+              ['tradingServer', 'Server'],
+            ].map(([key, placeholder]) => (
+              <input key={key} style={inputStyle} placeholder={placeholder} value={(activateForm as any)[key]} onChange={e => setActivateForm(p => ({ ...p, [key]: e.target.value }))} />
+            ))}
+          </div>
+          <button style={{ ...s.btn(), width: '100%', fontSize: 12, padding: '8px' }} onClick={activateBatch} disabled={activateLoading}>
+            {activateLoading ? 'Activating...' : '⚡ Activate & Notify Members'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── INVESTORS ─────────────────────────────────────────────
@@ -820,6 +963,7 @@ function WithdrawalSection({ batches, token, s }: any) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [payouts, setPayouts] = useState<any[]>([])
+  const rate = useUsdNgnRate()
 
   useEffect(() => {
     fetch('/api/withdrawals/admin', { headers: { Authorization: `Bearer ${token}` } })
@@ -860,7 +1004,7 @@ function WithdrawalSection({ batches, token, s }: any) {
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Total Profit (₦)</label>
+            <label style={labelStyle}>Total Profit ($)</label>
             <input type="number" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} placeholder="0.00" value={form.profitAmount} onChange={e => setForm(p => ({ ...p, profitAmount: e.target.value }))} />
           </div>
           <button style={s.btn()} onClick={activateWithdrawal} disabled={loading}>{loading ? '...' : 'Activate'}</button>
@@ -880,7 +1024,10 @@ function WithdrawalSection({ batches, token, s }: any) {
                   <tr key={p.id}>
                     <td style={s.td}><div style={{ fontWeight: 600, fontSize: 13 }}>{p.investorName}</div></td>
                     <td style={s.td}><span style={{ fontSize: 12, color: '#94a3b8' }}>{p.batchCode}</span></td>
-                    <td style={s.td}><span style={{ color: '#c9a84c', fontWeight: 600 }}>₦{parseFloat(p.amount || 0).toLocaleString()}</span></td>
+                    <td style={s.td}>
+                      <span style={{ color: '#c9a84c', fontWeight: 600 }}>${parseFloat(p.amount || 0).toLocaleString()}</span>
+                      <NgnEquiv usd={parseFloat(p.amount || 0)} rate={rate} />
+                    </td>
                     <td style={s.td}><div style={{ fontSize: 12 }}>{p.bankName}<br /><span style={{ color: '#64748b' }}>{p.bankAccount}</span></div></td>
                     <td style={s.td}><span style={s.tag(p.status === 'CONFIRMED' ? '#00d4aa' : '#f59e0b')}>{p.status}</span></td>
                     <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(p.createdAt).toLocaleDateString()}</span></td>
