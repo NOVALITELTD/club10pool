@@ -241,8 +241,31 @@ export default function InvestorDashboard() {
   )
 }
 
+// ── EXCHANGE RATE HOOK ────────────────────────────────────
+function useUsdNgnRate() {
+  const [rate, setRate] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      .then(r => r.json())
+      .then(d => setRate(d.rates?.NGN || null))
+      .catch(() => setRate(null))
+  }, [])
+  return rate
+}
+
+function NgnEquiv({ usd, rate }: { usd: number; rate: number | null }) {
+  if (!rate || !usd) return null
+  return (
+    <div style={{ fontSize: 11, color: '#475569', marginTop: 3 }}>
+      ≈ ₦{(usd * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}
+    </div>
+  )
+}
+
 // ── PORTFOLIO ─────────────────────────────────────────────
 function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
+  const rate = useUsdNgnRate()
+
   if (!myBatch) return (
     <div style={{ textAlign: 'center', padding: '80px 20px' }}>
       <div style={{ fontSize: 56, marginBottom: 20 }}>⬡</div>
@@ -261,14 +284,15 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Capital Invested', value: `₦${capital.toLocaleString()}`, color: '#00d4aa' },
-          { label: 'Share Percent', value: `${sharePercent.toFixed(2)}%`, color: '#c9a84c' },
-          { label: 'Total Profit Earned', value: `₦${totalProfit.toLocaleString()}`, color: '#818cf8' },
-          { label: 'Batch Status', value: myBatch.status, color: myBatch.status === 'ACTIVE' ? '#00d4aa' : '#f59e0b' },
+          { label: 'Capital Invested', value: `$${capital.toLocaleString()}`, usd: capital, color: '#00d4aa' },
+          { label: 'Share Percent', value: `${sharePercent.toFixed(2)}%`, usd: null, color: '#c9a84c' },
+          { label: 'Total Profit Earned', value: `$${totalProfit.toLocaleString()}`, usd: totalProfit, color: '#818cf8' },
+          { label: 'Batch Status', value: myBatch.status, usd: null, color: myBatch.status === 'ACTIVE' ? '#00d4aa' : '#f59e0b' },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 12, padding: 18 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: stat.color, marginBottom: 4 }}>{stat.value}</div>
-            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>{stat.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
+            {stat.usd !== null && <NgnEquiv usd={stat.usd} rate={rate} />}
+            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -283,7 +307,10 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
       </div>
 
       <div style={{ ...s.card, marginTop: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 16 }}>Transaction History</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ fontWeight: 700 }}>Transaction History</div>
+          {rate && <div style={{ fontSize: 11, color: '#475569' }}>Rate: $1 = ₦{rate.toLocaleString()}</div>}
+        </div>
         {transactions.length ? (
           <div style={{ overflowX: 'auto' }}>
             <table style={s.table}>
@@ -292,7 +319,10 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
                 {transactions.slice(0, 10).map((tx: any) => (
                   <tr key={tx.id}>
                     <td style={s.td}><span style={{ color: tx.type === 'PROFIT_SHARE' ? '#00d4aa' : tx.type === 'DEPOSIT' ? '#818cf8' : '#94a3b8', fontSize: 12 }}>{tx.type}</span></td>
-                    <td style={s.td}><span style={{ fontWeight: 600, color: '#c9a84c' }}>₦{parseFloat(tx.amount).toLocaleString()}</span></td>
+                    <td style={s.td}>
+                      <span style={{ fontWeight: 600, color: '#c9a84c' }}>${parseFloat(tx.amount).toLocaleString()}</span>
+                      <NgnEquiv usd={parseFloat(tx.amount)} rate={rate} />
+                    </td>
                     <td style={s.td}><span style={s.tag(tx.status === 'CONFIRMED' ? '#00d4aa' : '#f59e0b')}>{tx.status}</span></td>
                     <td style={s.td}><span style={{ fontSize: 11, color: '#64748b' }}>{new Date(tx.createdAt).toLocaleDateString()}</span></td>
                   </tr>
@@ -307,28 +337,102 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
 }
 
 // ── BATCHES ───────────────────────────────────────────────
-function BatchesSection({ batches, myBatch, token, s, reload }: any) {
-  const [loading, setLoading] = useState<string | null>(null)
-  const [message, setMessage] = useState('')
+const BATCH_CATEGORY_CONFIG: Record<string, { min: number; max: number; color: string; label: string }> = {
+  CENT:         { min: 10,   max: 50,   color: '#00d4aa', label: '$100 Pool'    },
+  STANDARD_1K:  { min: 100,  max: 500,  color: '#818cf8', label: '$1,000 Pool'  },
+  STANDARD_5K:  { min: 1000, max: 2500, color: '#f59e0b', label: '$5,000 Pool'  },
+  STANDARD_10K: { min: 2500, max: 5000, color: '#c9a84c', label: '$10,000 Pool' },
+}
 
-  async function requestJoin(batchId: string) {
-    setLoading(batchId)
+function BatchesSection({ batches, myBatch, token, s, reload }: any) {
+  const rate = useUsdNgnRate()
+  const [payingBatch, setPayingBatch] = useState<any>(null)
+  const [amountInput, setAmountInput] = useState('')
+  const [payLoading, setPayLoading] = useState(false)
+  const [payError, setPayError] = useState('')
+
+  const rounded = amountInput ? Math.ceil(parseFloat(amountInput) / 10) * 10 : 0
+
+  async function initiatePayment() {
+    setPayError(''); setPayLoading(true)
+    const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || { min: 10, max: payingBatch.contributionPerMember }
+    if (!rounded || rounded < cfg.min || rounded > cfg.max) {
+      setPayError(`Amount must be $${cfg.min}–$${cfg.max}`); setPayLoading(false); return
+    }
     try {
-      const r = await fetch(`/api/batches/${batchId}/join`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
-      const d = await r.json()
-      if (r.ok) { setMessage('Join request sent!'); reload() }
-      else setMessage(d.error || 'Failed to join')
-    } finally { setLoading(null) }
+      const joinRes = await fetch(`/api/batches/${payingBatch.id}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ capitalAmount: rounded }),
+      })
+      const joinData = await joinRes.json()
+      if (!joinRes.ok) { setPayError(joinData.error || 'Failed to join'); setPayLoading(false); return }
+      const payRes = await fetch('/api/payments/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type: 'batch', batchId: payingBatch.id }),
+      })
+      const payData = await payRes.json()
+      if (!payRes.ok) { setPayError(payData.error || 'Payment failed'); setPayLoading(false); return }
+      window.location.href = payData.data.paymentLink
+    } catch { setPayError('Something went wrong.'); setPayLoading(false) }
   }
 
   return (
     <div>
-      {message && <div style={{ background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.3)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#00d4aa', fontSize: 13 }}>{message}</div>}
+      {/* Payment modal */}
+      {payingBatch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>Join {payingBatch.name}</div>
+              <button onClick={() => { setPayingBatch(null); setAmountInput(''); setPayError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            </div>
+            {(() => {
+              const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || { min: 10, max: payingBatch.contributionPerMember, color: '#00d4aa', label: '' }
+              return (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Contribution (USD)</label>
+                    <input
+                      type="number"
+                      placeholder={`$${cfg.min} – $${cfg.max}`}
+                      value={amountInput}
+                      onChange={e => setAmountInput(e.target.value)}
+                      style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '12px 14px', color: '#e2e8f0', fontSize: 18, fontWeight: 700, boxSizing: 'border-box' as const }}
+                    />
+                    {rounded > 0 && rounded !== parseFloat(amountInput) && (
+                      <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 6 }}>→ Rounded to nearest $10: <strong>${rounded}</strong></div>
+                    )}
+                    {rounded > 0 && rate && (
+                      <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(rounded * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })} at checkout</div>
+                    )}
+                  </div>
+                  {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
+                  <button
+                    onClick={initiatePayment}
+                    disabled={payLoading || !amountInput}
+                    style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
+                  >
+                    {payLoading ? 'Redirecting to payment...' : `💳 Pay $${rounded || cfg.min} →`}
+                  </button>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {batches.map((b: any) => {
           const isMyBatch = myBatch?.id === b.id
-          const isFull = (b._count?.members || 0) >= b.targetMembers
-          const canJoin = b.status === 'FORMING' && !isMyBatch && !myBatch && !isFull
+          const cfg = BATCH_CATEGORY_CONFIG[b.category]
+          const color = cfg?.color || '#818cf8'
+          const target = Number(b.targetAmount || b.targetCapital || 0)
+          const current = Number(b.currentAmount || 0)
+          const progress = target ? (current / target) * 100 : ((b._count?.members || 0) / (b.targetMembers || 1)) * 100
+          const isFull = b.status === 'FULL' || current >= target
+          const canJoin = ['FORMING', 'FULL'].includes(b.status) && !isMyBatch && !myBatch && !isFull
           return (
             <div key={b.id} style={{ ...s.card, border: isMyBatch ? '1px solid rgba(0,212,170,0.3)' : '1px solid #1e2530' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -336,23 +440,48 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, fontSize: 14 }}>{b.name}</span>
                     <span style={{ fontSize: 11, color: '#64748b' }}>{b.batchCode}</span>
-                    <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : '#64748b')}>{b.status}</span>
+                    <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : b.status === 'FULL' ? '#f59e0b' : '#64748b')}>{b.status}</span>
+                    {b.category && <span style={s.tag(color)}>{cfg?.label || b.category}</span>}
                     {isMyBatch && <span style={s.tag('#c9a84c')}>MY BATCH</span>}
                   </div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                    ₦{parseFloat(b.contributionPerMember).toLocaleString()} · {b._count?.members || 0}/{b.targetMembers} members
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+                    {cfg ? `$${cfg.min}–$${cfg.max} contribution` : `$${parseFloat(b.contributionPerMember || 0).toLocaleString()} per member`}
                     {b.brokerName && ` · ${b.brokerName}`}
                   </div>
-                  <div style={{ background: '#080a0f', borderRadius: 6, height: 5, maxWidth: 220, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', background: '#818cf8', width: `${Math.min(100, (b._count?.members || 0) / b.targetMembers * 100)}%`, borderRadius: 6 }} />
-                  </div>
+                  {/* Pool progress */}
+                  {target > 0 && (
+                    <div style={{ marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+                        <span>Pool filled</span>
+                        <span style={{ color }}>${current.toLocaleString()} / ${target.toLocaleString()}</span>
+                      </div>
+                      <div style={{ background: '#080a0f', borderRadius: 6, height: 5, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', background: color, width: `${Math.min(100, progress)}%`, borderRadius: 6 }} />
+                      </div>
+                    </div>
+                  )}
+                  {/* Trading details if active */}
+                  {b.status === 'ACTIVE' && b.tradingAccountId && isMyBatch && (
+                    <div style={{ marginTop: 10, background: '#080a0f', borderRadius: 8, padding: '10px 12px', fontSize: 12 }}>
+                      <div style={{ color: '#00d4aa', fontWeight: 700, marginBottom: 6 }}>📊 Trading Access</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                        <div><span style={{ color: '#64748b' }}>Platform: </span>{b.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'}</div>
+                        <div><span style={{ color: '#64748b' }}>Broker: </span>{b.brokerName}</div>
+                        <div><span style={{ color: '#64748b' }}>Account: </span><span style={{ color: '#00d4aa', fontFamily: 'monospace' }}>{b.tradingAccountId}</span></div>
+                        <div><span style={{ color: '#64748b' }}>Password: </span><span style={{ fontFamily: 'monospace' }}>{b.investorPassword}</span></div>
+                        <div style={{ gridColumn: 'span 2' }}><span style={{ color: '#64748b' }}>Server: </span>{b.tradingServer}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {canJoin && (
-                  <button style={{ ...s.btn(), flexShrink: 0 }} onClick={() => requestJoin(b.id)} disabled={loading === b.id}>
-                    {loading === b.id ? 'Requesting...' : 'Request to Join'}
-                  </button>
-                )}
-                {isFull && !isMyBatch && <span style={s.tag('#64748b')}>FULL</span>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', flexShrink: 0 }}>
+                  {canJoin && (
+                    <button style={s.btn()} onClick={() => { setPayingBatch(b); setAmountInput(''); setPayError('') }}>
+                      Join & Pay →
+                    </button>
+                  )}
+                  {isFull && !isMyBatch && <span style={s.tag('#64748b')}>FULL</span>}
+                </div>
               </div>
             </div>
           )
@@ -367,6 +496,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
 function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any) {
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
+  const rate = useUsdNgnRate()
 
   async function confirmPayout() {
     setLoading(true)
@@ -400,10 +530,11 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     <div style={{ maxWidth: 480 }}>
       <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: '#00d4aa', letterSpacing: 2, marginBottom: 10, textTransform: 'uppercase' }}>Withdrawal Active</div>
-        <div style={{ fontSize: 30, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>
-          ₦{parseFloat(withdrawal.amount || 0).toLocaleString()}
+        <div style={{ fontSize: 30, fontWeight: 800, color: '#c9a84c', marginBottom: 2 }}>
+          ${parseFloat(withdrawal.amount || 0).toLocaleString()}
         </div>
-        <div style={{ fontSize: 13, color: '#64748b' }}>Your profit share for {withdrawal.batchCode}</div>
+        <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>Your profit share for {withdrawal.batchCode}</div>
       </div>
       <div style={{ ...s.card, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 10 }}>Payout To</div>
