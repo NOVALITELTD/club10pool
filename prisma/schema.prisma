@@ -270,7 +270,7 @@ model ReferralPool {
   targetAmount  Decimal            @db.Decimal(18, 2)
   members       ReferralMember[]
   rebates       ReferralRebate[]
-  batch         Batch?             @relation(fields: [batchId], references: [id])
+  batch         Batch?             
   batchId       String?            @unique
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
