@@ -1,6 +1,6 @@
 'use client'
 // src/app/payment/verify/page.tsx
-// Shown after Flutterwave redirects user back to the app
+// Shown after Flutterwave redirects user back to the apps
 
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
