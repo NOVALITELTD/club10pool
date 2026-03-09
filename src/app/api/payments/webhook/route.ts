@@ -1,51 +1,57 @@
 // src/app/api/payments/webhook/route.ts
+// NowPayments IPN callback — set this URL in NowPayments dashboard → Store Settings → IPN URL
+// https://club10pool.vercel.app/api/payments/webhook
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { BatchStatus, ReferralPoolStatus } from '@prisma/client'
 import { sendEmail } from '@/lib/email'
+import { BatchStatus, ReferralPoolStatus } from '@prisma/client'
+import crypto from 'crypto'
 
-const FLW_WEBHOOK_SECRET = process.env.FLW_WEBHOOK_SECRET || 'your-webhook-secret-hash'
-const FLW_SECRET_KEY     = process.env.FLW_SECRET_KEY || 'FLWSECK_TEST-XXXX'
+const NP_IPN_SECRET = process.env.NOWPAYMENTS_IPN_SECRET || ''
 
 const CATEGORY_LABELS: Record<string, string> = {
   CENT: '$100 Pool', STANDARD_1K: '$1,000 Pool',
   STANDARD_5K: '$5,000 Pool', STANDARD_10K: '$10,000 Pool',
 }
 
+// Verify NowPayments IPN signature
+function verifySignature(body: string, signature: string): boolean {
+  const hmac = crypto.createHmac('sha512', NP_IPN_SECRET)
+  hmac.update(body)  
+  return hmac.digest('hex') === signature
+}
+
 export async function POST(req: NextRequest) {
-  const signature = req.headers.get('verif-hash')
-  if (!signature || signature !== FLW_WEBHOOK_SECRET) {
+  const signature = req.headers.get('x-nowpayments-sig') || ''
+  const rawBody = await req.text()
+
+  if (!verifySignature(rawBody, signature)) {
+    console.error('Invalid NowPayments IPN signature')
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  const payload = await req.json()
-  const { event, data } = payload
+  const data = JSON.parse(rawBody)
+  const { payment_status, order_id: txRef, payment_id: npPaymentId, actually_paid, pay_currency } = data
 
-  if (event !== 'charge.completed') {
+  // Only process terminal statuses
+  if (!['finished', 'partially_paid', 'failed', 'expired'].includes(payment_status)) {
     return NextResponse.json({ received: true })
   }
 
-  const { tx_ref, id: flwTxId, status, currency } = data
+  const isSuccess = payment_status === 'finished'
 
-  if (status !== 'successful' || currency !== 'NGN') {
+  if (!isSuccess) {
+    // Mark as failed
     await prisma.payment.updateMany({
-      where: { flwTxRef: tx_ref, status: 'PENDING' },
-      data: { status: 'FAILED', flwTxId: String(flwTxId) },
+      where: { flwTxRef: txRef, status: 'PENDING' },
+      data: { status: 'FAILED', flwTxId: String(npPaymentId) },
     })
     return NextResponse.json({ received: true })
   }
 
-  // Verify with Flutterwave
-  const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${flwTxId}/verify`, {
-    headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` },
-  })
-  const verifyData = await verifyRes.json()
-  if (verifyData.data?.status !== 'successful') {
-    return NextResponse.json({ received: true })
-  }
-
   const payment = await prisma.payment.findUnique({
-    where: { flwTxRef: tx_ref },
+    where: { flwTxRef: txRef },
     include: {
       investor: { select: { fullName: true, email: true } },
       referralMember: { include: { referralPool: true } },
@@ -53,14 +59,14 @@ export async function POST(req: NextRequest) {
   })
 
   if (!payment || payment.status === 'SUCCESS') {
-    return NextResponse.json({ received: true })
+    return NextResponse.json({ received: true }) // Already processed
   }
 
   await prisma.$transaction(async (tx) => {
     // 1. Mark payment successful
     await tx.payment.update({
       where: { id: payment.id },
-      data: { status: 'SUCCESS', flwTxId: String(flwTxId) },
+      data: { status: 'SUCCESS', flwTxId: String(npPaymentId) },
     })
 
     if (payment.referralMemberId && payment.referralMember) {
@@ -78,7 +84,10 @@ export async function POST(req: NextRequest) {
 
       await tx.referralPool.update({
         where: { id: pool.id },
-        data: { currentAmount: newAmount, status: poolFull ? ReferralPoolStatus.FULL : ReferralPoolStatus.OPEN },
+        data: {
+          currentAmount: newAmount,
+          status: poolFull ? ReferralPoolStatus.FULL : ReferralPoolStatus.OPEN,
+        },
       })
 
       if (poolFull) {
@@ -98,6 +107,7 @@ export async function POST(req: NextRequest) {
       const batchMember = await tx.batchMember.findFirst({
         where: { batchId: payment.batchId, investorId: payment.investorId },
       })
+
       if (batchMember) {
         await tx.batchMember.update({
           where: { id: batchMember.id },
@@ -111,7 +121,10 @@ export async function POST(req: NextRequest) {
 
           await tx.batch.update({
             where: { id: payment.batchId! },
-            data: { currentAmount: newAmount, ...(batchFull ? { status: BatchStatus.FULL } : {}) },
+            data: {
+              currentAmount: newAmount,
+              ...(batchFull ? { status: BatchStatus.FULL } : {}),
+            },
           })
 
           if (batchFull) {
@@ -125,25 +138,23 @@ export async function POST(req: NextRequest) {
             })
           }
         }
+
+        // Transaction record
+        await tx.transaction.create({
+          data: {
+            investorId: payment.investorId,
+            batchMemberId: batchMember.id,
+            type: 'DEPOSIT',
+            amount: payment.amountUSD,
+            status: 'CONFIRMED',
+            notes: `USDT payment confirmed via NowPayments (ref: ${txRef})`,
+          },
+        })
       }
     }
-
-    // Transaction record
-    await tx.transaction.create({
-      data: {
-        investorId: payment.investorId,
-        batchMemberId: payment.batchId ? (await tx.batchMember.findFirst({
-          where: { batchId: payment.batchId, investorId: payment.investorId },
-        }))?.id : undefined,
-        type: 'DEPOSIT',
-        amount: payment.amountUSD,
-        status: 'CONFIRMED',
-        notes: `Flutterwave payment confirmed (₦${Number(payment.amountNGN).toLocaleString()})`,
-      },
-    })
   })
 
-  // Confirmation email
+  // Confirmation email to investor
   await sendEmail({
     to: payment.investor.email,
     subject: '✓ Payment Confirmed — Club10 Pool',
@@ -153,8 +164,7 @@ export async function POST(req: NextRequest) {
       </div>
       <div style="padding:28px;">
         <p>Hi <strong>${payment.investor.fullName}</strong>,</p>
-        <p>Your payment of <strong style="color:#c9a84c;">$${Number(payment.amountUSD).toLocaleString()}</strong>
-           (₦${Number(payment.amountNGN).toLocaleString()}) has been confirmed.</p>
+        <p>Your payment of <strong style="color:#c9a84c;">$${Number(payment.amountUSD).toLocaleString()}</strong> has been confirmed via USDT.</p>
         <p>You are now an active member of your investment pool. Log in to your dashboard to view your status and trading details.</p>
         <p style="color:#475569;font-size:12px;margin-top:24px;">Nova-Lite Club10 Pool Team</p>
       </div>
