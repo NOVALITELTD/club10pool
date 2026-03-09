@@ -2,16 +2,23 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Section = 'overview' | 'batches' | 'investors' | 'kyc' | 'withdrawals' | 'audit'
+type Section = 'overview' | 'batches' | 'investors' | 'kyc' | 'withdrawals' | 'referrals' | 'audit'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
-// Build a public URL from whatever is stored (full URL or just a path)
 function getStorageUrl(raw: string): string {
   if (!raw) return ''
   if (raw.startsWith('http')) return raw
-  // raw is a storage path like "kyc-documents/abc/front.jpg"
   return `${SUPABASE_URL}/storage/v1/object/public/${raw}`
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  CENT: '$100 Pool', STANDARD_1K: '$1,000 Pool',
+  STANDARD_5K: '$5,000 Pool', STANDARD_10K: '$10,000 Pool',
+}
+const CATEGORY_COLORS: Record<string, string> = {
+  CENT: '#00d4aa', STANDARD_1K: '#818cf8',
+  STANDARD_5K: '#f59e0b', STANDARD_10K: '#c9a84c',
 }
 
 export default function AdminDashboard() {
@@ -22,8 +29,7 @@ export default function AdminDashboard() {
   const [batches, setBatches] = useState<any[]>([])
   const [investors, setInvestors] = useState<any[]>([])
   const [kycList, setKycList] = useState<any[]>([])
-  const [withdrawals, setWithdrawals] = useState<any[]>([])
-  const [auditLogs, setAuditLogs] = useState<any[]>([])
+  const [referralPools, setReferralPools] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -42,28 +48,35 @@ export default function AdminDashboard() {
     setLoading(true)
     try {
       const headers = { Authorization: `Bearer ${token}` }
-      const [statsRes, batchRes, invRes, kycRes] = await Promise.all([
+      const [statsRes, batchRes, invRes, kycRes, refRes] = await Promise.all([
         fetch('/api/dashboard', { headers }),
         fetch('/api/batches', { headers }),
         fetch('/api/investors', { headers }),
         fetch('/api/kyc/admin', { headers }),
+        fetch('/api/referrals/admin', { headers }),
       ])
       if (statsRes.ok) { const d = await statsRes.json(); setStats(d.data) }
       if (batchRes.ok) { const d = await batchRes.json(); setBatches(d.data || []) }
       if (invRes.ok) { const d = await invRes.json(); setInvestors(d.data || []) }
       if (kycRes.ok) { const d = await kycRes.json(); setKycList(d.data || []) }
+      if (refRes.ok) { const d = await refRes.json(); setReferralPools(d.data || []) }
     } finally { setLoading(false) }
   }
 
   function logout() { localStorage.clear(); router.push('/login') }
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : ''
+
+  const pendingKyc = kycList.filter(k => k.status === 'PENDING').length
+  const fullPools = referralPools.filter(p => p.status === 'FULL').length
+
   const navItems: { id: Section; label: string; icon: string; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: '◈' },
     { id: 'batches', label: 'Batch Management', icon: '⬡' },
     { id: 'investors', label: 'Investor Accounts', icon: '◎' },
-    { id: 'kyc', label: 'KYC Approvals', icon: '⊡', badge: kycList.filter(k => k.status === 'PENDING').length },
+    { id: 'kyc', label: 'KYC Approvals', icon: '⊡', badge: pendingKyc || undefined },
     { id: 'withdrawals', label: 'Withdrawals', icon: '⟁' },
+    { id: 'referrals', label: 'Referral Pools', icon: '🔗', badge: fullPools || undefined },
     { id: 'audit', label: 'Audit Logs', icon: '≡' },
   ]
 
@@ -189,11 +202,12 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>Loading...</div>
             ) : (
               <>
-                {section === 'overview' && <OverviewSection stats={stats} batches={batches} investors={investors} kycList={kycList} s={s} setSection={setSection} />}
+                {section === 'overview' && <OverviewSection stats={stats} batches={batches} investors={investors} kycList={kycList} referralPools={referralPools} s={s} setSection={setSection} />}
                 {section === 'batches' && <BatchSection batches={batches} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'investors' && <InvestorSection investors={investors} batches={batches} s={s} />}
                 {section === 'kyc' && <KYCSection kycList={kycList} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'withdrawals' && <WithdrawalSection batches={batches} token={token!} s={s} />}
+                {section === 'referrals' && <ReferralAdminSection referralPools={referralPools} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'audit' && <AuditSection token={token!} s={s} />}
               </>
             )}
@@ -205,9 +219,10 @@ export default function AdminDashboard() {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────
-function OverviewSection({ stats, batches, investors, kycList, s, setSection }: any) {
+function OverviewSection({ stats, batches, investors, kycList, referralPools, s, setSection }: any) {
   const pendingKyc = kycList.filter((k: any) => k.status === 'PENDING').length
   const activeBatches = batches.filter((b: any) => b.status === 'ACTIVE').length
+  const fullPools = referralPools.filter((p: any) => p.status === 'FULL').length
   const totalCapital = batches.reduce((sum: number, b: any) => sum + parseFloat(b.targetCapital || 0), 0)
 
   return (
@@ -228,13 +243,25 @@ function OverviewSection({ stats, batches, investors, kycList, s, setSection }: 
       </div>
 
       {pendingKyc > 0 && (
-        <div style={{ ...s.card, marginBottom: 24, border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
+        <div style={{ ...s.card, marginBottom: 16, border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>⊡ {pendingKyc} KYC Approval{pendingKyc > 1 ? 's' : ''} Pending</div>
               <div style={{ fontSize: 13, color: '#64748b' }}>Investors waiting for identity verification approval</div>
             </div>
             <button style={s.btn()} onClick={() => setSection('kyc')}>Review Now</button>
+          </div>
+        </div>
+      )}
+
+      {fullPools > 0 && (
+        <div style={{ ...s.card, marginBottom: 16, border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ fontWeight: 700, color: '#c9a84c', marginBottom: 4 }}>🔗 {fullPools} Referral Pool{fullPools > 1 ? 's' : ''} Ready for Activation</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>Pools have reached their target — input MT4/MT5 details to activate</div>
+            </div>
+            <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={() => setSection('referrals')}>Activate Now</button>
           </div>
         </div>
       )}
@@ -267,6 +294,234 @@ function OverviewSection({ stats, batches, investors, kycList, s, setSection }: 
           {!kycList.length && <div style={{ color: '#64748b', fontSize: 13 }}>No KYC submissions yet</div>}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── REFERRAL ADMIN ────────────────────────────────────────
+function ReferralAdminSection({ referralPools, token, s, reload }: any) {
+  const [filter, setFilter] = useState('ALL')
+  const [tab, setTab] = useState<'pools' | 'rebates'>('pools')
+  const [activating, setActivating] = useState<any>(null)
+  const [activateForm, setActivateForm] = useState({ tradingPlatform: 'MT4', brokerName: '', tradingAccountId: '', investorPassword: '', tradingServer: '' })
+  const [activateLoading, setActivateLoading] = useState(false)
+  const [activateError, setActivateError] = useState('')
+  const [activateSuccess, setActivateSuccess] = useState('')
+  const [rebateForm, setRebateForm] = useState({ referralPoolId: '', month: '', totalRebate: '', adminNotes: '' })
+  const [rebateLoading, setRebateLoading] = useState(false)
+  const [rebateError, setRebateError] = useState('')
+  const [rebateSuccess, setRebateSuccess] = useState('')
+
+  const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
+  const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
+
+  async function activatePool() {
+    setActivateError(''); setActivateLoading(true)
+    try {
+      const r = await fetch('/api/batches/admin-activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ referralPoolId: activating.id, ...activateForm }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setActivateError(d.error || 'Activation failed'); return }
+      setActivateSuccess(`✓ Pool activated! Batch ${d.data?.batch?.batchCode} created. All members notified by email.`)
+      setActivating(null)
+      reload()
+    } finally { setActivateLoading(false) }
+  }
+
+  async function submitRebate() {
+    setRebateError(''); setRebateLoading(true)
+    try {
+      const r = await fetch('/api/referrals/rebates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...rebateForm, totalRebate: parseFloat(rebateForm.totalRebate) }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setRebateError(d.error || 'Failed'); return }
+      setRebateSuccess(`✓ Rebate recorded. Creator bonus: $${d.data?.creatorBonus?.toLocaleString()}. Email sent.`)
+      setRebateForm({ referralPoolId: '', month: '', totalRebate: '', adminNotes: '' })
+    } finally { setRebateLoading(false) }
+  }
+
+  const filtered = filter === 'ALL' ? referralPools : referralPools.filter((p: any) => p.status === filter)
+  const activePools = referralPools.filter((p: any) => p.status === 'ACTIVE')
+  const fullPools = referralPools.filter((p: any) => p.status === 'FULL')
+
+  return (
+    <div>
+      {fullPools.length > 0 && (
+        <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.04)' }}>
+          <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>⏳ {fullPools.length} Pool{fullPools.length > 1 ? 's' : ''} Ready for Activation</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>These pools have reached their target and need MT4/MT5 trading account details to go live.</div>
+        </div>
+      )}
+
+      {activateSuccess && (
+        <div style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.25)', borderRadius: 8, padding: '10px 16px', marginBottom: 16, color: '#00d4aa', fontSize: 13 }}>
+          {activateSuccess}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {(['pools', 'rebates'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ ...s.btn(tab === t ? 'primary' : 'ghost'), padding: '8px 18px', fontSize: 13 }}>
+            {t === 'pools' ? '🔗 Referral Pools' : '💰 Monthly Rebates'}
+          </button>
+        ))}
+      </div>
+
+      {/* POOLS TAB */}
+      {tab === 'pools' && (
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {['ALL', 'OPEN', 'FULL', 'ACTIVE', 'CLOSED'].map(f => (
+              <button key={f} onClick={() => setFilter(f)} style={{ ...s.btn(filter === f ? 'primary' : 'ghost'), padding: '5px 14px', fontSize: 12 }}>{f}</button>
+            ))}
+          </div>
+
+          {/* Activation inline form */}
+          {activating && (
+            <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, color: '#c9a84c' }}>⚡ Activate: {CATEGORY_LABELS[activating.category]} ({activating.referralCode})</div>
+                <button onClick={() => { setActivating(null); setActivateError('') }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>✕</button>
+              </div>
+              {activateError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {activateError}</div>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+                <div>
+                  <label style={labelStyle}>Trading Platform</label>
+                  <select value={activateForm.tradingPlatform} onChange={e => setActivateForm(p => ({ ...p, tradingPlatform: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                    <option value="MT4">MetaTrader 4 (MT4)</option>
+                    <option value="MT5">MetaTrader 5 (MT5)</option>
+                  </select>
+                </div>
+                {[
+                  { key: 'brokerName', label: 'Broker Name', placeholder: 'e.g. Exness, ICMarkets' },
+                  { key: 'tradingAccountId', label: 'Trading Account ID', placeholder: 'e.g. 12345678' },
+                  { key: 'investorPassword', label: 'Investor Password', placeholder: 'Read-only password' },
+                  { key: 'tradingServer', label: 'Server', placeholder: 'e.g. Exness-Real3' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label style={labelStyle}>{f.label}</label>
+                    <input style={inputStyle} placeholder={f.placeholder} value={(activateForm as any)[f.key]} onChange={e => setActivateForm(p => ({ ...p, [f.key]: e.target.value }))} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
+                ℹ️ All members (creator + paid investors) will receive trading credentials by email upon activation.
+              </div>
+              <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={activatePool} disabled={activateLoading}>
+                {activateLoading ? 'Activating...' : '⚡ Activate & Notify All Members'}
+              </button>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filtered.map((pool: any) => {
+              const color = CATEGORY_COLORS[pool.category] || '#64748b'
+              const paidMembers = pool.members?.filter((m: any) => ['PAID', 'ACTIVE'].includes(m.status)) || []
+              const totalPaid = paidMembers.reduce((sum: number, m: any) => sum + Number(m.contribution), 0)
+              const progress = pool.targetAmount ? (totalPaid / Number(pool.targetAmount)) * 100 : 0
+              return (
+                <div key={pool.id} style={{ ...s.card, border: `1px solid ${pool.status === 'FULL' ? 'rgba(245,158,11,0.4)' : '#1e2530'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: 15, color }}>{CATEGORY_LABELS[pool.category] || pool.category}</span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>/{pool.referralCode}</span>
+                        <span style={s.tag(color)}>{pool.status}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                        Creator: <strong>{pool.creator?.fullName}</strong> <span style={{ color: '#64748b' }}>({pool.creator?.email})</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                        {paidMembers.length} paid member{paidMembers.length !== 1 ? 's' : ''} · ${totalPaid.toLocaleString()} / ${Number(pool.targetAmount || 0).toLocaleString()}
+                      </div>
+                    </div>
+                    {pool.status === 'FULL' && (
+                      <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={() => { setActivating(pool); setActivateError('') }}>
+                        ⚡ Activate Pool
+                      </button>
+                    )}
+                  </div>
+                  {pool.targetAmount && (
+                    <div style={{ height: 6, background: '#1e2530', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, progress)}%`, background: color, borderRadius: 3 }} />
+                    </div>
+                  )}
+                  {paidMembers.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {paidMembers.map((m: any) => (
+                        <div key={m.id} style={{ background: '#080a0f', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: '#94a3b8' }}>
+                          {m.investor?.fullName} · <span style={{ color }}>${Number(m.contribution).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            {filtered.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 60 }}>No {filter !== 'ALL' ? filter.toLowerCase() + ' ' : ''}referral pools found</div>}
+          </div>
+        </div>
+      )}
+
+      {/* REBATES TAB */}
+      {tab === 'rebates' && (
+        <div>
+          <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.2)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>💰 Record Monthly Rebate</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
+              Enter the total trading account rebate for a pool. The system calculates the creator's 10% bonus and emails them automatically.
+            </div>
+            {rebateError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {rebateError}</div>}
+            {rebateSuccess && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12 }}>{rebateSuccess}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+              <div>
+                <label style={labelStyle}>Active Referral Pool</label>
+                <select value={rebateForm.referralPoolId} onChange={e => setRebateForm(p => ({ ...p, referralPoolId: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                  <option value="">Select pool...</option>
+                  {activePools.map((p: any) => (
+                    <option key={p.id} value={p.id}>{CATEGORY_LABELS[p.category] || p.category} — {p.referralCode} ({p.creator?.fullName})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Month</label>
+                <input type="month" style={inputStyle} value={rebateForm.month.slice(0, 7)} onChange={e => setRebateForm(p => ({ ...p, month: e.target.value + '-01' }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Total Pool Rebate ($)</label>
+                <input type="number" step="0.01" placeholder="0.00" style={inputStyle} value={rebateForm.totalRebate} onChange={e => setRebateForm(p => ({ ...p, totalRebate: e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>Creator Bonus (10% — auto)</label>
+                <div style={{ ...inputStyle, color: '#c9a84c', fontWeight: 700, background: 'rgba(201,168,76,0.06)', cursor: 'default', display: 'flex', alignItems: 'center' }}>
+                  ${rebateForm.totalRebate ? (parseFloat(rebateForm.totalRebate) * 0.1).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Admin Notes (optional)</label>
+              <textarea rows={2} style={{ ...inputStyle, resize: 'vertical' as const }} placeholder="Any notes for the creator..." value={rebateForm.adminNotes} onChange={e => setRebateForm(p => ({ ...p, adminNotes: e.target.value }))} />
+            </div>
+            <button
+              style={s.btn()}
+              onClick={submitRebate}
+              disabled={rebateLoading || !rebateForm.referralPoolId || !rebateForm.month || !rebateForm.totalRebate}
+            >
+              {rebateLoading ? 'Recording...' : '💰 Record Rebate & Notify Creator'}
+            </button>
+          </div>
+          {activePools.length === 0 && (
+            <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 40 }}>No active referral pools yet. Activate a pool first.</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -304,19 +559,14 @@ function KYCSection({ kycList, token, s, reload }: any) {
 
   return (
     <>
-      {/* Image preview lightbox */}
       {previewUrl && (
-        <div
-          onClick={() => setPreviewUrl(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}
-        >
+        <div onClick={() => setPreviewUrl(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
           <img src={previewUrl} alt="KYC Document" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: 12, objectFit: 'contain' }} />
           <button onClick={() => setPreviewUrl(null)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 40, height: 40, color: '#fff', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
       )}
 
       <div className="kyc-split" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 420px' : '1fr', gap: 20 }}>
-        {/* List */}
         <div style={s.card}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
             {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map(f => (
@@ -347,34 +597,23 @@ function KYCSection({ kycList, token, s, reload }: any) {
           {!filtered.length && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No {filter.toLowerCase()} submissions</div>}
         </div>
 
-        {/* Detail panel */}
         {selected && (
           <div style={{ ...s.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontWeight: 700, fontSize: 15 }}>KYC Review</div>
               <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
             </div>
-
             <div style={{ background: '#080a0f', borderRadius: 8, padding: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selected.fullName}</div>
               <div style={{ fontSize: 12, color: '#64748b' }}>{selected.email}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ID Type: {idTypeLabel[selected.idType] || selected.idType}</div>
             </div>
-
-            {/* Document thumbnails + links */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Documents</div>
               {docs.map(doc => (
                 <div key={doc.label} style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
-                  {/* Thumbnail */}
-                  <div
-                    onClick={() => setPreviewUrl(doc.url)}
-                    style={{ cursor: 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}
-                  >
-                    <img
-                      src={doc.url}
-                      alt={doc.label}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  <div onClick={() => setPreviewUrl(doc.url)} style={{ cursor: 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
+                    <img src={doc.url} alt={doc.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       onError={e => {
                         const el = e.target as HTMLImageElement
                         el.style.display = 'none'
@@ -382,25 +621,19 @@ function KYCSection({ kycList, token, s, reload }: any) {
                         if (fb) fb.style.display = 'flex'
                       }}
                     />
-                    {/* Fallback if image fails */}
                     <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}>
-                      <span style={{ fontSize: 28 }}>📄</span>
-                      <span>Click to open</span>
+                      <span style={{ fontSize: 28 }}>📄</span><span>Click to open</span>
                     </div>
                     <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>🔍 Preview</div>
                   </div>
-                  {/* Footer with label + open link */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>{doc.label}</span>
                     <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#c9a84c', textDecoration: 'none' }}>Open ↗</a>
                   </div>
                 </div>
               ))}
-              {docs.length === 0 && (
-                <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>No documents found</div>
-              )}
+              {docs.length === 0 && <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>No documents found</div>}
             </div>
-
             {selected.status === 'PENDING' && (
               <>
                 <div>
