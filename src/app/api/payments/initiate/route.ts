@@ -1,17 +1,16 @@
 // src/app/api/payments/initiate/route.ts
-// POST /api/payments/initiate
-// Initiates a Flutterwave payment for a batch join or referral pool join
 
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest } from '@/lib/auth'
 import { ok, error, unauthorized } from '@/lib/api'
 import { nanoid } from 'nanoid'
+// Import the correct enums from Prisma client
+import { PaymentStatus } from '@prisma/client'
 
-const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY || 'FLWSECK_TEST-XXXX' // Replace with live key
+const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY || 'FLWSECK_TEST-XXXX'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-// Fetch live USD/NGN exchange rate from Flutterwave
 async function getUSDtoNGNRate(): Promise<number> {
   try {
     const res = await fetch(
@@ -21,7 +20,6 @@ async function getUSDtoNGNRate(): Promise<number> {
     const data = await res.json()
     if (data?.data?.rate) return data.data.rate
   } catch {}
-  // Fallback rate if API call fails
   return 1600
 }
 
@@ -44,16 +42,20 @@ export async function POST(req: NextRequest) {
   let description = ''
 
   if (type === 'batch' && batchId) {
-    // Direct batch join payment
     const batchMember = await prisma.batchMember.findFirst({
-      where: { batchId, investorId: auth.memberId, status: 'PENDING' },
+      where: { 
+        batchId, 
+        investorId: auth.memberId,
+      },
       include: { batch: { select: { name: true, batchCode: true, category: true } } },
     })
-    if (!batchMember) return error('No pending batch membership found')
+    
+    if (!batchMember) return error('No batch membership found')
+    
     amountUSD = Number(batchMember.capitalAmount)
     description = `Club10 Pool — ${batchMember.batch.name} (${batchMember.batch.batchCode})`
+    
   } else if (type === 'referral' && referralMemberId) {
-    // Referral pool payment
     const member = await prisma.referralMember.findUnique({
       where: { id: referralMemberId, investorId: auth.memberId },
       include: { referralPool: { select: { category: true, referralCode: true, status: true } } },
@@ -69,14 +71,12 @@ export async function POST(req: NextRequest) {
 
   if (amountUSD <= 0) return error('Invalid payment amount')
 
-  // Get real-time exchange rate
   const rate = await getUSDtoNGNRate()
   const amountNGN = Math.ceil(amountUSD * rate)
 
-  // Generate unique transaction reference
   const txRef = `C10-${nanoid(12).toUpperCase()}`
 
-  // Create payment record
+  // CORRECT: Use the PaymentStatus enum
   const payment = await prisma.payment.create({
     data: {
       investorId: auth.memberId,
@@ -86,11 +86,10 @@ export async function POST(req: NextRequest) {
       amountNGN,
       exchangeRate: rate,
       flwTxRef: txRef,
-      status: 'PENDING',
+      status: PaymentStatus.PENDING,  // Using the correct enum
     },
   })
 
-  // Build Flutterwave payment payload
   const flwPayload = {
     tx_ref: txRef,
     amount: amountNGN,
@@ -115,7 +114,6 @@ export async function POST(req: NextRequest) {
     },
   }
 
-  // Create Flutterwave hosted payment link
   const flwRes = await fetch('https://api.flutterwave.com/v3/payments', {
     method: 'POST',
     headers: {
