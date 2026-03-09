@@ -6,19 +6,17 @@ import { ok, error, unauthorized } from '@/lib/api'
 import { nanoid } from 'nanoid'
 import { PaymentStatus } from '@prisma/client'
 
-const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY || 'FLWSECK_TEST-XXXX'
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const NP_API_KEY = process.env.NOWPAYMENTS_API_KEY || ''
+const NP_BASE    = 'https://api.nowpayments.io/v1'
+const APP_URL    = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
+// Get live USD → NGN rate for display only (NowPayments handles USD → USDT internally)
 async function getUSDtoNGNRate(): Promise<number> {
   try {
-    const res = await fetch(
-      'https://api.flutterwave.com/v3/transfers/rates?amount=1&destination_currency=NGN&source_currency=USD',
-      { headers: { Authorization: `Bearer ${FLW_SECRET_KEY}` } }
-    )
-    const data = await res.json()
-    if (data?.data?.rate) return data.data.rate
-  } catch {}
-  return 1600
+    const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+    const d = await res.json()
+    return d.rates?.NGN || 1600
+  } catch { return 1600 }
 }
 
 export async function POST(req: NextRequest) {
@@ -47,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (type === 'batch' && batchId) {
     const batchMember = await prisma.batchMember.findFirst({
       where: { batchId, investorId: auth.memberId },
-      include: { batch: { select: { name: true, batchCode: true, category: true } } },
+      include: { batch: { select: { name: true, batchCode: true } } },
     })
     if (!batchMember) return error('No batch membership found. Join the batch first.')
     amountUSD = Number(batchMember.capitalAmount)
@@ -56,7 +54,7 @@ export async function POST(req: NextRequest) {
   } else if (type === 'referral' && referralMemberId) {
     const member = await prisma.referralMember.findUnique({
       where: { id: referralMemberId, investorId: auth.memberId },
-      include: { referralPool: { select: { category: true, referralCode: true, status: true } } },
+      include: { referralPool: { select: { referralCode: true, status: true } } },
     })
     if (!member) return error('Referral membership not found')
     if (member.status !== 'PENDING_PAYMENT') return error('Payment already completed or not required')
@@ -74,6 +72,35 @@ export async function POST(req: NextRequest) {
   const amountNGN = Math.ceil(amountUSD * rate)
   const txRef = `C10-${nanoid(12).toUpperCase()}`
 
+  // Create NowPayments invoice (hosted payment page, USDT)
+  const npRes = await fetch(`${NP_BASE}/invoice`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': NP_API_KEY,
+    },
+    body: JSON.stringify({
+      price_amount: amountUSD,
+      price_currency: 'usd',
+      pay_currency: 'usdttrc20',   // USDT on TRC20 (cheapest fees)
+      order_id: txRef,
+      order_description: description,
+      ipn_callback_url: `${APP_URL}/api/payments/webhook`,
+      success_url: `${APP_URL}/payment/verify?tx_ref=${txRef}`,
+      cancel_url: `${APP_URL}/dashboard`,
+      is_fixed_rate: true,         // Lock USDT rate at invoice creation
+      is_fee_paid_by_user: false,  // Club10 absorbs the fee
+    }),
+  })
+
+  const npData = await npRes.json()
+
+  if (!npData.invoice_url) {
+    console.error('NowPayments error:', npData)
+    return error(`Payment gateway error: ${npData.message || 'Failed to create invoice'}`)
+  }
+
+  // Save payment record
   const payment = await prisma.payment.create({
     data: {
       investorId: auth.memberId,
@@ -82,50 +109,16 @@ export async function POST(req: NextRequest) {
       amountUSD,
       amountNGN,
       exchangeRate: rate,
-      flwTxRef: txRef,
+      flwTxRef: txRef,         // reusing flwTxRef field as our order_id
+      flwTxId: npData.id ? String(npData.id) : null,
       status: PaymentStatus.PENDING,
     },
   })
 
-  const flwPayload = {
-    tx_ref: txRef,
-    amount: amountNGN,
-    currency: 'NGN',
-    redirect_url: `${APP_URL}/payment/verify?tx_ref=${txRef}`,
-    meta: {
-      paymentId: payment.id,
-      investorId: auth.memberId,
-      type,
-      batchId: batchId || null,
-      referralMemberId: referralMemberId || null,
-    },
-    customer: {
-      email: investor.email,
-      phonenumber: investor.phone || '',
-      name: investor.fullName,
-    },
-    customizations: {
-      title: 'Club10 Pool',
-      description,
-      logo: `${APP_URL}/logo.png`,
-    },
-  }
-
-  const flwRes = await fetch('https://api.flutterwave.com/v3/payments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${FLW_SECRET_KEY}` },
-    body: JSON.stringify(flwPayload),
-  })
-
-  const flwData = await flwRes.json()
-  if (flwData.status !== 'success' || !flwData.data?.link) {
-    return error(`Payment gateway error: ${flwData.message || 'Failed to create payment link'}`)
-  }
-
   return ok({
     paymentId: payment.id,
     txRef,
-    paymentLink: flwData.data.link,
+    paymentLink: npData.invoice_url,
     amountUSD,
     amountNGN,
     exchangeRate: rate,
