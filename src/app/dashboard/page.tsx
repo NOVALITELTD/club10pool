@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Section = 'portfolio' | 'batches' | 'withdrawals' | 'settings'
+type Section = 'portfolio' | 'batches' | 'withdrawals' | 'settings' | 'support'
 
 export default function InvestorDashboard() {
   const router = useRouter()
@@ -66,6 +66,7 @@ export default function InvestorDashboard() {
     { id: 'withdrawals', label: 'Withdrawals', icon: '⟁' },
     { id: 'referral' as any, label: 'Referral', icon: '🔗' },
     { id: 'settings', label: 'Settings', icon: '⚙' },
+    { id: 'support', label: 'Support', icon: '💬' },
   ]
 
   const s: any = {
@@ -242,6 +243,8 @@ export default function InvestorDashboard() {
                 {section === 'withdrawals' && <WithdrawalsSection withdrawal={withdrawal} myBatch={myBatch} user={user} token={token!} s={s} reload={() => loadData(token!)} />}
                 {(section as any) === 'referral' && <ReferralSection token={token!} user={user} s={s} />}
                 {section === 'settings' && <SettingsSection user={user} token={token!} s={s} setUser={setUser} />}
+                {(section as any) === 'support' && <SupportSection s={s} />}
+
               </>
             )}
           </div>
@@ -1398,7 +1401,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
 }
 
 // ── 2FA SECTION ───────────────────────────────────────────
-function TwoFASection({ user, token, s }: any) {
+function TwoFASection({ user, token, s, reload }: any) {
   const [mode, setMode] = useState<'idle'|'setup'|'disabling'>('idle')
   const [qrData, setQrData] = useState<any>(null)
   const [totpInput, setTotpInput] = useState('')
@@ -1431,7 +1434,11 @@ function TwoFASection({ user, token, s }: any) {
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error); return }
-      setMessage('✓ 2FA enabled! Your account is now protected.'); setMode('idle')
+      setMessage('✓ 2FA enabled! Your account is now protected.')
+      setMode('idle'); setTotpInput('')
+      // Update localStorage so user object reflects new state immediately
+      try { const u = JSON.parse(localStorage.getItem('user') || '{}'); u.twoFaEnabled = true; localStorage.setItem('user', JSON.stringify(u)) } catch {}
+      reload?.()
     } finally { setLoading(false) }
   }
 
@@ -1460,7 +1467,11 @@ function TwoFASection({ user, token, s }: any) {
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error); return }
-      setMessage('2FA has been disabled.'); setMode('idle')
+      setMessage('2FA has been disabled.')
+      setMode('idle'); setDisableCode('')
+      // Update localStorage
+      try { const u = JSON.parse(localStorage.getItem('user') || '{}'); u.twoFaEnabled = false; localStorage.setItem('user', JSON.stringify(u)) } catch {}
+      reload?.()
     } finally { setLoading(false) }
   }
 
@@ -1557,6 +1568,85 @@ function TwoFASection({ user, token, s }: any) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── SUPPORT SECTION ───────────────────────────────────────
+function SupportSection({ s }: any) {
+  const contacts = [
+    {
+      icon: '✉',
+      label: 'EMAIL',
+      value: 'nova.liteltd@gmail.com',
+      sub: 'Best for detailed inquiries. We respond within 24 hours.',
+      href: 'mailto:nova.liteltd@gmail.com',
+      color: '#c9a84c',
+    },
+    {
+      icon: '✈',
+      label: 'TELEGRAM',
+      value: '@novalitesignal',
+      sub: 'Join our Telegram channel for updates and announcements.',
+      href: 'https://t.me/novalitesignal',
+      color: '#2AABEE',
+    },
+    {
+      icon: '☎',
+      label: 'PHONE / WHATSAPP',
+      value: '+234 703 092 3585',
+      value2: '+234 814 424 1060',
+      sub: null,
+      href: 'https://wa.me/2347030923585',
+      href2: 'https://wa.me/2348144241060',
+      color: '#25D366',
+    },
+  ]
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 22 }}>💬</span>
+          <span style={{ fontWeight: 800, fontSize: 20, color: '#e2e8f0' }}>Contact Support</span>
+        </div>
+        <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, maxWidth: 520 }}>
+          Our support team is available to assist you with account questions, KYC issues, withdrawal inquiries, and general platform guidance.
+        </p>
+      </div>
+
+      {/* Contact cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+        {contacts.map(c => (
+          <div key={c.label} style={{ ...s.card, display: 'flex', alignItems: 'flex-start', gap: 16, padding: '18px 20px', border: `1px solid rgba(${c.color === '#c9a84c' ? '201,168,76' : c.color === '#2AABEE' ? '42,171,238' : '37,211,102'},0.15)` }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: `rgba(${c.color === '#c9a84c' ? '201,168,76' : c.color === '#2AABEE' ? '42,171,238' : '37,211,102'},0.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+              {c.icon}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 9, letterSpacing: 2, color: '#64748b', fontFamily: 'monospace', marginBottom: 4 }}>{c.label}</div>
+              <a href={c.href} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 700, color: c.color, textDecoration: 'none', display: 'block', marginBottom: c.value2 ? 4 : 0 }}>
+                {c.value}
+              </a>
+              {c.value2 && c.href2 && (
+                <a href={c.href2} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, fontWeight: 700, color: c.color, textDecoration: 'none', display: 'block', marginBottom: 0 }}>
+                  {c.value2}
+                </a>
+              )}
+              {c.sub && <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, lineHeight: 1.5 }}>{c.sub}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Hours banner */}
+      <div style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>🕐</span>
+        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
+          <strong style={{ color: '#c9a84c' }}>Support hours:</strong> Monday – Saturday, 9:00 AM – 6:00 PM (WAT).<br />
+          We aim to respond to all inquiries within one business day.
+        </div>
+      </div>
     </div>
   )
 }
