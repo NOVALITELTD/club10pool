@@ -10,7 +10,6 @@ const NP_API_KEY = process.env.NOWPAYMENTS_API_KEY || ''
 const NP_BASE    = 'https://api.nowpayments.io/v1'
 const APP_URL    = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-// Get live USD → NGN rate for display only (NowPayments handles USD → USDT internally)
 async function getUSDtoNGNRate(): Promise<number> {
   try {
     const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
@@ -33,7 +32,6 @@ export async function POST(req: NextRequest) {
   const investor = await prisma.investor.findUnique({ where: { id: auth.memberId } })
   if (!investor) return error('Investor not found')
 
-  // Check KYC via kyc_submissions table
   const kyc = await prisma.$queryRaw<{ status: string }[]>`
     SELECT status FROM kyc_submissions WHERE "investorId" = ${auth.memberId} LIMIT 1
   `
@@ -76,14 +74,13 @@ export async function POST(req: NextRequest) {
 
   if (amountUSD <= 0) return error('Invalid payment amount')
 
-  const GATEWAY_FEE = 1 // $1 gateway processing fee
-  const chargeAmount = amountUSD + GATEWAY_FEE // what investor actually pays
+  const GATEWAY_FEE = 1
+  const chargeAmount = amountUSD + GATEWAY_FEE
 
   const rate = await getUSDtoNGNRate()
   const amountNGN = Math.ceil(chargeAmount * rate)
   const txRef = `C10-${nanoid(12).toUpperCase()}`
 
-  // Create NowPayments invoice (hosted payment page, USDT)
   const npRes = await fetch(`${NP_BASE}/invoice`, {
     method: 'POST',
     headers: {
@@ -93,14 +90,14 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       price_amount: chargeAmount,
       price_currency: 'usd',
-      pay_currency: 'usdttrc20',   // USDT on TRC20 (cheapest fees)
+      pay_currency: 'usdtsol',     // USDT on Solana
       order_id: txRef,
       order_description: description,
       ipn_callback_url: `${APP_URL}/api/payments/webhook`,
       success_url: `${APP_URL}/payment/verify?tx_ref=${txRef}`,
       cancel_url: `${APP_URL}/dashboard`,
-      is_fixed_rate: true,         // Lock USDT rate at invoice creation
-      is_fee_paid_by_user: false,  // Club10 absorbs the fee
+      is_fixed_rate: true,
+      is_fee_paid_by_user: false,
     }),
   })
 
@@ -111,7 +108,6 @@ export async function POST(req: NextRequest) {
     return error(`Payment gateway error: ${npData.message || 'Failed to create invoice'}`)
   }
 
-  // Save payment record
   const payment = await prisma.payment.create({
     data: {
       investorId: auth.memberId,
@@ -120,7 +116,7 @@ export async function POST(req: NextRequest) {
       amountUSD,
       amountNGN,
       exchangeRate: rate,
-      flwTxRef: txRef,         // reusing flwTxRef field as our order_id
+      flwTxRef: txRef,
       flwTxId: npData.id ? String(npData.id) : null,
       status: PaymentStatus.PENDING,
     },
