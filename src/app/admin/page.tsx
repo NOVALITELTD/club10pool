@@ -981,15 +981,18 @@ function InvestorSection({ investors, batches, s }: any) {
 function WithdrawalSection({ batches, token, s }: any) {
   const [form, setForm] = useState({ batchCode: '', profitAmount: '' })
   const [loading, setLoading] = useState(false)
+  const [paymentDoneLoading, setPaymentDoneLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [payouts, setPayouts] = useState<any[]>([])
   const rate = useUsdNgnRate()
 
-  useEffect(() => {
+  useEffect(() => { loadPayouts() }, [])
+
+  function loadPayouts() {
     fetch('/api/withdrawals/admin', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => setPayouts(d.data || []))
-  }, [])
+  }
 
   async function activateWithdrawal() {
     setError(''); setLoading(true)
@@ -1003,18 +1006,59 @@ function WithdrawalSection({ batches, token, s }: any) {
       if (!r.ok) return setError(d.error)
       setMessage(`Withdrawal activated for ${form.batchCode}`)
       setForm({ batchCode: '', profitAmount: '' })
+      loadPayouts()
     } finally { setLoading(false) }
+  }
+
+  async function markPaymentDone(batchCode: string) {
+    setPaymentDoneLoading(true)
+    try {
+      const r = await fetch('/api/withdrawals/payment-done', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ batchCode }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Failed'); return }
+      setMessage(`Payment marked as done for ${batchCode} — investors notified`)
+      loadPayouts()
+    } finally { setPaymentDoneLoading(false) }
+  }
+
+  function exportWallets(batchCode: string) {
+    const batchPayouts = payouts.filter((p: any) => p.batchCode === batchCode && p.status === 'CONFIRMED')
+    if (!batchPayouts.length) { setError('No confirmed payouts to export'); return }
+    const rows = ['Investor,Amount USD,Wallet Address (SOLANA),Status']
+    batchPayouts.forEach((p: any) => {
+      rows.push(`"${p.investorName}",${p.amount},"${p.walletAddress || 'NOT SET'}",${p.status}`)
+    })
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `withdrawals-${batchCode}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const inputStyle = { background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13 }
   const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
-  const activeBatches = batches.filter((b: any) => b.status === 'ACTIVE' || b.status === 'DISTRIBUTING')
+  const activeBatches = batches.filter((b: any) => ['ACTIVE', 'DISTRIBUTING'].includes(b.status))
+
+  // Group payouts by batch
+  const batchGroups: Record<string, any[]> = {}
+  payouts.forEach((p: any) => {
+    if (!batchGroups[p.batchCode]) batchGroups[p.batchCode] = []
+    batchGroups[p.batchCode].push(p)
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Activate withdrawal */}
       <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.2)' }}>
-        <div style={{ fontWeight: 700, marginBottom: 16 }}>Activate Withdrawal</div>
-        {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        <div style={{ fontWeight: 700, marginBottom: 16 }}>Open Withdrawal Window</div>
+        {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {error}</div>}
         {message && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12 }}>✓ {message}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, alignItems: 'flex-end' }}>
           <div>
@@ -1028,37 +1072,91 @@ function WithdrawalSection({ batches, token, s }: any) {
             <label style={labelStyle}>Total Profit ($)</label>
             <input type="number" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} placeholder="0.00" value={form.profitAmount} onChange={e => setForm(p => ({ ...p, profitAmount: e.target.value }))} />
           </div>
-          <button style={s.btn()} onClick={activateWithdrawal} disabled={loading}>{loading ? '...' : 'Activate'}</button>
+          <button style={s.btn()} onClick={activateWithdrawal} disabled={loading}>{loading ? '...' : 'Open Window'}</button>
         </div>
       </div>
 
-      <div style={s.card}>
-        <div style={{ fontWeight: 700, marginBottom: 16 }}>Payout Requests</div>
-        {payouts.length ? (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={s.table}>
-              <thead>
-                <tr>{['Investor', 'Batch', 'Amount', 'Bank', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {payouts.map((p: any) => (
-                  <tr key={p.id}>
-                    <td style={s.td}><div style={{ fontWeight: 600, fontSize: 13 }}>{p.investorName}</div></td>
-                    <td style={s.td}><span style={{ fontSize: 12, color: '#94a3b8' }}>{p.batchCode}</span></td>
-                    <td style={s.td}>
-                      <span style={{ color: '#c9a84c', fontWeight: 600 }}>${parseFloat(p.amount || 0).toLocaleString()}</span>
-                      <NgnEquiv usd={parseFloat(p.amount || 0)} rate={rate} />
-                    </td>
-                    <td style={s.td}><div style={{ fontSize: 12 }}>{p.bankName}<br /><span style={{ color: '#64748b' }}>{p.bankAccount}</span></div></td>
-                    <td style={s.td}><span style={s.tag(p.status === 'CONFIRMED' ? '#00d4aa' : '#f59e0b')}>{p.status}</span></td>
-                    <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(p.createdAt).toLocaleDateString()}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Payout groups by batch */}
+      {Object.entries(batchGroups).map(([batchCode, batchPayouts]) => {
+        const totalCount = batchPayouts.length
+        const confirmedCount = batchPayouts.filter((p: any) => p.status === 'CONFIRMED').length
+        const totalAmount = batchPayouts.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0)
+        const paymentDone = batchPayouts.every((p: any) => p.paymentDone)
+        const allConfirmed = confirmedCount === totalCount
+        const progress = Math.round((confirmedCount / totalCount) * 100)
+
+        return (
+          <div key={batchCode} style={s.card}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{batchCode} Withdrawals</div>
+                <div style={{ fontSize: 13, color: '#64748b' }}>
+                  Total: <strong style={{ color: '#c9a84c' }}>${totalAmount.toLocaleString()}</strong>
+                  {rate && <span style={{ color: '#475569' }}> (≈ ₦{(totalAmount * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })})</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button style={{ ...s.btn('ghost'), fontSize: 12 }} onClick={() => exportWallets(batchCode)}>
+                  📥 Export Wallets CSV
+                </button>
+                {!paymentDone && allConfirmed && (
+                  <button
+                    style={{ ...s.btn(), background: 'linear-gradient(135deg,#00d4aa,#0099aa)', color: '#000', fontSize: 12 }}
+                    onClick={() => markPaymentDone(batchCode)}
+                    disabled={paymentDoneLoading}
+                  >
+                    {paymentDoneLoading ? '...' : '✓ Mark Payment Done'}
+                  </button>
+                )}
+                {paymentDone && <span style={s.tag('#00d4aa')}>PAID</span>}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 6 }}>
+                <span>Confirmations received</span>
+                <span style={{ color: progress === 100 ? '#00d4aa' : '#f59e0b' }}>{confirmedCount}/{totalCount}</span>
+              </div>
+              <div style={{ background: '#080a0f', borderRadius: 6, height: 6, overflow: 'hidden' }}>
+                <div style={{ height: '100%', background: progress === 100 ? '#00d4aa' : 'linear-gradient(90deg,#f59e0b,#c9a84c)', width: `${progress}%`, borderRadius: 6, transition: 'width 0.5s' }} />
+              </div>
+            </div>
+
+            {/* Table */}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={s.table}>
+                <thead>
+                  <tr>{['Investor', 'Amount', 'SOLANA Wallet (Solana)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {batchPayouts.map((p: any) => (
+                    <tr key={p.id}>
+                      <td style={s.td}><div style={{ fontWeight: 600, fontSize: 13 }}>{p.investorName}</div><div style={{ fontSize: 11, color: '#64748b' }}>{p.email}</div></td>
+                      <td style={s.td}>
+                        <span style={{ color: '#c9a84c', fontWeight: 600 }}>${parseFloat(p.amount || 0).toLocaleString()}</span>
+                        <NgnEquiv usd={parseFloat(p.amount || 0)} rate={rate} />
+                      </td>
+                      <td style={s.td}>
+                        {p.walletAddress
+                          ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }}>{p.walletAddress.slice(0, 10)}...{p.walletAddress.slice(-6)}</span>
+                          : <span style={{ color: '#ef4444', fontSize: 12 }}>⚠ Not set</span>
+                        }
+                      </td>
+                      <td style={s.td}><span style={s.tag(p.paymentDone ? '#00d4aa' : p.status === 'CONFIRMED' ? '#f59e0b' : '#64748b')}>{p.paymentDone ? 'PAID' : p.status}</span></td>
+                      <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(p.createdAt).toLocaleDateString()}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        ) : <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No payout requests yet</div>}
-      </div>
+        )
+      })}
+
+      {!Object.keys(batchGroups).length && (
+        <div style={{ ...s.card, textAlign: 'center', padding: 60, color: '#64748b' }}>No withdrawal requests yet</div>
+      )}
     </div>
   )
 }
