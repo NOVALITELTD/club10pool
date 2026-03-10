@@ -379,7 +379,10 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
 
   async function initiatePayment() {
     setPayError(''); setPayLoading(true)
-    const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || { min: 10, max: payingBatch.contributionPerMember }
+    const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || {
+      min: Number(payingBatch.minContribution || payingBatch.contributionPerMember || 10),
+      max: Number(payingBatch.maxContribution || payingBatch.targetAmount || payingBatch.targetCapital || 50),
+    }
     if (!rounded || rounded < cfg.min || rounded > cfg.max) {
       setPayError(`Amount must be $${cfg.min}–$${cfg.max}`); setPayLoading(false); return
     }
@@ -394,7 +397,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
       const payRes = await fetch('/api/payments/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ type: 'batch', batchId: payingBatch.id }),
+        body: JSON.stringify({ type: 'batch', batchId: payingBatch.id, capitalAmount: rounded }),
       })
       const payData = await payRes.json()
       if (!payRes.ok) { setPayError(payData.error || 'Payment failed'); setPayLoading(false); return }
@@ -413,7 +416,11 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
               <button onClick={() => { setPayingBatch(null); setAmountInput(''); setPayError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
             {(() => {
-              const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || { min: 10, max: payingBatch.contributionPerMember, color: '#00d4aa', label: '' }
+              const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || {
+                min: Number(payingBatch.minContribution || payingBatch.contributionPerMember || 10),
+                max: Number(payingBatch.maxContribution || payingBatch.targetAmount || payingBatch.targetCapital || 50),
+                color: '#00d4aa', label: ''
+              }
               return (
                 <>
                   <div style={{ marginBottom: 16 }}>
@@ -472,7 +479,10 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                     {isMyBatch && <span style={s.tag('#c9a84c')}>MY BATCH</span>}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-                    {cfg ? `$${cfg.min}–$${cfg.max} contribution` : `$${parseFloat(b.contributionPerMember || 0).toLocaleString()} per member`}
+                    {cfg
+                    ? `$${cfg.min}–$${cfg.max} contribution`
+                    : `$${Number(b.minContribution || b.contributionPerMember || 0).toLocaleString()}–$${Number(b.maxContribution || b.targetAmount || b.targetCapital || 0).toLocaleString()} contribution`
+                  }
                     {b.brokerName && ` · ${b.brokerName}`}
                   </div>
                   {/* Pool progress */}
