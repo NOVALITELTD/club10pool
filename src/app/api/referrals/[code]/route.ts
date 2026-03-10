@@ -1,50 +1,46 @@
 // src/app/api/referrals/[code]/route.ts
-// GET /api/referrals/[code] — public lookup of a referral pool by code
-// Used on the /[referralCode] landing page
-
+// Public route — no auth needed, used by landing page to look up pool info
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ok, notFound } from '@/lib/api'
+import { ok, error } from '@/lib/api'
 
-export async function GET(req: NextRequest, { params }: { params: { code: string } }) {
-  const pool = await prisma.referralPool.findUnique({
-    where: { referralCode: params.code },
-    include: {
-      creator: { select: { fullName: true } },
-      members: {
-        where: { status: { in: ['PAID', 'ACTIVE'] } },
-        select: { id: true, contribution: true, joinedAt: true },
+const CATEGORY_CONFIG: Record<string, { label: string; min: number; max: number; target: number }> = {
+  CENT:         { label: '$100 Pool',    min: 10,   max: 50,   target: 100   },
+  STANDARD_1K:  { label: '$1,000 Pool',  min: 100,  max: 500,  target: 1000  },
+  STANDARD_5K:  { label: '$5,000 Pool',  min: 1000, max: 2500, target: 5000  },
+  STANDARD_10K: { label: '$10,000 Pool', min: 2500, max: 5000, target: 10000 },
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { code: string } }
+) {
+  try {
+    const pool = await prisma.referralPool.findUnique({
+      where: { referralCode: params.code.toUpperCase() },
+      include: {
+        creator: { select: { fullName: true } },
+        members: { where: { status: { in: ['PAID', 'ACTIVE'] } }, select: { id: true } },
       },
-    },
-  })
+    })
 
-  if (!pool) return notFound('Referral link not found or expired')
-  if (pool.status === 'CLOSED') return notFound('This referral pool is no longer accepting members')
+    if (!pool) return error('Pool not found', 404)
 
-  const CATEGORY_LABELS: Record<string, string> = {
-    CENT: '$100 Pool',
-    STANDARD_1K: '$1,000 Pool',
-    STANDARD_5K: '$5,000 Pool',
-    STANDARD_10K: '$10,000 Pool',
+    const cfg = CATEGORY_CONFIG[pool.category] ?? CATEGORY_CONFIG.CENT
+
+    return ok({
+      referralCode: pool.referralCode,
+      category: pool.category,
+      categoryLabel: cfg.label,
+      status: pool.status,
+      creatorName: pool.creator.fullName,
+      currentAmount: pool.currentAmount,
+      targetAmount: pool.targetAmount ?? cfg.target,
+      minContribution: cfg.min,
+      maxContribution: cfg.max,
+      paidMemberCount: pool.members.length,
+    })
+  } catch (e) {
+    return error('Failed to fetch referral pool', 500)
   }
-  const CATEGORY_CONFIG: Record<string, { min: number; max: number; target: number }> = {
-    CENT:         { target: 100,   min: 10,   max: 50   },
-    STANDARD_1K:  { target: 1000,  min: 100,  max: 500  },
-    STANDARD_5K:  { target: 5000,  min: 1000, max: 2500 },
-    STANDARD_10K: { target: 10000, min: 2500, max: 5000 },
-  }
-
-  const config = CATEGORY_CONFIG[pool.category]
-  return ok({
-    referralCode: pool.referralCode,
-    category: pool.category,
-    categoryLabel: CATEGORY_LABELS[pool.category],
-    creatorName: pool.creator.fullName,
-    status: pool.status,
-    currentAmount: pool.currentAmount,
-    targetAmount: pool.targetAmount,
-    minContribution: config.min,
-    maxContribution: config.max,
-    paidMemberCount: pool.members.length,
-  })
 }
