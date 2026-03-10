@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Section = 'overview' | 'batches' | 'investors' | 'kyc' | 'withdrawals' | 'referrals' | 'audit'
+type Section = 'overview' | 'batches' | 'investors' | 'kyc' | 'withdrawals' | 'referrals' | 'audit' | 'broadcast'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
