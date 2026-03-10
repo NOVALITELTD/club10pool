@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       COALESCE(
         (SELECT k.status FROM kyc_submissions k
          WHERE k."investorId" = i.id
-         ORDER BY k."createdAt" DESC LIMIT 1),
+         ORDER BY k."submittedAt" DESC LIMIT 1),
         'NOT_SUBMITTED'
       ) AS "kycStatus"
     FROM investors i
