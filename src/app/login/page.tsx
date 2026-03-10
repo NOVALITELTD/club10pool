@@ -5,15 +5,70 @@ import Link from 'next/link'
 
 type Tab = 'login' | 'register' | 'forgot'
 
+const COUNTRIES = [
+  'Nigeria',
+  'Afghanistan', 'Albania', 'Algeria', 'Angola', 'Argentina', 'Australia',
+  'Austria', 'Azerbaijan', 'Bahrain', 'Bangladesh', 'Belarus', 'Belgium',
+  'Benin', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil',
+  'Burkina Faso', 'Burundi', 'Cameroon', 'Canada', 'Chad', 'Chile', 'China',
+  'Colombia', 'Congo', 'Côte d\'Ivoire', 'Croatia', 'Cuba', 'Czech Republic',
+  'Denmark', 'DR Congo', 'Ecuador', 'Egypt', 'Ethiopia', 'Finland', 'France',
+  'Gabon', 'Gambia', 'Germany', 'Ghana', 'Greece', 'Guatemala', 'Guinea',
+  'Honduras', 'Hungary', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland',
+  'Israel', 'Italy', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya',
+  'Kuwait', 'Lebanon', 'Liberia', 'Libya', 'Madagascar', 'Malawi', 'Malaysia',
+  'Mali', 'Mauritania', 'Mauritius', 'Mexico', 'Morocco', 'Mozambique',
+  'Namibia', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Norway',
+  'Oman', 'Pakistan', 'Panama', 'Peru', 'Philippines', 'Poland', 'Portugal',
+  'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saudi Arabia', 'Senegal',
+  'Sierra Leone', 'Singapore', 'Somalia', 'South Africa', 'South Korea',
+  'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Sweden', 'Switzerland',
+  'Syria', 'Tanzania', 'Thailand', 'Togo', 'Tunisia', 'Turkey', 'Uganda',
+  'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States',
+  'Uruguay', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe',
+]
+
+function calculateAge(dob: string): number {
+  // expects DD-MM-YYYY
+  const parts = dob.split('-')
+  if (parts.length !== 3) return 0
+  const [dd, mm, yyyy] = parts
+  const birth = new Date(`${yyyy}-${mm}-${dd}`)
+  if (isNaN(birth.getTime())) return 0
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+  return age
+}
+
+function formatDobInput(raw: string): string {
+  // auto-insert dashes: 2 digits - 2 digits - 4 digits
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0,2)}-${digits.slice(2)}`
+  return `${digits.slice(0,2)}-${digits.slice(2,4)}-${digits.slice(4)}`
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>('login')
-  const [form, setForm] = useState({ fullName: '', email: '', password: '', phone: '' })
+  const [form, setForm] = useState({
+    fullName: '', email: '', password: '', phone: '',
+    nationality: 'Nigeria', dateOfBirth: '',
+  })
+  const [dobRaw, setDobRaw] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+
+  function handleDobChange(val: string) {
+    const formatted = formatDobInput(val)
+    setDobRaw(formatted)
+    setForm(p => ({ ...p, dateOfBirth: formatted }))
+  }
 
   async function handleLogin(e: any) {
     e.preventDefault()
@@ -41,6 +96,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     if (!agreedToTerms) return setError('You must agree to the Terms & Conditions to register')
+    // Validate DOB
+    if (!form.dateOfBirth || form.dateOfBirth.length < 10) return setError('Please enter your date of birth (DD-MM-YYYY)')
+    const age = calculateAge(form.dateOfBirth)
+    if (age < 18) return setError('You must be at least 18 years old to register')
+    if (age > 120) return setError('Please enter a valid date of birth')
     setLoading(true)
     try {
       const r = await fetch('/api/auth/register', {
@@ -69,11 +129,22 @@ export default function LoginPage() {
     } catch { setError('Server error') } finally { setLoading(false) }
   }
 
+  const age = form.dateOfBirth.length === 10 ? calculateAge(form.dateOfBirth) : null
+
   const inputStyle = {
     width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.15)',
     borderRadius: 8, padding: '11px 14px', color: '#e2e8f0', fontSize: 14,
     boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.2s',
     fontFamily: "'Syne', Georgia, serif",
+  }
+  const selectStyle = {
+    ...inputStyle,
+    cursor: 'pointer',
+    appearance: 'none' as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 14px center',
+    paddingRight: 36,
   }
   const labelStyle = {
     fontSize: 10, color: '#64748b', display: 'block',
@@ -87,8 +158,9 @@ export default function LoginPage() {
         @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #06080d; }
-        input:focus { border-color: rgba(201,168,76,0.4) !important; }
+        input:focus, select:focus { border-color: rgba(201,168,76,0.4) !important; }
         input::placeholder { color: #334155; }
+        select option { background: #0d1117; color: #e2e8f0; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
         .fade-in { animation: fadeIn 0.4s ease forwards; }
@@ -101,17 +173,11 @@ export default function LoginPage() {
         .checkbox-wrap { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
         .custom-checkbox { width: 18px; height: 18px; border: 1.5px solid rgba(201,168,76,0.3); border-radius: 4px; background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; transition: all 0.2s; cursor: pointer; }
         .custom-checkbox.checked { background: #c9a84c; border-color: #c9a84c; }
-
         .left-panel { display: flex !important; }
         .mobile-logo { display: none !important; }
-
         @media (max-width: 768px) {
           .left-panel { display: none !important; }
-          .right-panel {
-            width: 100% !important;
-            padding: 40px 24px !important;
-            min-height: 100vh;
-          }
+          .right-panel { width: 100% !important; padding: 40px 24px !important; min-height: 100vh; }
           .mobile-logo { display: flex !important; }
           .login-root { flex-direction: column !important; }
         }
@@ -119,20 +185,17 @@ export default function LoginPage() {
 
       <div className="login-root" style={{ minHeight: '100vh', background: '#06080d', display: 'flex', fontFamily: "'Syne', Georgia, serif" }}>
 
-        {/* LEFT PANEL — hidden on mobile */}
+        {/* LEFT PANEL */}
         <div className="left-panel" style={{ flex: 1, flexDirection: 'column', justifyContent: 'center', padding: '60px 80px', position: 'relative', borderRight: '1px solid rgba(201,168,76,0.08)' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(201,168,76,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.025) 1px, transparent 1px)', backgroundSize: '50px 50px', pointerEvents: 'none' }} />
           <div style={{ position: 'absolute', top: '30%', left: '20%', width: 300, height: 300, background: 'radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 64, textDecoration: 'none', position: 'relative', zIndex: 1 }}>
-            <img src="/logo.png" alt="Nova-Lite" style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'contain' }}
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <img src="/logo.png" alt="Nova-Lite" style={{ width: 40, height: 40, borderRadius: 10, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0', letterSpacing: 0.5 }}>NOVA-LITE</div>
               <div style={{ fontSize: 9, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace" }}>CLUB10 POOL</div>
             </div>
           </Link>
-
           <div style={{ position: 'relative', zIndex: 1, maxWidth: 440 }}>
             <h1 style={{ fontSize: 48, fontWeight: 800, lineHeight: 1.1, marginBottom: 20, letterSpacing: -1, color: '#e2e8f0' }}>
               Trade Bigger.<br />
@@ -162,11 +225,8 @@ export default function LoginPage() {
 
         {/* RIGHT PANEL */}
         <div className="right-panel" style={{ width: 480, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '60px 48px', flexShrink: 0 }}>
-
-          {/* Mobile-only logo */}
           <div className="mobile-logo" style={{ alignItems: 'center', gap: 12, marginBottom: 32, justifyContent: 'center' }}>
-            <img src="/logo.png" alt="Nova-Lite" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain' }}
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            <img src="/logo.png" alt="Nova-Lite" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 15, color: '#e2e8f0', letterSpacing: 0.5 }}>NOVA-LITE</div>
               <div style={{ fontSize: 9, color: '#c9a84c', letterSpacing: 3, fontFamily: "'JetBrains Mono', monospace" }}>CLUB10 POOL</div>
@@ -245,6 +305,42 @@ export default function LoginPage() {
                   <label style={labelStyle}>Email Address</label>
                   <input type="email" style={inputStyle} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" />
                 </div>
+
+                {/* Nationality + DOB row */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Nationality</label>
+                    <select
+                      style={selectStyle}
+                      value={form.nationality}
+                      onChange={e => setForm(p => ({ ...p, nationality: e.target.value }))}
+                    >
+                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Date of Birth</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      style={{
+                        ...inputStyle,
+                        borderColor: age !== null && age < 18 ? 'rgba(239,68,68,0.5)' : age !== null && age >= 18 ? 'rgba(0,212,170,0.4)' : 'rgba(201,168,76,0.15)',
+                      }}
+                      value={dobRaw}
+                      onChange={e => handleDobChange(e.target.value)}
+                      placeholder="DD-MM-YYYY"
+                      maxLength={10}
+                    />
+                    {age !== null && age < 18 && age > 0 && (
+                      <div style={{ fontSize: 10, color: '#ef4444', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Must be 18+</div>
+                    )}
+                    {age !== null && age >= 18 && (
+                      <div style={{ fontSize: 10, color: '#00d4aa', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Age: {age} ✓</div>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <label style={labelStyle}>Phone Number <span style={{ color: '#334155' }}>(optional)</span></label>
                   <input type="text" style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+234 801 234 5678" />
@@ -253,6 +349,7 @@ export default function LoginPage() {
                   <label style={labelStyle}>Password</label>
                   <input type="password" style={inputStyle} value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="Minimum 8 characters" />
                 </div>
+
                 <div style={{ background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10, padding: '14px 16px' }}>
                   <div className="checkbox-wrap" onClick={() => setAgreedToTerms(p => !p)}>
                     <div className={`custom-checkbox ${agreedToTerms ? 'checked' : ''}`}>
@@ -267,7 +364,12 @@ export default function LoginPage() {
                     </span>
                   </div>
                 </div>
-                <button onClick={handleRegister} disabled={loading || !agreedToTerms} style={{ width: '100%', background: agreedToTerms ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: agreedToTerms ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: loading || !agreedToTerms ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.3s' }}>
+
+                <button
+                  onClick={handleRegister}
+                  disabled={loading || !agreedToTerms}
+                  style={{ width: '100%', background: agreedToTerms ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: agreedToTerms ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: loading || !agreedToTerms ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.3s' }}
+                >
                   {loading ? 'Creating Account...' : 'Create Account →'}
                 </button>
               </div>
@@ -390,5 +492,3 @@ function TermsContent() {
     </div>
   )
 }
-
-
