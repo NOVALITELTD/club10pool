@@ -725,73 +725,6 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
           <span style={{ fontWeight: 700, fontSize: 14 }}>Security Verification Required</span>
         </div>
 
-        {/* METHOD CHOICE — only shown if 2FA enabled and not yet chosen */}
-        {hasTwoFa && otpMethod === 'choose' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Choose how to verify this withdrawal:</div>
-            <button
-              onClick={() => selectMethod('totp')}
-              disabled={!user?.walletAddress}
-              style={{ ...s.btn(), width: '100%', padding: '10px', fontSize: 13 }}
-            >
-              🔐 Use Authenticator App
-            </button>
-            <button
-              onClick={() => selectMethod('email')}
-              disabled={!user?.walletAddress}
-              style={{ ...s.btn('ghost'), width: '100%', padding: '10px', fontSize: 13 }}
-            >
-              ✉ Send Code to Email
-            </button>
-          </div>
-        )}
-
-        {/* NO 2FA — email only, show send button */}
-        {!hasTwoFa && otpStep === 'idle' && (
-          <div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
-              A 6-digit code will be sent to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong>. You must enter it to confirm.
-            </div>
-            <button
-              onClick={() => { setOtpMethod('email'); requestEmailCode() }}
-              disabled={otpLoading || !user?.walletAddress}
-              style={{ ...s.btn('ghost'), width: '100%', padding: '10px', fontSize: 13 }}
-            >
-              {otpLoading ? 'Sending...' : '📧 Send Withdrawal Code to Email'}
-            </button>
-          </div>
-        )}
-
-        {/* EMAIL — code sent, show input */}
-        {effectiveMethod === 'email' && (otpStep === 'sent' || otpStep === 'ready') && (
-          <div>
-            <div style={{ fontSize: 12, color: '#00d4aa', marginBottom: 10 }}>✓ Code sent! Check your email inbox.</div>
-            <input
-              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
-              value={otpCode}
-              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
-              style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: '12px 14px', color: '#c9a84c', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
-            />
-            {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button
-                onClick={requestEmailCode}
-                disabled={otpCountdown > 0 || otpLoading}
-                style={{ background: 'none', border: 'none', color: otpCountdown > 0 ? '#475569' : '#00d4aa', fontSize: 12, cursor: otpCountdown > 0 ? 'default' : 'pointer', padding: 0, fontFamily: 'inherit' }}
-              >
-                {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend code'}
-              </button>
-              {hasTwoFa && (
-                <button onClick={() => { setOtpMethod('choose'); setOtpCode(''); setOtpStep('idle') }}
-                  style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-                  Use authenticator instead
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TOTP — show input immediately */}
         {/* Step indicator */}
         {hasTwoFa && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -1265,12 +1198,13 @@ function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
 }
 
 // ── SETTINGS ──────────────────────────────────────────────
-type SettingsStep = 'locked' | 'choose' | 'verify' | 'unlocked'
-type VerifyMethod = 'email' | 'totp'
+// Dual 2FA for settings: if 2FA enabled → TOTP first, then email OTP; else just email OTP
+type SettingsStep = 'locked' | 'verify' | 'unlocked'
 
 function SettingsSection({ user, token, s, setUser }: any) {
+  const hasTwoFa = !!user?.twoFaEnabled
   const [step, setStep] = useState<SettingsStep>('locked')
-  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>('email')
+  const [dualStep, setDualStep] = useState<'totp' | 'email_otp'>(hasTwoFa ? 'totp' : 'email_otp')
   const [codeInput, setCodeInput] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [codeLoading, setCodeLoading] = useState(false)
@@ -1311,8 +1245,8 @@ function SettingsSection({ user, token, s, setUser }: any) {
     if (codeInput.length < 6) return setCodeError('Enter the 6-digit code')
     setVerifyLoading(true); setCodeError('')
     try {
-      if (verifyMethod === 'totp') {
-        // Verify TOTP via 2fa/verify endpoint — reuse investorId from JWT
+      if (dualStep === 'totp') {
+        // Step 1: verify TOTP
         const r = await fetch('/api/auth/2fa/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1320,8 +1254,11 @@ function SettingsSection({ user, token, s, setUser }: any) {
         })
         const d = await r.json()
         if (!r.ok) return setCodeError(d.error || 'Invalid authenticator code')
-        setStep('unlocked')
+        // Move to email OTP step, auto-send code
+        setDualStep('email_otp'); setCodeInput(''); setCodeSent(false)
+        sendEmailCode()
       } else {
+        // Step 2 (or only step): verify email OTP
         const r = await fetch('/api/auth/security-code/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -1368,28 +1305,17 @@ function SettingsSection({ user, token, s, setUser }: any) {
         <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 28 }}>
           Verify your identity to edit account settings.
         </div>
-        {user?.twoFaEnabled ? (
-          // 2FA enabled — offer choice
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button
-              onClick={() => { setVerifyMethod('totp'); setCodeInput(''); setCodeError(''); setStep('verify') }}
-              style={{ ...s.btn(), padding: '12px 24px', fontSize: 14, width: '100%' }}
-            >
-              🔐 Use Authenticator App
-            </button>
-            <button
-              onClick={() => { setVerifyMethod('email'); setCodeInput(''); setCodeError(''); setStep('verify'); sendEmailCode() }}
-              style={{ ...s.btn('ghost'), padding: '12px 24px', fontSize: 14, width: '100%' }}
-            >
-              ✉ Send Code to {user?.email}
-            </button>
-          </div>
-        ) : (
-          // No 2FA — email only
-          <button onClick={() => { setVerifyMethod('email'); setStep('verify'); sendEmailCode() }} style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}>
-            Send Verification Code
-          </button>
-        )}
+        <button
+          onClick={() => {
+            setCodeInput(''); setCodeError('')
+            setDualStep(hasTwoFa ? 'totp' : 'email_otp')
+            setStep('verify')
+            if (!hasTwoFa) sendEmailCode()
+          }}
+          style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}
+        >
+          {hasTwoFa ? '🔐 Verify Identity (TOTP + Email)' : '✉ Send Verification Code'}
+        </button>
       </div>
       <div style={{ ...s.card, marginTop: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>Account Info</div>
@@ -1414,16 +1340,30 @@ function SettingsSection({ user, token, s, setUser }: any) {
   if (step === 'verify') return (
     <div style={{ maxWidth: 440 }}>
       <div style={s.card}>
+        {/* Dual step indicator */}
+        {hasTwoFa && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {['TOTP', 'Email OTP'].map((label, i) => {
+              const isActive = (i === 0 && dualStep === 'totp') || (i === 1 && dualStep === 'email_otp')
+              const isDone = i === 0 && dualStep === 'email_otp'
+              return (
+                <div key={label} style={{ flex: 1, textAlign: 'center', padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: isDone ? 'rgba(0,212,170,0.1)' : isActive ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.03)', color: isDone ? '#00d4aa' : isActive ? '#c9a84c' : '#475569', border: `1px solid ${isDone ? 'rgba(0,212,170,0.3)' : isActive ? 'rgba(201,168,76,0.3)' : '#1e2530'}` }}>
+                  {isDone ? '✓ ' : `${i+1}. `}{label}
+                </div>
+              )
+            })}
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ width: 44, height: 44, borderRadius: '50%', background: verifyMethod === 'totp' ? 'rgba(0,212,170,0.1)' : 'rgba(201,168,76,0.1)', border: `1px solid ${verifyMethod === 'totp' ? 'rgba(0,212,170,0.2)' : 'rgba(201,168,76,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
-            {verifyMethod === 'totp' ? '🔐' : '✉'}
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: dualStep === 'totp' ? 'rgba(0,212,170,0.1)' : 'rgba(201,168,76,0.1)', border: `1px solid ${dualStep === 'totp' ? 'rgba(0,212,170,0.2)' : 'rgba(201,168,76,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
+            {dualStep === 'totp' ? '🔐' : '✉'}
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>
-              {verifyMethod === 'totp' ? 'Authenticator Code' : 'Check Your Email'}
+              {dualStep === 'totp' ? 'Step 1: Authenticator Code' : `${hasTwoFa ? 'Step 2: ' : ''}Check Your Email`}
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              {verifyMethod === 'totp'
+              {dualStep === 'totp'
                 ? 'Enter the 6-digit code from your Google Authenticator app'
                 : `Code sent to ${user?.email}`}
             </div>
@@ -1434,34 +1374,28 @@ function SettingsSection({ user, token, s, setUser }: any) {
         )}
         <div style={{ marginBottom: 20 }}>
           <label style={labelStyle}>
-            {verifyMethod === 'totp' ? 'Authenticator Code' : '6-Digit Verification Code'}
+            {dualStep === 'totp' ? 'Authenticator Code' : '6-Digit Verification Code'}
           </label>
           <input type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={codeInput}
             onChange={e => { setCodeInput(e.target.value.replace(/\D/g, '')); setCodeError('') }}
             onKeyDown={e => e.key === 'Enter' && verifyCode()}
             style={{ ...inputStyle, fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: 700,
-              color: verifyMethod === 'totp' ? '#00d4aa' : '#c9a84c' }} />
+              color: dualStep === 'totp' ? '#00d4aa' : '#c9a84c' }} />
         </div>
         <button onClick={verifyCode} disabled={verifyLoading || codeInput.length < 6}
           style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 14, opacity: codeInput.length < 6 ? 0.5 : 1 }}>
-          {verifyLoading ? 'Verifying...' : 'Verify & Unlock Settings'}
+          {verifyLoading ? 'Verifying...' : dualStep === 'totp' ? 'Verify Authenticator →' : 'Verify & Unlock Settings'}
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-          <button onClick={() => { setStep('locked'); setCodeInput(''); setCodeError('') }}
+          <button onClick={() => { setStep('locked'); setCodeInput(''); setCodeError(''); setDualStep(hasTwoFa ? 'totp' : 'email_otp') }}
             style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Cancel</button>
-          {verifyMethod === 'email' && (
+          {dualStep === 'email_otp' && (
             countdown > 0
               ? <span style={{ fontSize: 12, color: '#475569' }}>Resend in {countdown}s</span>
-              : <button onClick={sendCode} disabled={codeLoading}
+              : <button onClick={sendEmailCode} disabled={codeLoading}
                   style={{ background: 'none', border: 'none', color: '#00d4aa', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
                   {codeLoading ? 'Sending...' : 'Resend Code'}
                 </button>
-          )}
-          {verifyMethod === 'totp' && user?.twoFaEnabled && (
-            <button onClick={() => { setVerifyMethod('email'); sendEmailCode() }}
-              style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-              Use email instead
-            </button>
           )}
         </div>
       </div>
