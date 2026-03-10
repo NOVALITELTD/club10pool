@@ -1,76 +1,49 @@
-// src/app/api/auth/login/route.ts
+// src/app/api/auth/login/route.ts (updated for 2FA)
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { comparePassword, signToken } from '@/lib/auth'
 import { ok, error } from '@/lib/api'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 
 export async function POST(req: NextRequest) {
-  try {
-    const { email, password } = await req.json()
-    if (!email || !password) return error('Email and password are required')
+  const { email, password } = await req.json()
+  if (!email || !password) return error('Email and password required')
 
-    const normalizedEmail = email.toLowerCase()
+  const investors = await prisma.$queryRaw<any[]>`
+    SELECT id, email, "fullName", "passwordHash", "isAdmin", "twoFaEnabled", "twoFaMethod", "lastLoginAt"
+    FROM investors WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+  `
+  if (!investors.length) return error('Invalid email or password')
+  const inv = investors[0]
 
-    // Check admin User first
-    const adminUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
-    if (adminUser) {
-      const valid = await comparePassword(password, adminUser.passwordHash)
-      if (!valid) return error('Invalid credentials', 401)
+  const valid = await bcrypt.compare(password, inv.passwordHash)
+  if (!valid) return error('Invalid email or password')
 
-      const token = signToken({ memberId: adminUser.id, email: adminUser.email, isAdmin: true })
+  // Determine if 2FA required:
+  // - 2FA is enabled AND (never logged in OR last login > 24 hours ago)
+  const now = Date.now()
+  const lastLogin = inv.lastLoginAt ? new Date(inv.lastLoginAt).getTime() : 0
+  const hoursSinceLast = (now - lastLogin) / (1000 * 60 * 60)
+  const require2FA = inv.twoFaEnabled && (hoursSinceLast > 24 || !inv.lastLoginAt)
 
-      await prisma.auditLog.create({
-        data: { actorId: adminUser.id, actorEmail: adminUser.email, action: 'LOGIN' },
-      })
-
-      return ok({
-        token,
-        member: {
-          id: adminUser.id,
-          fullName: adminUser.name,
-          email: adminUser.email,
-          isAdmin: true,
-          role: adminUser.role,
-          emailVerified: true,
-          kycStatus: 'APPROVED',
-        },
-      })
-    }
-
-    // Check Investor
-    const investor = await prisma.investor.findUnique({ where: { email: normalizedEmail } })
-    if (!investor) return error('Invalid credentials', 401)
-    if (!investor.passwordHash) return error('Account has no password set. Contact admin.', 401)
-
-    const valid = await comparePassword(password, investor.passwordHash)
-    if (!valid) return error('Invalid credentials', 401)
-
-    // Fetch live emailVerified and kycStatus from database
-    const investorData = await prisma.$queryRaw<any[]>`
-      SELECT "emailVerified", "kycStatus" FROM investors WHERE id = ${investor.id}
-    `
-    const emailVerified = investorData[0]?.emailVerified ?? false
-    const kycStatus = investorData[0]?.kycStatus ?? 'NOT_SUBMITTED'
-
-    const token = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
-
-    await prisma.auditLog.create({
-      data: { actorId: investor.id, actorEmail: investor.email, action: 'LOGIN' },
-    })
-
+  if (require2FA) {
+    // Return partial — client must complete 2FA
     return ok({
-      token,
-      member: {
-        id: investor.id,
-        fullName: investor.fullName,
-        email: investor.email,
-        isAdmin: false,
-        emailVerified,
-        kycStatus,
-      },
+      requiresTwoFa: true,
+      twoFaMethod: inv.twoFaMethod || 'TOTP',
+      investorId: inv.id,  // used by 2FA verify endpoint
+      // No JWT yet
     })
-  } catch (e) {
-    console.error(e)
-    return error('Server error', 500)
   }
+
+  // No 2FA needed — issue token
+  await prisma.$executeRaw`UPDATE investors SET "lastLoginAt" = NOW() WHERE id = ${inv.id}`
+
+  const token = jwt.sign(
+    { memberId: inv.id, email: inv.email, isAdmin: inv.isAdmin },
+    process.env.JWT_SECRET!,
+    { expiresIn: '7d' }
+  )
+
+  return ok({ token, requiresTwoFa: false })
 }
