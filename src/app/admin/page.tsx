@@ -985,13 +985,17 @@ function WithdrawalSection({ batches, token, s }: any) {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [payouts, setPayouts] = useState<any[]>([])
+  const [batchTotals, setBatchTotals] = useState<Record<string,number>>({})
   const rate = useUsdNgnRate()
 
   useEffect(() => { loadPayouts() }, [])
 
   function loadPayouts() {
     fetch('/api/withdrawals/admin', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => setPayouts(d.data || []))
+      .then(r => r.json()).then(d => {
+        setPayouts(d.data?.payouts || [])
+        setBatchTotals(d.data?.batchTotals || {})
+      })
   }
 
   async function activateWithdrawal() {
@@ -1027,18 +1031,28 @@ function WithdrawalSection({ batches, token, s }: any) {
 
   function exportWallets(batchCode: string) {
     const batchPayouts = payouts.filter((p: any) => p.batchCode === batchCode && p.status === 'CONFIRMED')
-    if (!batchPayouts.length) { setError('No confirmed payouts to export'); return }
-    const rows = ['Investor,Amount USD,Wallet Address (SOLANA),Status']
+    if (!batchPayouts.length) { setError('No confirmed payouts to export for ' + batchCode); return }
+    // NowPayments batch payout template format
+    // Ticker, Wallet Address, ExtraId, Amount in crypto (6 decimals), Fiat amount, Fiat currency, Payout description
+    const rows = [
+      'Ticker,Wallet Address,ExtraId (memo etc.),Amount in crypto (6 decimals only!),Fiat amount,Fiat currency,Payout description'
+    ]
     batchPayouts.forEach((p: any) => {
-      rows.push(`"${p.investorName}",${p.amount},"${p.walletAddress || 'NOT SET'}",${p.status}`)
+      rows.push([
+        'SOL',
+        p.walletAddress || '',
+        '',                             // no memo needed for SOL
+        '',                             // leave blank — NowPayments will auto-calc from fiat
+        parseFloat(p.amount).toFixed(2),
+        'USD',
+        `Club10 Pool ${batchCode} withdrawal — ${p.investorName}`
+      ].join(','))
     })
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `withdrawals-${batchCode}-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    const a = document.createElement('a'); a.href = url
+    a.download = `nowpayments-payout-${batchCode}-${new Date().toISOString().slice(0,10)}.csv`
+    a.click(); URL.revokeObjectURL(url)
   }
 
   const inputStyle = { background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13 }
@@ -1078,7 +1092,7 @@ function WithdrawalSection({ batches, token, s }: any) {
 
       {/* Payout groups by batch */}
       {Object.entries(batchGroups).map(([batchCode, batchPayouts]) => {
-        const totalCount = batchPayouts.length
+        const totalCount = batchTotals[batchCode] || batchPayouts.length
         const confirmedCount = batchPayouts.filter((p: any) => p.status === 'CONFIRMED').length
         const totalAmount = batchPayouts.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0)
         const paymentDone = batchPayouts.every((p: any) => p.paymentDone)
@@ -1127,7 +1141,7 @@ function WithdrawalSection({ batches, token, s }: any) {
             <div style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
-                  <tr>{['Investor', 'Amount', 'SOLANA Wallet (Solana)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                  <tr>{['Investor', 'Amount', 'USDT Wallet (TON)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {batchPayouts.map((p: any) => (
