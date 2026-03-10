@@ -1,87 +1,93 @@
 // src/app/api/auth/login/route.ts
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { comparePassword, signToken } from '@/lib/auth'
 import { ok, error } from '@/lib/api'
-import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json()
-  if (!email || !password) return error('Email and password required')
-
-  // Fetch investor — "isAdmin" may not exist as a column; derive from "role" if present
-  // We use a safe select that works regardless of whether isAdmin or role is the column
-  let investors: any[] = []
   try {
-    investors = await prisma.$queryRaw<any[]>`
-      SELECT id, email, "fullName", "passwordHash",
-             COALESCE("isAdmin", false) AS "isAdmin",
-             "twoFaEnabled", "twoFaMethod", "lastLoginAt"
-      FROM investors WHERE LOWER(email) = LOWER(${email}) LIMIT 1
-    `
-  } catch {
-    // Fallback: isAdmin column doesn't exist — try without it
-    investors = await prisma.$queryRaw<any[]>`
-      SELECT id, email, "fullName", "passwordHash",
-             false AS "isAdmin",
-             "twoFaEnabled", "twoFaMethod", "lastLoginAt"
-      FROM investors WHERE LOWER(email) = LOWER(${email}) LIMIT 1
-    `
-  }
+    const { email, password } = await req.json()
+    if (!email || !password) return error('Email and password are required')
+    const normalizedEmail = email.toLowerCase()
 
-  if (!investors.length) return error('Invalid email or password')
-  const inv = investors[0]
-
-  const valid = await bcrypt.compare(password, inv.passwordHash)
-  if (!valid) return error('Invalid email or password')
-
-  // Check 2FA: required if enabled AND last login > 24h ago (or never)
-  const now = Date.now()
-  const lastLogin = inv.lastLoginAt ? new Date(inv.lastLoginAt).getTime() : 0
-  const hoursSinceLast = (now - lastLogin) / (1000 * 60 * 60)
-  const require2FA = inv.twoFaEnabled && (hoursSinceLast > 24 || !inv.lastLoginAt)
-
-  if (require2FA) {
-    return ok({
-      requiresTwoFa: true,
-      twoFaMethod: inv.twoFaMethod || 'TOTP',
-      investorId: inv.id,
-    })
-  }
-
-  // Issue JWT
-  await prisma.$executeRaw`UPDATE investors SET "lastLoginAt" = NOW() WHERE id = ${inv.id}`
-
-  // Also check admin status via separate query if needed
-  let isAdmin = inv.isAdmin || false
-  try {
-    const adminCheck = await prisma.$queryRaw<any[]>`
-      SELECT "isAdmin" FROM investors WHERE id = ${inv.id} LIMIT 1
-    `
-    isAdmin = adminCheck[0]?.isAdmin ?? false
-  } catch { /* column doesn't exist, isAdmin stays false */ }
-
-  const token = jwt.sign(
-    { memberId: inv.id, email: inv.email, isAdmin },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
-  )
-
-  // Fetch full profile for client localStorage
-  const kycCheck = await prisma.$queryRaw<any[]>`
-    SELECT status FROM kyc_submissions WHERE "investorId" = ${inv.id} ORDER BY "createdAt" DESC LIMIT 1
-  `
-  const kycStatus = kycCheck[0]?.status || 'NOT_SUBMITTED'
-
-  return ok({
-    token,
-    requiresTwoFa: false,
-    user: {
-      id: inv.id,
-      email: inv.email,
-      fullName: inv.fullName,
-      isAdmin,
-      kycStatus,
+    // ── Admin (User table) ─────────────────────────────────
+    const adminUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    if (adminUser) {
+      const valid = await comparePassword(password, adminUser.passwordHash)
+      if (!valid) return error('Invalid credentials', 401)
+      const token = signToken({ memberId: adminUser.id, email: adminUser.email, isAdmin: true })
+      await prisma.auditLog.create({
+        data: { actorId: adminUser.id, actorEmail: adminUser.email, action: 'LOGIN' },
+      })
+      return ok({
+        token,
+        member: {
+          id: adminUser.id,
+          fullName: adminUser.name,
+          email: adminUser.email,
+          isAdmin: true,
+          role: adminUser.role,
+          emailVerified: true,
+          kycStatus: 'APPROVED',
+        },
+      })
     }
-  })
+
+    // ── Investor ───────────────────────────────────────────
+    const investor = await prisma.investor.findUnique({ where: { email: normalizedEmail } })
+    if (!investor) return error('Invalid credentials', 401)
+    if (!investor.passwordHash) return error('Account has no password set. Contact admin.', 401)
+
+    const valid = await comparePassword(password, investor.passwordHash)
+    if (!valid) return error('Invalid credentials', 401)
+
+    // Fetch 2FA fields + emailVerified + kycStatus via raw (not yet in Prisma model)
+    const investorData = await prisma.$queryRaw<any[]>`
+      SELECT "emailVerified", "kycStatus", "twoFaEnabled", "twoFaMethod", "lastLoginAt"
+      FROM investors WHERE id = ${investor.id} LIMIT 1
+    `
+    const row = investorData[0] ?? {}
+    const emailVerified = row.emailVerified ?? false
+    const kycStatus = row.kycStatus ?? 'NOT_SUBMITTED'
+
+    // ── 2FA gate ───────────────────────────────────────────
+    // Required if: 2FA enabled AND (never logged in OR last login > 24h ago)
+    const hoursSinceLast = row.lastLoginAt
+      ? (Date.now() - new Date(row.lastLoginAt).getTime()) / 36e5
+      : Infinity
+    const require2FA = row.twoFaEnabled && hoursSinceLast > 24
+
+    if (require2FA) {
+      return ok({
+        requiresTwoFa: true,
+        twoFaMethod: row.twoFaMethod || 'TOTP',
+        investorId: investor.id,
+      })
+    }
+
+    // ── Issue token ────────────────────────────────────────
+    await prisma.$executeRaw`UPDATE investors SET "lastLoginAt" = NOW() WHERE id = ${investor.id}`
+
+    const token = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
+    await prisma.auditLog.create({
+      data: { actorId: investor.id, actorEmail: investor.email, action: 'LOGIN' },
+    })
+
+    return ok({
+      token,
+      requiresTwoFa: false,
+      member: {
+        id: investor.id,
+        fullName: investor.fullName,
+        email: investor.email,
+        isAdmin: false,
+        emailVerified,
+        kycStatus,
+      },
+    })
+
+  } catch (e) {
+    console.error(e)
+    return error('Server error', 500)
+  }
 }
