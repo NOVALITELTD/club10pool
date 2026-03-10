@@ -5,13 +5,20 @@ import { hashPassword, signToken } from '@/lib/auth'
 import { ok, error } from '@/lib/api'
 import { sendVerificationEmail } from '@/lib/email'
 import { randomBytes } from 'crypto'
+import { validateNigerianPhone, notifyAdminNewInvestor } from '@/lib/whatsapp'
 
 export async function POST(req: NextRequest) {
   try {
-    const { fullName, email, password, phone, nationality, dateOfBirth, referralCode } = await req.json()
+    const { fullName, email, password, phone, whatsapp, nationality, dateOfBirth, referralCode } = await req.json()
 
     if (!fullName || !email || !password) return error('Full name, email and password are required')
     if (password.length < 8) return error('Password must be at least 8 characters')
+
+    // WhatsApp validation
+    if (!whatsapp) return error('WhatsApp number is required')
+    if (!validateNigerianPhone(whatsapp)) {
+      return error('Please enter a valid WhatsApp number (e.g. 08012345678 — 11 digits for Nigerian numbers)')
+    }
 
     if (!dateOfBirth) return error('Date of birth is required')
     const parts = dateOfBirth.split('-')
@@ -35,18 +42,19 @@ export async function POST(req: NextRequest) {
 
     await prisma.$executeRaw`
       UPDATE investors
-      SET nationality = ${nationality || 'Nigeria'}, "dateOfBirth" = ${dateOfBirth}
+      SET nationality = ${nationality || 'Nigeria'},
+          "dateOfBirth" = ${dateOfBirth},
+          phone = COALESCE(${whatsapp}, phone)
       WHERE id = ${investor.id}
     `
 
-    // Handle referral pool join if referralCode provided
+    // Handle referral pool join
     let referralPoolJoined = null
     if (referralCode) {
       const pool = await prisma.referralPool.findUnique({
         where: { referralCode: referralCode.toUpperCase() },
       })
       if (pool && pool.status === 'OPEN') {
-        // Check not already a member (shouldn't be for new user but defensive)
         const alreadyMember = await prisma.referralMember.findUnique({
           where: { referralPoolId_investorId: { referralPoolId: pool.id, investorId: investor.id } },
         })
@@ -54,12 +62,11 @@ export async function POST(req: NextRequest) {
           const CATEGORY_MIN: Record<string, number> = {
             CENT: 10, STANDARD_1K: 100, STANDARD_5K: 1000, STANDARD_10K: 2500,
           }
-          const minContribution = CATEGORY_MIN[pool.category] ?? 10
           await prisma.referralMember.create({
             data: {
               referralPoolId: pool.id,
               investorId: investor.id,
-              contribution: minContribution,
+              contribution: CATEGORY_MIN[pool.category] ?? 10,
               status: 'PENDING_PAYMENT',
             },
           })
@@ -68,12 +75,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Email verification
     const token = randomBytes(32).toString('hex')
     await prisma.$executeRaw`
       INSERT INTO email_verifications (id, "investorId", token, "expiresAt")
       VALUES (${crypto.randomUUID()}, ${investor.id}, ${token}, ${new Date(Date.now() + 24 * 60 * 60 * 1000)})
     `
     await sendVerificationEmail(investor.email, investor.fullName, token)
+
+    // Notify admin via WhatsApp (fire and forget)
+    notifyAdminNewInvestor(investor.fullName, investor.email).catch(() => {})
 
     const authToken = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
     return ok({
