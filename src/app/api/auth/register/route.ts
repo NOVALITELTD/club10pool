@@ -5,7 +5,7 @@ import { hashPassword, signToken } from '@/lib/auth'
 import { ok, error } from '@/lib/api'
 import { sendVerificationEmail } from '@/lib/email'
 import { randomBytes } from 'crypto'
-import { validateNigerianPhone, notifyAdminNewInvestor } from '@/lib/whatsapp'
+import { validateNigerianPhone } from '@/lib/whatsapp'
 
 export async function POST(req: NextRequest) {
   try {
@@ -82,9 +82,6 @@ export async function POST(req: NextRequest) {
       VALUES (${crypto.randomUUID()}, ${investor.id}, ${token}, ${new Date(Date.now() + 24 * 60 * 60 * 1000)})
     `
     await sendVerificationEmail(investor.email, investor.fullName, token)
-
-    // Notify admin via WhatsApp (fire and forget)
-    notifyAdminNewInvestor(investor.fullName, investor.email).catch(() => {})
 
     const authToken = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
     return ok({
