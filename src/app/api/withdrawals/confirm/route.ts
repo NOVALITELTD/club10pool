@@ -1,6 +1,7 @@
 // src/app/api/withdrawals/confirm/route.ts
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { notifyAdminWithdrawal } from '@/lib/whatsapp'
 import { getAuthFromRequest } from '@/lib/auth'
 import { ok, error, unauthorized } from '@/lib/api'
 import { sendEmail } from '@/lib/email'
@@ -10,15 +11,14 @@ export async function POST(req: NextRequest) {
   if (!auth) return unauthorized()
 
   const body = await req.json()
-  const { withdrawalId, code, totpVerified } = body
+  const { withdrawalId, code } = body
 
-  // Must have either a 6-digit email code OR totpVerified:true (TOTP already verified client-side)
-  if (!totpVerified && (!code || code.length !== 6)) {
+  // Always require email OTP code
+  if (!code || code.length !== 6) {
     return error('A 6-digit security code is required to confirm withdrawal')
   }
 
-  // Verify email OTP if not using TOTP path
-  if (!totpVerified) {
+  {
     const codeRecord = await prisma.$queryRaw<any[]>`
       SELECT id FROM security_codes
       WHERE "investorId" = ${auth.memberId}
@@ -98,6 +98,9 @@ export async function POST(req: NextRequest) {
       `,
     })
   }
+
+  // WhatsApp notify admin (fire and forget)
+  notifyAdminWithdrawal(inv.fullName || 'Investor', parseFloat(amount), inv.walletAddress || 'N/A').catch(() => {})
 
   return ok({ message: 'Withdrawal confirmed successfully' })
 }
