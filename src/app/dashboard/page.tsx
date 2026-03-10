@@ -449,7 +449,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e2530', paddingTop: 6, fontWeight: 700 }}>
                       <span style={{ color: '#e2e8f0' }}>Total to pay</span><span style={{ color: '#c9a84c' }}>${(rounded || cfg.min) + 1}</span>
                     </div>
-                    <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>SOLANA (Solana)</strong> via NowPayments</div>
+                    <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (Solana)</strong> via NowPayments</div>
                   </div>
                   {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
                   <button
@@ -545,17 +545,44 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   const [error, setError] = useState('')
   const rate = useUsdNgnRate()
 
+  // OTP gate
+  const [otpStep, setOtpStep] = useState<'idle'|'sent'|'verified'>('idle')
+  const [otpCode, setOtpCode] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpError, setOtpError] = useState('')
+  const [otpCountdown, setOtpCountdown] = useState(0)
+  useEffect(() => {
+    if (otpCountdown <= 0) return
+    const t = setTimeout(() => setOtpCountdown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [otpCountdown])
+
+  async function requestWithdrawalCode() {
+    setOtpLoading(true); setOtpError('')
+    try {
+      const r = await fetch('/api/auth/security-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ purpose: 'WITHDRAWAL' }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setOtpError(d.error || 'Failed to send code'); return }
+      setOtpStep('sent'); setOtpCountdown(60)
+    } finally { setOtpLoading(false) }
+  }
+
   async function submitWithdrawal() {
-    if (!user?.walletAddress) { setError('Please set your SOLANA wallet address in Settings first.'); return }
+    if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
+    if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the 6-digit code from your email'); return }
     setLoading(true); setError('')
     try {
       const r = await fetch('/api/withdrawals/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ withdrawalId: withdrawal?.id }),
+        body: JSON.stringify({ withdrawalId: withdrawal?.id, code: otpCode }),
       })
       const d = await r.json()
-      if (!r.ok) { setError(d.error || 'Failed to submit'); return }
+      if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
       setSubmitted(true); reload()
     } finally { setLoading(false) }
   }
@@ -576,7 +603,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
         <div style={{ fontSize: 20, fontWeight: 800, color: '#00d4aa', marginBottom: 8 }}>Payment Sent!</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
         <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>SOLANA has been sent to your wallet. Please check your wallet balance.</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>USDT has been sent to your wallet. Please check your wallet balance.</div>
         {user?.walletAddress && (
           <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const }}>
             {user.walletAddress}
@@ -632,14 +659,62 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
       </div>
 
       <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to SOLANA Wallet (Solana)</div>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (Solana)</div>
         {user?.walletAddress ? (
           <div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct Solana address. Funds sent to wrong address cannot be recovered.</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT Solana address. Funds sent to wrong address cannot be recovered.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your Solana wallet address first.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT Solana wallet address first.</div>
+        )}
+      </div>
+
+      {/* ── Security Code Gate ── */}
+      <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.2)', marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 16 }}>🔐</span>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Security Verification Required</span>
+        </div>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
+          A 6-digit code will be sent to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong>. You must enter it to confirm this withdrawal.
+        </div>
+
+        {otpStep === 'idle' && (
+          <button
+            onClick={requestWithdrawalCode}
+            disabled={otpLoading || !user?.walletAddress}
+            style={{ ...s.btn('ghost'), width: '100%', padding: '10px', fontSize: 13 }}
+          >
+            {otpLoading ? 'Sending...' : '📧 Send Withdrawal Code to Email'}
+          </button>
+        )}
+
+        {otpStep === 'sent' && (
+          <div>
+            <div style={{ fontSize: 12, color: '#00d4aa', marginBottom: 10 }}>✓ Code sent! Check your email inbox.</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="000000"
+                value={otpCode}
+                onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+                style={{ flex: 1, background: '#080a0f', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: '12px 14px', color: '#c9a84c', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none' }}
+              />
+            </div>
+            {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <button
+                onClick={requestWithdrawalCode}
+                disabled={otpCountdown > 0 || otpLoading}
+                style={{ background: 'none', border: 'none', color: otpCountdown > 0 ? '#475569' : '#00d4aa', fontSize: 12, cursor: otpCountdown > 0 ? 'default' : 'pointer', padding: 0, fontFamily: 'inherit' }}
+              >
+                {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend code'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -647,10 +722,10 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
 
       <button
         onClick={submitWithdrawal}
-        disabled={loading || !user?.walletAddress}
-        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: !user?.walletAddress ? 0.5 : 1 }}
+        disabled={loading || !user?.walletAddress || otpStep !== 'sent' || otpCode.length !== 6}
+        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpStep !== 'sent' || otpCode.length !== 6 || !user?.walletAddress) ? 0.4 : 1 }}
       >
-        {loading ? 'Submitting...' : 'Confirm Withdrawal →'}
+        {loading ? 'Submitting...' : '🔐 Confirm Withdrawal →'}
       </button>
     </div>
   )
@@ -1175,7 +1250,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             { label: 'Full Name', value: user?.fullName },
             { label: 'Email', value: user?.email },
             { label: 'Phone', value: user?.phone || '—' },
-            { label: 'Wallet (Solana)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
+            { label: 'Wallet (USDT Solana)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
             { label: 'KYC Status', value: user?.kycStatus },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '10px 0', borderBottom: '1px solid #1e2530', gap: 12 }}>
@@ -1249,21 +1324,21 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <div style={{ borderTop: '1px solid #1e2530', paddingTop: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 14 }}>💎</span>
-              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — SOLANA (Solana)</span>
+              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (Solana)</span>
             </div>
 
             {/* Warning */}
             <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#ef4444' }}>
-              ⚠ <strong>Enter your Solana (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
+              ⚠ <strong>Enter your USDT Solana (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>SOLANA Wallet Address</label>
+              <label style={labelStyle}>USDT Wallet Address (TON Network)</label>
               <input
                 style={inputStyle}
                 value={form.walletAddress}
                 onChange={e => setForm(p => ({ ...p, walletAddress: e.target.value.trim() }))}
-                placeholder="Solana address (starts with a letter/number)"
+                placeholder="Solana USDT address (starts with a letter/number)"
               />
             </div>
 
@@ -1271,10 +1346,10 @@ function SettingsSection({ user, token, s, setUser }: any) {
             <div style={{ background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 10, padding: 16, marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: 16 }}>💡</span>
-                <span style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa' }}>Don't have a SOLANA wallet?</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa' }}>Don't have a USDT wallet?</span>
               </div>
               <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.7, marginBottom: 12 }}>
-                We recommend <strong style={{ color: '#e2e8f0' }}>Spenda</strong> — it receives SOLANA and instantly converts to Naira in your local bank account. Perfect for Nigerian investors.
+                We recommend <strong style={{ color: '#e2e8f0' }}>Spenda</strong> — it receives USDT and instantly converts to Naira in your local bank account. Perfect for Nigerian investors.
               </div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
                 <strong style={{ color: '#e2e8f0', display: 'block', marginBottom: 6 }}>How to get started with Spenda:</strong>
@@ -1283,7 +1358,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
                     '1. Download Spenda app (iOS or Android)',
                     '2. Sign up and complete verification',
                     '3. Use referral code below to get started',
-                    '4. Go to Wallet → Receive → Select SOLANA (Solana)',
+                    '4. Go to Wallet → Receive → Select USDT (Solana)',
                     '5. Copy your TON address and paste it above',
                   ].map((step, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
@@ -1312,6 +1387,176 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <button style={s.btn()} onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
         </div>
       </div>
+
+      {/* ── 2FA Section ── */}
+      <TwoFASection user={user} token={token} s={s} reload={() => {
+        fetch('/api/investors/me', { headers: { Authorization: `Bearer ${token}` } })
+          .then(r => r.json()).then(d => { if (d.data) setUser(d.data) })
+      }} />
+    </div>
+  )
+}
+
+// ── 2FA SECTION ───────────────────────────────────────────
+function TwoFASection({ user, token, s }: any) {
+  const [mode, setMode] = useState<'idle'|'setup'|'disabling'>('idle')
+  const [qrData, setQrData] = useState<any>(null)
+  const [totpInput, setTotpInput] = useState('')
+  const [disableCode, setDisableCode] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [qrLoading, setQrLoading] = useState(false)
+
+  const enabled = user?.twoFaEnabled
+
+  async function startSetup() {
+    setQrLoading(true); setError('')
+    try {
+      const r = await fetch('/api/auth/2fa/setup', { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error); return }
+      setQrData(d.data); setMode('setup')
+    } finally { setQrLoading(false) }
+  }
+
+  async function confirmTotp() {
+    if (!totpInput || totpInput.length !== 6) { setError('Enter 6-digit code from your authenticator app'); return }
+    setLoading(true); setError('')
+    try {
+      const r = await fetch('/api/auth/2fa/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ token: totpInput }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error); return }
+      setMessage('✓ 2FA enabled! Your account is now protected.'); setMode('idle')
+    } finally { setLoading(false) }
+  }
+
+  async function sendDisableCode() {
+    setLoading(true); setError('')
+    try {
+      const r = await fetch('/api/auth/security-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ purpose: 'SETTINGS' }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error); return }
+      setMode('disabling')
+    } finally { setLoading(false) }
+  }
+
+  async function disable2FA() {
+    if (!disableCode || disableCode.length !== 6) { setError('Enter the 6-digit code from your email'); return }
+    setLoading(true); setError('')
+    try {
+      const r = await fetch('/api/auth/2fa/setup', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ code: disableCode }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error); return }
+      setMessage('2FA has been disabled.'); setMode('idle')
+    } finally { setLoading(false) }
+  }
+
+  const inputStyle = { background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, width: '100%', boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'inherit' }
+
+  return (
+    <div style={{ ...s.card, border: enabled ? '1px solid rgba(0,212,170,0.3)' : '1px solid #1e2530' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 16 }}>🔐</span>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>Two-Factor Authentication</span>
+            {enabled && <span style={{ background: 'rgba(0,212,170,0.15)', color: '#00d4aa', fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 700, letterSpacing: 1 }}>ACTIVE</span>}
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
+            {enabled
+              ? 'Your account is protected. 2FA is required for login (after 24h), withdrawals, and settings changes.'
+              : 'Strongly recommended. Protects withdrawals, login, and settings with Google Authenticator.'}
+          </div>
+        </div>
+      </div>
+
+      {message && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12, background: 'rgba(0,212,170,0.08)', padding: '8px 12px', borderRadius: 8 }}>✓ {message}</div>}
+      {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 12, background: 'rgba(239,68,68,0.08)', padding: '8px 12px', borderRadius: 8 }}>⚠ {error}</div>}
+
+      {/* Idle — not yet set up */}
+      {mode === 'idle' && !enabled && (
+        <div>
+          <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#94a3b8' }}>
+            <strong style={{ color: '#e2e8f0', display: 'block', marginBottom: 6 }}>How it works:</strong>
+            <div>1. Download <strong style={{ color: '#00d4aa' }}>Google Authenticator</strong> (iOS / Android)</div>
+            <div>2. Scan the QR code shown after clicking Enable</div>
+            <div>3. Enter the 6-digit code from the app to activate</div>
+            <div>4. You'll need the app for login after 24h, withdrawals & settings</div>
+          </div>
+          <button style={{ ...s.btn(), width: '100%' }} onClick={startSetup} disabled={qrLoading}>
+            {qrLoading ? 'Loading...' : '🔐 Enable 2FA (Recommended)'}
+          </button>
+        </div>
+      )}
+
+      {/* Setup — show QR */}
+      {mode === 'setup' && qrData && (
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Scan this QR code with Google Authenticator:</div>
+            {/* Render QR as canvas via URI — use a free QR API */}
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrData.uri)}&size=180x180&bgcolor=080a0f&color=00d4aa&margin=2`}
+              alt="2FA QR Code"
+              style={{ borderRadius: 8, border: '2px solid rgba(0,212,170,0.3)' }}
+            />
+          </div>
+          <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', marginBottom: 14, textAlign: 'center' }}>
+            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 2, marginBottom: 4 }}>MANUAL ENTRY KEY</div>
+            <div style={{ fontFamily: 'monospace', color: '#c9a84c', fontSize: 13, letterSpacing: 2, wordBreak: 'break-all' as const }}>{qrData.secret}</div>
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Enter the 6-digit code from your authenticator app:</div>
+          <input
+            type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+            value={totpInput} onChange={e => { setTotpInput(e.target.value.replace(/\D/g,'')); setError('') }}
+            style={{ ...inputStyle, fontSize: 24, fontWeight: 800, letterSpacing: 10, textAlign: 'center', color: '#c9a84c', marginBottom: 12 }}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={{ ...s.btn('ghost'), flex: 1 }} onClick={() => setMode('idle')}>Cancel</button>
+            <button style={{ ...s.btn(), flex: 2 }} onClick={confirmTotp} disabled={loading}>
+              {loading ? 'Verifying...' : '✓ Activate 2FA'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Already enabled — show disable option */}
+      {mode === 'idle' && enabled && (
+        <button style={{ ...s.btn('ghost'), width: '100%', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }} onClick={sendDisableCode} disabled={loading}>
+          {loading ? 'Sending code...' : 'Disable 2FA'}
+        </button>
+      )}
+
+      {/* Disabling — enter email OTP */}
+      {mode === 'disabling' && (
+        <div>
+          <div style={{ fontSize: 12, color: '#00d4aa', marginBottom: 10 }}>✓ A code has been sent to your email. Enter it below to disable 2FA.</div>
+          <input
+            type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+            value={disableCode} onChange={e => { setDisableCode(e.target.value.replace(/\D/g,'')); setError('') }}
+            style={{ ...inputStyle, fontSize: 24, fontWeight: 800, letterSpacing: 10, textAlign: 'center', color: '#ef4444', marginBottom: 12 }}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={{ ...s.btn('ghost'), flex: 1 }} onClick={() => setMode('idle')}>Cancel</button>
+            <button style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '10px', color: '#ef4444', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, flex: 2 }} onClick={disable2FA} disabled={loading}>
+              {loading ? 'Disabling...' : 'Confirm Disable 2FA'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
