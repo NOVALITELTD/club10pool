@@ -43,13 +43,21 @@ export async function POST(req: NextRequest) {
   let description = ''
 
   if (type === 'batch' && batchId) {
-    const batchMember = await prisma.batchMember.findFirst({
-      where: { batchId, investorId: auth.memberId },
-      include: { batch: { select: { name: true, batchCode: true } } },
+    const { capitalAmount: bodyAmount } = body as any
+    const batch = await prisma.batch.findUnique({
+      where: { id: batchId },
+      select: { name: true, batchCode: true, minContribution: true, maxContribution: true, contributionPerMember: true, targetAmount: true, targetCapital: true, currentAmount: true },
     })
-    if (!batchMember) return error('No batch membership found. Join the batch first.')
-    amountUSD = Number(batchMember.capitalAmount)
-    description = `Club10 Pool — ${batchMember.batch.name} (${batchMember.batch.batchCode})`
+    if (!batch) return error('Batch not found')
+    const min = Number(batch.minContribution || batch.contributionPerMember || 10)
+    const max = Number(batch.maxContribution || batch.contributionPerMember || 50)
+    const raw = bodyAmount ? Number(bodyAmount) : min
+    amountUSD = Math.ceil(raw / 10) * 10
+    if (amountUSD < min || amountUSD > max) return error(`Contribution must be $${min}–$${max}`)
+    const target = Number(batch.targetAmount || batch.targetCapital || 0)
+    const current = Number(batch.currentAmount || 0)
+    if (target > 0 && current + amountUSD > target) return error(`Max available: $${target - current}`)
+    description = `Club10 Pool — ${batch.name} (${batch.batchCode})`
 
   } else if (type === 'referral' && referralMemberId) {
     const member = await prisma.referralMember.findUnique({
