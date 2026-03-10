@@ -12,6 +12,7 @@ export default function InvestorDashboard() {
   const [myBatch, setMyBatch] = useState<any>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [withdrawal, setWithdrawal] = useState<any>(null)
+  const [broadcasts, setBroadcasts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -60,10 +61,11 @@ export default function InvestorDashboard() {
     setLoading(true)
     try {
       const headers = { Authorization: `Bearer ${token}` }
-      const [batchRes, txRes, wdRes] = await Promise.all([
+      const [batchRes, txRes, wdRes, broadcastRes] = await Promise.all([
         fetch('/api/batches', { headers }),
         fetch('/api/transactions/my', { headers }),
         fetch('/api/withdrawals/my', { headers }),
+        fetch('/api/broadcast', { headers }),
       ])
       if (batchRes.ok) {
         const d = await batchRes.json()
@@ -74,6 +76,7 @@ export default function InvestorDashboard() {
       }
       if (txRes.ok) { const d = await txRes.json(); setTransactions(d.data || []) }
       if (wdRes.ok) { const d = await wdRes.json(); setWithdrawal(d.data || null) }
+      if (broadcastRes.ok) { const d = await broadcastRes.json(); setBroadcasts(d.data || []) }
     } finally { setLoading(false) }
   }
 
@@ -86,6 +89,7 @@ export default function InvestorDashboard() {
     { id: 'batches', label: 'Batches', icon: '⬡' },
     { id: 'withdrawals', label: 'Withdrawals', icon: '⟁' },
     { id: 'referral' as any, label: 'Referral', icon: '🔗' },
+    { id: 'notifications' as any, label: 'Notifications', icon: '🔔' },
     { id: 'settings', label: 'Settings', icon: '⚙' },
     { id: 'support', label: 'Support', icon: '💬' },
   ]
@@ -260,9 +264,13 @@ export default function InvestorDashboard() {
             ) : (
               <>
                 {section === 'portfolio' && <PortfolioSection myBatch={myBatch} transactions={transactions} s={s} setSection={setSection} />}
+                {/* Broadcast banner — shows at top of every section */}
+                {broadcasts.length > 0 && <BroadcastBanner broadcasts={broadcasts} />}
+
                 {section === 'batches' && <BatchesSection batches={batches} myBatch={myBatch} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'withdrawals' && <WithdrawalsSection withdrawal={withdrawal} myBatch={myBatch} user={user} token={token!} s={s} reload={() => loadData(token!)} />}
                 {(section as any) === 'referral' && <ReferralSection token={token!} user={user} s={s} />}
+                {(section as any) === 'notifications' && <NotificationsSection token={token!} user={user} s={s} />}
                 {section === 'settings' && <SettingsSection user={user} token={token!} s={s} setUser={setUser} />}
                 {(section as any) === 'support' && <SupportSection s={s} />}
 
@@ -1744,6 +1752,194 @@ function SupportSection({ s }: any) {
         <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
           <strong style={{ color: '#c9a84c' }}>Support hours:</strong> Monday – Saturday, 9:00 AM – 6:00 PM (WAT).<br />
           We aim to respond to all inquiries within one business day.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── BROADCAST BANNER ──────────────────────────────────────
+const BROADCAST_COLORS: Record<string, { bg: string; border: string; icon: string; label: string }> = {
+  INFO:    { bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', icon: 'ℹ️', label: 'Notice' },
+  SUCCESS: { bg: 'rgba(0,212,170,0.08)',   border: 'rgba(0,212,170,0.25)',   icon: '✅', label: 'Update' },
+  WARNING: { bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.25)',  icon: '⚠️', label: 'Alert' },
+  URGENT:  { bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.3)',    icon: '🚨', label: 'Urgent' },
+}
+
+function BroadcastBanner({ broadcasts }: { broadcasts: any[] }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const visible = broadcasts.filter(b => !dismissed.has(b.id))
+  if (!visible.length) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+      {visible.map(b => {
+        const cfg = BROADCAST_COLORS[b.type] || BROADCAST_COLORS.INFO
+        return (
+          <div key={b.id} style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+            <div style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>{cfg.icon}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: 1.5, fontFamily: "'JetBrains Mono', monospace" }}>
+                  FROM NOVA-LITE · {cfg.label.toUpperCase()}
+                </span>
+                <span style={{ fontSize: 10, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {new Date(b.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </span>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginBottom: 4 }}>{b.title}</div>
+              <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{b.message}</div>
+            </div>
+            <button
+              onClick={() => setDismissed(prev => new Set([...prev, b.id]))}
+              style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, flexShrink: 0, padding: 4, lineHeight: 1 }}
+              title="Dismiss"
+            >✕</button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── NOTIFICATIONS SECTION ─────────────────────────────────
+function NotificationsSection({ token, user, s }: any) {
+  const [settings, setSettings] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ whatsappNumber: '', callmebotApiKey: '', notifyKyc: true, notifyBatch: true, notifyWithdrawal: true })
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [msgType, setMsgType] = useState<'success' | 'error'>('success')
+
+  useEffect(() => {
+    fetch('/api/investor-notifications', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.data) {
+          setSettings(d.data)
+          setForm({ whatsappNumber: d.data.whatsappNumber || '', callmebotApiKey: d.data.callmebotApiKey || '', notifyKyc: d.data.notifyKyc, notifyBatch: d.data.notifyBatch, notifyWithdrawal: d.data.notifyWithdrawal })
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function save() {
+    setSaving(true); setMessage('')
+    try {
+      const r = await fetch('/api/investor-notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      })
+      const d = await r.json()
+      if (!r.ok) { setMsgType('error'); setMessage(d.error || 'Failed to save'); return }
+      setMsgType(d.data.verified ? 'success' : 'error')
+      setMessage(d.data.message)
+      setSettings((prev: any) => ({ ...prev, ...form, isVerified: d.data.verified }))
+    } finally { setSaving(false) }
+  }
+
+  async function disable() {
+    setSaving(true)
+    await fetch('/api/investor-notifications', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    setSettings((prev: any) => ({ ...prev, isVerified: false }))
+    setMessage('Notifications disabled.')
+    setMsgType('success')
+    setSaving(false)
+  }
+
+  const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '11px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'monospace' }
+  const labelStyle: any = { fontSize: 10, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }
+  const toggle = (key: string) => setForm(p => ({ ...p, [key]: !(p as any)[key] }))
+
+  if (loading) return <div style={{ color: '#64748b', padding: 40, textAlign: 'center' }}>Loading…</div>
+
+  return (
+    <div style={{ maxWidth: 560, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Status card */}
+      <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px' }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', background: settings?.isVerified ? 'rgba(0,212,170,0.1)' : 'rgba(100,116,139,0.1)', border: `1px solid ${settings?.isVerified ? 'rgba(0,212,170,0.3)' : '#1e2530'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+          {settings?.isVerified ? '🟢' : '🔕'}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: settings?.isVerified ? '#00d4aa' : '#64748b' }}>
+            {settings?.isVerified ? 'WhatsApp Notifications Active' : 'Notifications Not Set Up'}
+          </div>
+          <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
+            {settings?.isVerified
+              ? `Sending to ${settings.whatsappNumber}`
+              : 'Set up your CallMeBot API key to receive updates on WhatsApp'}
+          </div>
+        </div>
+        {settings?.isVerified && (
+          <button onClick={disable} disabled={saving} style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', borderRadius: 8, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+            Disable
+          </button>
+        )}
+      </div>
+
+      {/* Setup instructions */}
+      <div style={{ ...s.card, background: 'rgba(201,168,76,0.04)', border: '1px solid rgba(201,168,76,0.12)' }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#c9a84c', marginBottom: 12 }}>📱 How to Get Your Free API Key</div>
+        {[
+          ['1', 'Save this number in WhatsApp contacts:', '+34 644 597 103'],
+          ['2', 'Send this exact message to that number:', 'I allow callmebot to send me messages'],
+          ['3', 'CallMeBot will reply with your API key', '(usually within 2 minutes)'],
+          ['4', 'Enter your number and API key below', 'then click Save & Verify'],
+        ].map(([n, text, sub]) => (
+          <div key={n} style={{ display: 'flex', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#c9a84c', flexShrink: 0, marginTop: 1 }}>{n}</div>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>{text}</div>
+              {sub && <div style={{ fontSize: 11, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{sub}</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Settings form */}
+      <div style={s.card}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 20 }}>Notification Settings</div>
+
+        {message && (
+          <div style={{ background: msgType === 'success' ? 'rgba(0,212,170,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msgType === 'success' ? 'rgba(0,212,170,0.25)' : 'rgba(239,68,68,0.25)'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: msgType === 'success' ? '#00d4aa' : '#ef4444' }}>
+            {message}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={labelStyle}>Your WhatsApp Number</label>
+            <input style={inputStyle} placeholder="08012345678" value={form.whatsappNumber} onChange={e => setForm(p => ({ ...p, whatsappNumber: e.target.value }))} />
+            <div style={{ fontSize: 10, color: '#475569', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Nigerian format: 08012345678 (11 digits)</div>
+          </div>
+          <div>
+            <label style={labelStyle}>CallMeBot API Key</label>
+            <input style={inputStyle} placeholder="e.g. 1234567" value={form.callmebotApiKey} onChange={e => setForm(p => ({ ...p, callmebotApiKey: e.target.value }))} />
+          </div>
+
+          <div style={{ borderTop: '1px solid #1e2530', paddingTop: 14 }}>
+            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10, letterSpacing: 1, textTransform: 'uppercase' as const, fontFamily: "'JetBrains Mono', monospace" }}>Notify Me When:</div>
+            {[
+              { key: 'notifyKyc', label: 'KYC status changes (approved / rejected)', icon: '📋' },
+              { key: 'notifyBatch', label: 'My batch is activated (trading starts)', icon: '🚀' },
+              { key: 'notifyWithdrawal', label: 'Withdrawal is processed', icon: '💸' },
+            ].map(({ key, label, icon }) => (
+              <div key={key} onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1e2530', cursor: 'pointer' }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+                <span style={{ flex: 1, fontSize: 13, color: '#94a3b8' }}>{label}</span>
+                <div style={{ width: 36, height: 20, borderRadius: 10, background: (form as any)[key] ? '#00d4aa' : '#1e2530', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: (form as any)[key] ? 18 : 2, transition: 'left 0.2s' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={save} disabled={saving || !form.whatsappNumber || !form.callmebotApiKey}
+            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 800, fontSize: 14, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !form.whatsappNumber || !form.callmebotApiKey ? 0.5 : 1 }}>
+            {saving ? 'Saving & Verifying...' : '💾 Save & Verify via WhatsApp'}
+          </button>
         </div>
       </div>
     </div>
