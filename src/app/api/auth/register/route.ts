@@ -1,3 +1,4 @@
+// src/app/api/auth/register/route.ts
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword, signToken } from '@/lib/auth'
@@ -7,16 +8,11 @@ import { randomBytes } from 'crypto'
 
 export async function POST(req: NextRequest) {
   try {
-    const { fullName, email, password, phone, nationality, dateOfBirth } = await req.json()
+    const { fullName, email, password, phone, nationality, dateOfBirth, referralCode } = await req.json()
 
-    if (!fullName || !email || !password) {
-      return error('Full name, email and password are required')
-    }
-    if (password.length < 8) {
-      return error('Password must be at least 8 characters')
-    }
+    if (!fullName || !email || !password) return error('Full name, email and password are required')
+    if (password.length < 8) return error('Password must be at least 8 characters')
 
-    // Age validation (DD-MM-YYYY)
     if (!dateOfBirth) return error('Date of birth is required')
     const parts = dateOfBirth.split('-')
     if (parts.length !== 3) return error('Invalid date of birth format (DD-MM-YYYY)')
@@ -33,25 +29,45 @@ export async function POST(req: NextRequest) {
     if (existing) return error('Email already registered', 409)
 
     const passwordHash = await hashPassword(password)
-
     const investor = await prisma.investor.create({
-      data: {
-        fullName,
-        email: email.toLowerCase(),
-        phone: phone || null,
-        passwordHash,
-      },
+      data: { fullName, email: email.toLowerCase(), phone: phone || null, passwordHash },
     })
 
-    // Save nationality + dateOfBirth via raw (not yet in Prisma schema)
     await prisma.$executeRaw`
       UPDATE investors
-      SET nationality = ${nationality || 'Nigeria'},
-          "dateOfBirth" = ${dateOfBirth}
+      SET nationality = ${nationality || 'Nigeria'}, "dateOfBirth" = ${dateOfBirth}
       WHERE id = ${investor.id}
     `
 
-    // Create verification token
+    // Handle referral pool join if referralCode provided
+    let referralPoolJoined = null
+    if (referralCode) {
+      const pool = await prisma.referralPool.findUnique({
+        where: { referralCode: referralCode.toUpperCase() },
+      })
+      if (pool && pool.status === 'OPEN') {
+        // Check not already a member (shouldn't be for new user but defensive)
+        const alreadyMember = await prisma.referralMember.findUnique({
+          where: { referralPoolId_investorId: { referralPoolId: pool.id, investorId: investor.id } },
+        })
+        if (!alreadyMember) {
+          const CATEGORY_MIN: Record<string, number> = {
+            CENT: 10, STANDARD_1K: 100, STANDARD_5K: 1000, STANDARD_10K: 2500,
+          }
+          const minContribution = CATEGORY_MIN[pool.category] ?? 10
+          await prisma.referralMember.create({
+            data: {
+              referralPoolId: pool.id,
+              investorId: investor.id,
+              contribution: minContribution,
+              status: 'PENDING_PAYMENT',
+            },
+          })
+          referralPoolJoined = { poolId: pool.id, category: pool.category, referralCode: pool.referralCode }
+        }
+      }
+    }
+
     const token = randomBytes(32).toString('hex')
     await prisma.$executeRaw`
       INSERT INTO email_verifications (id, "investorId", token, "expiresAt")
@@ -69,7 +85,9 @@ export async function POST(req: NextRequest) {
         isAdmin: false,
         emailVerified: false,
         kycStatus: 'NOT_SUBMITTED',
+        twoFaEnabled: false,
       },
+      referralPoolJoined,
     }, 201)
   } catch (e) {
     console.error(e)
