@@ -1333,7 +1333,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>USDT Wallet Address (TON Network)</label>
+              <label style={labelStyle}>USDT Wallet Address (Solana Network)</label>
               <input
                 style={inputStyle}
                 value={form.walletAddress}
@@ -1359,7 +1359,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
                     '2. Sign up and complete verification',
                     '3. Use referral code below to get started',
                     '4. Go to Wallet → Receive → Select USDT (Solana)',
-                    '5. Copy your TON address and paste it above',
+                    '5. Copy your Solana address and paste it above',
                   ].map((step, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ color: '#00d4aa', flexShrink: 0 }}>→</span>
