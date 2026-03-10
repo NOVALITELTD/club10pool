@@ -548,8 +548,9 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   const [error, setError] = useState('')
   const rate = useUsdNgnRate()
 
-  // OTP gate
-  const [otpStep, setOtpStep] = useState<'idle'|'sent'|'verified'>('idle')
+  // OTP gate — supports email or TOTP
+  const [otpMethod, setOtpMethod] = useState<'choose'|'email'|'totp'>('choose')
+  const [otpStep, setOtpStep] = useState<'idle'|'sent'|'ready'>('idle')
   const [otpCode, setOtpCode] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState('')
@@ -560,7 +561,11 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     return () => clearTimeout(t)
   }, [otpCountdown])
 
-  async function requestWithdrawalCode() {
+  // If 2FA not enabled, skip choose and default to email
+  const hasTwoFa = !!user?.twoFaEnabled
+  const effectiveMethod = hasTwoFa ? otpMethod : 'email'
+
+  async function requestEmailCode() {
     setOtpLoading(true); setOtpError('')
     try {
       const r = await fetch('/api/auth/security-code', {
@@ -574,18 +579,49 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     } finally { setOtpLoading(false) }
   }
 
+  function selectMethod(method: 'email' | 'totp') {
+    setOtpMethod(method)
+    setOtpCode(''); setOtpError('')
+    if (method === 'email') {
+      setOtpStep('idle')
+      requestEmailCode()
+    } else {
+      // TOTP — no email needed, just show input
+      setOtpStep('ready')
+    }
+  }
+
   async function submitWithdrawal() {
     if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
-    if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the 6-digit code from your email'); return }
+    if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the 6-digit code'); return }
     setLoading(true); setError('')
     try {
-      const r = await fetch('/api/withdrawals/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ withdrawalId: withdrawal?.id, code: otpCode }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
+      // For TOTP, verify against 2fa/verify; for email, pass code to withdrawals/confirm
+      if (effectiveMethod === 'totp') {
+        const vr = await fetch('/api/auth/2fa/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ investorId: user?.id, token: otpCode }),
+        })
+        const vd = await vr.json()
+        if (!vr.ok) { setOtpError(vd.error || 'Invalid authenticator code'); setLoading(false); return }
+        // TOTP verified — now confirm withdrawal without code (pass special marker)
+        const r = await fetch('/api/withdrawals/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ withdrawalId: withdrawal?.id, totpVerified: true }),
+        })
+        const d = await r.json()
+        if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
+      } else {
+        const r = await fetch('/api/withdrawals/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ withdrawalId: withdrawal?.id, code: otpCode }),
+        })
+        const d = await r.json()
+        if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
+      }
       setSubmitted(true); reload()
     } finally { setLoading(false) }
   }
@@ -673,48 +709,94 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
         )}
       </div>
 
-      {/* ── Security Code Gate ── */}
+      {/* ── Security Verification Gate ── */}
       <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.2)', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: 16 }}>🔐</span>
           <span style={{ fontWeight: 700, fontSize: 14 }}>Security Verification Required</span>
         </div>
-        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-          A 6-digit code will be sent to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong>. You must enter it to confirm this withdrawal.
-        </div>
 
-        {otpStep === 'idle' && (
-          <button
-            onClick={requestWithdrawalCode}
-            disabled={otpLoading || !user?.walletAddress}
-            style={{ ...s.btn('ghost'), width: '100%', padding: '10px', fontSize: 13 }}
-          >
-            {otpLoading ? 'Sending...' : '📧 Send Withdrawal Code to Email'}
-          </button>
+        {/* METHOD CHOICE — only shown if 2FA enabled and not yet chosen */}
+        {hasTwoFa && otpMethod === 'choose' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Choose how to verify this withdrawal:</div>
+            <button
+              onClick={() => selectMethod('totp')}
+              disabled={!user?.walletAddress}
+              style={{ ...s.btn(), width: '100%', padding: '10px', fontSize: 13 }}
+            >
+              🔐 Use Authenticator App
+            </button>
+            <button
+              onClick={() => selectMethod('email')}
+              disabled={!user?.walletAddress}
+              style={{ ...s.btn('ghost'), width: '100%', padding: '10px', fontSize: 13 }}
+            >
+              ✉ Send Code to Email
+            </button>
+          </div>
         )}
 
-        {otpStep === 'sent' && (
+        {/* NO 2FA — email only, show send button */}
+        {!hasTwoFa && otpStep === 'idle' && (
+          <div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+              A 6-digit code will be sent to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong>. You must enter it to confirm.
+            </div>
+            <button
+              onClick={() => { setOtpMethod('email'); requestEmailCode() }}
+              disabled={otpLoading || !user?.walletAddress}
+              style={{ ...s.btn('ghost'), width: '100%', padding: '10px', fontSize: 13 }}
+            >
+              {otpLoading ? 'Sending...' : '📧 Send Withdrawal Code to Email'}
+            </button>
+          </div>
+        )}
+
+        {/* EMAIL — code sent, show input */}
+        {effectiveMethod === 'email' && (otpStep === 'sent' || otpStep === 'ready') && (
           <div>
             <div style={{ fontSize: 12, color: '#00d4aa', marginBottom: 10 }}>✓ Code sent! Check your email inbox.</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="000000"
-                value={otpCode}
-                onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
-                style={{ flex: 1, background: '#080a0f', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: '12px 14px', color: '#c9a84c', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none' }}
-              />
-            </div>
+            <input
+              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={otpCode}
+              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+              style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 8, padding: '12px 14px', color: '#c9a84c', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
+            />
             {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <button
-                onClick={requestWithdrawalCode}
+                onClick={requestEmailCode}
                 disabled={otpCountdown > 0 || otpLoading}
                 style={{ background: 'none', border: 'none', color: otpCountdown > 0 ? '#475569' : '#00d4aa', fontSize: 12, cursor: otpCountdown > 0 ? 'default' : 'pointer', padding: 0, fontFamily: 'inherit' }}
               >
                 {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend code'}
+              </button>
+              {hasTwoFa && (
+                <button onClick={() => { setOtpMethod('choose'); setOtpCode(''); setOtpStep('idle') }}
+                  style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                  Use authenticator instead
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TOTP — show input immediately */}
+        {effectiveMethod === 'totp' && otpStep === 'ready' && (
+          <div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Enter the 6-digit code from your Google Authenticator app:</div>
+            <input
+              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={otpCode}
+              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+              style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(0,212,170,0.4)', borderRadius: 8, padding: '12px 14px', color: '#00d4aa', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
+            />
+            {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setOtpMethod('choose'); setOtpCode(''); setOtpStep('idle') }}
+                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                Use email instead
               </button>
             </div>
           </div>
@@ -725,8 +807,8 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
 
       <button
         onClick={submitWithdrawal}
-        disabled={loading || !user?.walletAddress || otpStep !== 'sent' || otpCode.length !== 6}
-        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpStep !== 'sent' || otpCode.length !== 6 || !user?.walletAddress) ? 0.4 : 1 }}
+        disabled={loading || !user?.walletAddress || otpCode.length !== 6 || (hasTwoFa && otpMethod === 'choose')}
+        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpCode.length !== 6 || !user?.walletAddress || (hasTwoFa && otpMethod === 'choose')) ? 0.4 : 1 }}
       >
         {loading ? 'Submitting...' : '🔐 Confirm Withdrawal →'}
       </button>
@@ -1155,10 +1237,12 @@ function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
 }
 
 // ── SETTINGS ──────────────────────────────────────────────
-type SettingsStep = 'locked' | 'verify' | 'unlocked'
+type SettingsStep = 'locked' | 'choose' | 'verify' | 'unlocked'
+type VerifyMethod = 'email' | 'totp'
 
 function SettingsSection({ user, token, s, setUser }: any) {
   const [step, setStep] = useState<SettingsStep>('locked')
+  const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>('email')
   const [codeInput, setCodeInput] = useState('')
   const [codeSent, setCodeSent] = useState(false)
   const [codeLoading, setCodeLoading] = useState(false)
@@ -1177,12 +1261,13 @@ function SettingsSection({ user, token, s, setUser }: any) {
     return () => clearTimeout(t)
   }, [countdown])
 
-  async function sendCode() {
+  async function sendEmailCode() {
     setCodeLoading(true); setCodeError('')
     try {
-      const r = await fetch('/api/auth/settings-code', {
+      const r = await fetch('/api/auth/security-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ purpose: 'SETTINGS' }),
       })
       const d = await r.json()
       if (!r.ok) return setCodeError(d.error || 'Failed to send code')
@@ -1191,18 +1276,33 @@ function SettingsSection({ user, token, s, setUser }: any) {
     } finally { setCodeLoading(false) }
   }
 
+  // Keep old name as alias for resend button
+  const sendCode = sendEmailCode
+
   async function verifyCode() {
     if (codeInput.length < 6) return setCodeError('Enter the 6-digit code')
     setVerifyLoading(true); setCodeError('')
     try {
-      const r = await fetch('/api/auth/settings-code/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ code: codeInput }),
-      })
-      const d = await r.json()
-      if (!r.ok) return setCodeError(d.error || 'Invalid code')
-      setStep('unlocked')
+      if (verifyMethod === 'totp') {
+        // Verify TOTP via 2fa/verify endpoint — reuse investorId from JWT
+        const r = await fetch('/api/auth/2fa/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ investorId: user?.id, token: codeInput }),
+        })
+        const d = await r.json()
+        if (!r.ok) return setCodeError(d.error || 'Invalid authenticator code')
+        setStep('unlocked')
+      } else {
+        const r = await fetch('/api/auth/security-code/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ code: codeInput, purpose: 'SETTINGS' }),
+        })
+        const d = await r.json()
+        if (!r.ok) return setCodeError(d.error || 'Invalid code')
+        setStep('unlocked')
+      }
     } finally { setVerifyLoading(false) }
   }
 
@@ -1238,13 +1338,30 @@ function SettingsSection({ user, token, s, setUser }: any) {
         </div>
         <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>Settings Locked</div>
         <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 28 }}>
-          To protect your account, a verification code will be sent to<br />
-          <span style={{ color: '#00d4aa', fontWeight: 600 }}>{user?.email}</span><br />
-          before you can edit your settings.
+          Verify your identity to edit account settings.
         </div>
-        <button onClick={() => { setStep('verify'); sendCode() }} style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}>
-          Send Verification Code
-        </button>
+        {user?.twoFaEnabled ? (
+          // 2FA enabled — offer choice
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              onClick={() => { setVerifyMethod('totp'); setCodeInput(''); setCodeError(''); setStep('verify') }}
+              style={{ ...s.btn(), padding: '12px 24px', fontSize: 14, width: '100%' }}
+            >
+              🔐 Use Authenticator App
+            </button>
+            <button
+              onClick={() => { setVerifyMethod('email'); setCodeInput(''); setCodeError(''); setStep('verify'); sendEmailCode() }}
+              style={{ ...s.btn('ghost'), padding: '12px 24px', fontSize: 14, width: '100%' }}
+            >
+              ✉ Send Code to {user?.email}
+            </button>
+          </div>
+        ) : (
+          // No 2FA — email only
+          <button onClick={() => { setVerifyMethod('email'); setStep('verify'); sendEmailCode() }} style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}>
+            Send Verification Code
+          </button>
+        )}
       </div>
       <div style={{ ...s.card, marginTop: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 12 }}>Account Info</div>
@@ -1270,34 +1387,54 @@ function SettingsSection({ user, token, s, setUser }: any) {
     <div style={{ maxWidth: 440 }}>
       <div style={s.card}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: verifyMethod === 'totp' ? 'rgba(0,212,170,0.1)' : 'rgba(201,168,76,0.1)', border: `1px solid ${verifyMethod === 'totp' ? 'rgba(0,212,170,0.2)' : 'rgba(201,168,76,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
+            {verifyMethod === 'totp' ? '🔐' : '✉'}
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Check Your Email</div>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Code sent to {user?.email}</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
+              {verifyMethod === 'totp' ? 'Authenticator Code' : 'Check Your Email'}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+              {verifyMethod === 'totp'
+                ? 'Enter the 6-digit code from your Google Authenticator app'
+                : `Code sent to ${user?.email}`}
+            </div>
           </div>
         </div>
         {codeError && (
           <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>⚠ {codeError}</div>
         )}
         <div style={{ marginBottom: 20 }}>
-          <label style={labelStyle}>6-Digit Verification Code</label>
-          <input type="text" maxLength={6} placeholder="000000" value={codeInput} onChange={e => setCodeInput(e.target.value.replace(/\D/g, ''))} onKeyDown={e => e.key === 'Enter' && verifyCode()}
-            style={{ ...inputStyle, fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: 700 }} />
+          <label style={labelStyle}>
+            {verifyMethod === 'totp' ? 'Authenticator Code' : '6-Digit Verification Code'}
+          </label>
+          <input type="text" inputMode="numeric" maxLength={6} placeholder="000000" value={codeInput}
+            onChange={e => { setCodeInput(e.target.value.replace(/\D/g, '')); setCodeError('') }}
+            onKeyDown={e => e.key === 'Enter' && verifyCode()}
+            style={{ ...inputStyle, fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: 700,
+              color: verifyMethod === 'totp' ? '#00d4aa' : '#c9a84c' }} />
         </div>
-        <button onClick={verifyCode} disabled={verifyLoading || codeInput.length < 6} style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 14, opacity: codeInput.length < 6 ? 0.5 : 1 }}>
+        <button onClick={verifyCode} disabled={verifyLoading || codeInput.length < 6}
+          style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 14, opacity: codeInput.length < 6 ? 0.5 : 1 }}>
           {verifyLoading ? 'Verifying...' : 'Verify & Unlock Settings'}
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
-          <button onClick={() => { setStep('locked'); setCodeInput(''); setCodeError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Cancel</button>
-          {countdown > 0
-            ? <span style={{ fontSize: 12, color: '#475569' }}>Resend in {countdown}s</span>
-            : <button onClick={sendCode} disabled={codeLoading} style={{ background: 'none', border: 'none', color: '#00d4aa', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>{codeLoading ? 'Sending...' : 'Resend Code'}</button>
-          }
+          <button onClick={() => { setStep('locked'); setCodeInput(''); setCodeError('') }}
+            style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>← Cancel</button>
+          {verifyMethod === 'email' && (
+            countdown > 0
+              ? <span style={{ fontSize: 12, color: '#475569' }}>Resend in {countdown}s</span>
+              : <button onClick={sendCode} disabled={codeLoading}
+                  style={{ background: 'none', border: 'none', color: '#00d4aa', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                  {codeLoading ? 'Sending...' : 'Resend Code'}
+                </button>
+          )}
+          {verifyMethod === 'totp' && user?.twoFaEnabled && (
+            <button onClick={() => { setVerifyMethod('email'); sendEmailCode() }}
+              style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+              Use email instead
+            </button>
+          )}
         </div>
       </div>
     </div>
