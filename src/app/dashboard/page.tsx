@@ -532,18 +532,22 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
 // ── WITHDRAWALS ───────────────────────────────────────────
 function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any) {
   const [loading, setLoading] = useState(false)
-  const [confirmed, setConfirmed] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
   const rate = useUsdNgnRate()
 
-  async function confirmPayout() {
-    setLoading(true)
+  async function submitWithdrawal() {
+    if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
+    setLoading(true); setError('')
     try {
       const r = await fetch('/api/withdrawals/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ withdrawalId: withdrawal?.id }),
       })
-      if (r.ok) { setConfirmed(true); reload() }
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Failed to submit'); return }
+      setSubmitted(true); reload()
     } finally { setLoading(false) }
   }
 
@@ -551,41 +555,93 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     <div style={{ textAlign: 'center', padding: '60px 20px' }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
       <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Withdrawals Locked</div>
-      <div style={{ color: '#64748b', fontSize: 14 }}>Withdrawals are not currently active. Admin will notify you when profit distributions open.</div>
+      <div style={{ color: '#64748b', fontSize: 14 }}>Admin will notify you when a withdrawal window opens for your batch.</div>
     </div>
   )
 
-  if (confirmed || withdrawal?.status === 'CONFIRMED') return (
-    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: '#00d4aa' }}>Payout Confirmed</div>
-      <div style={{ color: '#64748b', fontSize: 14 }}>Your payout request has been submitted. Admin will process the transfer to your bank account.</div>
+  // Payment done by admin — final state
+  if (withdrawal?.paymentDone) return (
+    <div style={{ maxWidth: 480 }}>
+      <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', textAlign: 'center', padding: '40px 24px' }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#00d4aa', marginBottom: 8 }}>Payment Sent!</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
+        <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>USDT has been sent to your wallet. Please check your wallet balance.</div>
+        {user?.walletAddress && (
+          <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const }}>
+            {user.walletAddress}
+          </div>
+        )}
+      </div>
     </div>
   )
 
+  // Already submitted — show pending/progress
+  if (submitted || withdrawal?.status === 'CONFIRMED') {
+    const totalMembers = withdrawal?.totalMembers || 1
+    const confirmedCount = withdrawal?.confirmedCount || 0
+    const progress = Math.round((confirmedCount / totalMembers) * 100)
+    return (
+      <div style={{ maxWidth: 480 }}>
+        <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.3)', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', animation: 'pulse 2s infinite' }} />
+            <span style={{ fontWeight: 700, color: '#f59e0b' }}>Withdrawal Pending — Admin Processing</span>
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal?.amount || 0).toLocaleString()}</div>
+          <NgnEquiv usd={parseFloat(withdrawal?.amount || 0)} rate={rate} />
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 6, marginBottom: 16 }}>Your withdrawal for {withdrawal?.batchCode}</div>
+          {/* Progress */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 6 }}>
+              <span>Batch withdrawal progress</span>
+              <span style={{ color: '#00d4aa' }}>{confirmedCount}/{totalMembers} confirmed</span>
+            </div>
+            <div style={{ background: '#080a0f', borderRadius: 6, height: 6, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: 'linear-gradient(90deg,#f59e0b,#c9a84c)', width: `${progress}%`, borderRadius: 6, transition: 'width 0.5s ease' }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>Payment will be processed once all members confirm or window closes</div>
+          </div>
+        </div>
+        <div style={{ ...s.card, border: '1px solid #1e2530' }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Sending to wallet:</div>
+          <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const }}>{user?.walletAddress || '—'}</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Ready to submit
   return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: '#00d4aa', letterSpacing: 2, marginBottom: 10, textTransform: 'uppercase' }}>Withdrawal Active</div>
-        <div style={{ fontSize: 30, fontWeight: 800, color: '#c9a84c', marginBottom: 2 }}>
-          ${parseFloat(withdrawal.amount || 0).toLocaleString()}
-        </div>
+        <div style={{ fontSize: 11, color: '#00d4aa', letterSpacing: 2, marginBottom: 10, textTransform: 'uppercase' as const }}>Withdrawal Open</div>
+        <div style={{ fontSize: 30, fontWeight: 800, color: '#c9a84c', marginBottom: 2 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
         <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>Your profit share for {withdrawal.batchCode}</div>
       </div>
+
       <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>Payout To</div>
-        {user?.bankName ? (
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (TON)</div>
+        {user?.walletAddress ? (
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{user.bankName}</div>
-            <div style={{ fontSize: 13, color: '#64748b' }}>{user.bankAccount}</div>
+            <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT TON address. Funds sent to wrong address cannot be recovered.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No bank account set. Please update in Settings before confirming.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT TON wallet address first.</div>
         )}
       </div>
-      <button onClick={confirmPayout} disabled={loading || !user?.bankName} style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: !user?.bankName ? 0.5 : 1 }}>
-        {loading ? 'Confirming...' : 'Confirm Payout'}
+
+      {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>⚠ {error}</div>}
+
+      <button
+        onClick={submitWithdrawal}
+        disabled={loading || !user?.walletAddress}
+        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: !user?.walletAddress ? 0.5 : 1 }}
+      >
+        {loading ? 'Submitting...' : 'Confirm Withdrawal →'}
       </button>
     </div>
   )
@@ -1023,7 +1079,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
   const [verifyLoading, setVerifyLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
 
-  const [form, setForm] = useState({ fullName: user?.fullName || '', phone: user?.phone || '', bankName: user?.bankName || '', bankAccount: user?.bankAccount || '' })
+  const [form, setForm] = useState({ fullName: user?.fullName || '', phone: user?.phone || '', walletAddress: user?.walletAddress || '' })
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [saveError, setSaveError] = useState('')
@@ -1110,8 +1166,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             { label: 'Full Name', value: user?.fullName },
             { label: 'Email', value: user?.email },
             { label: 'Phone', value: user?.phone || '—' },
-            { label: 'Bank Name', value: user?.bankName || '—' },
-            { label: 'Account No.', value: user?.bankAccount || '—' },
+            { label: 'Wallet (USDT TON)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
             { label: 'KYC Status', value: user?.kycStatus },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '10px 0', borderBottom: '1px solid #1e2530', gap: 12 }}>
@@ -1184,16 +1239,65 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <div><label style={labelStyle}>Phone</label><input style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></div>
           <div style={{ borderTop: '1px solid #1e2530', paddingTop: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="5" width="20" height="14" rx="2" />
-                <line x1="2" y1="10" x2="22" y2="10" />
-              </svg>
-              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Bank Details</span>
+              <span style={{ fontSize: 14 }}>💎</span>
+              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (TON Network)</span>
             </div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>Used for profit withdrawals. Ensure accuracy before saving.</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div><label style={labelStyle}>Bank Name</label><input style={inputStyle} value={form.bankName} onChange={e => setForm(p => ({ ...p, bankName: e.target.value }))} placeholder="e.g. GTBank, Access, Zenith" /></div>
-              <div><label style={labelStyle}>Account Number</label><input style={inputStyle} value={form.bankAccount} onChange={e => setForm(p => ({ ...p, bankAccount: e.target.value }))} placeholder="10-digit account number" /></div>
+
+            {/* Warning */}
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#ef4444' }}>
+              ⚠ <strong>Enter your USDT TON Network address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>USDT Wallet Address (TON Network)</label>
+              <input
+                style={inputStyle}
+                value={form.walletAddress}
+                onChange={e => setForm(p => ({ ...p, walletAddress: e.target.value.trim() }))}
+                placeholder="EQ... or UQ... (TON address)"
+              />
+            </div>
+
+            {/* Spenda Guide */}
+            <div style={{ background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 10, padding: 16, marginBottom: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 16 }}>💡</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa' }}>Don't have a USDT wallet?</span>
+              </div>
+              <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.7, marginBottom: 12 }}>
+                We recommend <strong style={{ color: '#e2e8f0' }}>Spenda</strong> — it receives USDT and instantly converts to Naira in your local bank account. Perfect for Nigerian investors.
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+                <strong style={{ color: '#e2e8f0', display: 'block', marginBottom: 6 }}>How to get started with Spenda:</strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[
+                    '1. Download Spenda app (iOS or Android)',
+                    '2. Sign up and complete verification',
+                    '3. Use referral code below to get started',
+                    '4. Go to Wallet → Receive → Select USDT (TON)',
+                    '5. Copy your TON address and paste it above',
+                  ].map((step, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ color: '#00d4aa', flexShrink: 0 }}>→</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 2, marginBottom: 2 }}>SPENDA REFERRAL CODE</div>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 18, color: '#c9a84c', letterSpacing: 3 }}>18Z5VITD</div>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText('18Z5VITD')}
+                  style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 6, padding: '6px 12px', color: '#c9a84c', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}
+                >Copy</button>
+              </div>
+              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                <a href="https://apps.apple.com/app/spenda" target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: 'center', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 6, padding: '8px', color: '#e2e8f0', fontSize: 11, textDecoration: 'none', display: 'block' }}>🍎 App Store</a>
+                <a href="https://play.google.com/store/apps/details?id=com.spenda" target="_blank" rel="noopener noreferrer" style={{ flex: 1, textAlign: 'center', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 6, padding: '8px', color: '#e2e8f0', fontSize: 11, textDecoration: 'none', display: 'block' }}>🤖 Google Play</a>
+              </div>
             </div>
           </div>
           <button style={s.btn()} onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
