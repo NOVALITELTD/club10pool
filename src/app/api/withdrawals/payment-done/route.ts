@@ -47,12 +47,12 @@ export async function POST(req: NextRequest) {
           </div>
           <div style="padding:28px;">
             <p>Hi <strong>${payout.fullName}</strong>,</p>
-            <p>Your withdrawal of <strong style="color:#c9a84c;">$${parseFloat(payout.amount).toLocaleString()}</strong> has been processed and sent to your USDT wallet.</p>
+            <p>Your withdrawal of <strong style="color:#c9a84c;">$${parseFloat(payout.amount).toLocaleString()}</strong> has been processed and sent to your SOLANA wallet.</p>
             <div style="background:#080a0f;border:1px solid rgba(0,212,170,0.2);border-radius:8px;padding:14px;margin:16px 0;">
-              <div style="font-size:11px;color:#64748b;letter-spacing:2px;margin-bottom:6px;">WALLET ADDRESS (USDT TON)</div>
+              <div style="font-size:11px;color:#64748b;letter-spacing:2px;margin-bottom:6px;">WALLET ADDRESS (SOLANA)</div>
               <div style="font-family:monospace;color:#00d4aa;word-break:break-all;font-size:12px;">${payout.walletAddress || 'N/A'}</div>
             </div>
-            <p style="color:#94a3b8;font-size:13px;">Please check your wallet. If you used Spenda, the USDT will be automatically converted to Naira in your local account.</p>
+            <p style="color:#94a3b8;font-size:13px;">Please check your wallet. If you used Spenda, the SOLANA will be automatically converted to Naira in your local account.</p>
             <p style="color:#475569;font-size:12px;margin-top:24px;">Nova-Lite Club10 Pool Team</p>
           </div>
         </div>
@@ -71,4 +71,5 @@ export async function POST(req: NextRequest) {
   })
 
   return ok({ message: `Payment marked done. ${payouts.length} investors notified.` })
+
 }
