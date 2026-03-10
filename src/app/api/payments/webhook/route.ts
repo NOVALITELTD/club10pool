@@ -104,42 +104,51 @@ export async function POST(req: NextRequest) {
 
     } else if (payment.batchId) {
       // ── DIRECT BATCH PAYMENT ──
-      const batchMember = await tx.batchMember.findFirst({
-        where: { batchId: payment.batchId, investorId: payment.investorId },
-      })
+      const batch = await tx.batch.findUnique({ where: { id: payment.batchId! } })
+      if (batch) {
+        const capitalAmount = Number(payment.amountUSD)
 
-      if (batchMember) {
-        await tx.batchMember.update({
-          where: { id: batchMember.id },
-          data: { status: 'ACTIVE' },
+        // Create BatchMember only now — payment is confirmed
+        const existing = await tx.batchMember.findFirst({
+          where: { batchId: payment.batchId!, investorId: payment.investorId },
+        })
+        const batchMember = existing
+          ? await tx.batchMember.update({
+              where: { id: existing.id },
+              data: { status: 'ACTIVE', capitalAmount },
+            })
+          : await tx.batchMember.create({
+              data: {
+                batchId: payment.batchId!,
+                investorId: payment.investorId,
+                capitalAmount,
+                sharePercent: 0,
+                status: 'ACTIVE',
+              },
+            })
+
+        const newAmount = Number(batch.currentAmount || 0) + capitalAmount
+        const batchFull = newAmount >= Number(batch.targetAmount || batch.targetCapital)
+
+        await tx.batch.update({
+          where: { id: payment.batchId! },
+          data: {
+            currentAmount: newAmount,
+            ...(batchFull ? { status: 'FULL' as any } : {}),
+          },
         })
 
-        const batch = await tx.batch.findUnique({ where: { id: payment.batchId! } })
-        if (batch) {
-          const newAmount = Number(batch.currentAmount || 0) + Number(batchMember.capitalAmount)
-          const batchFull = newAmount >= Number(batch.targetAmount || batch.targetCapital)
-
-          await tx.batch.update({
-            where: { id: payment.batchId! },
-            data: {
-              currentAmount: newAmount,
-              ...(batchFull ? { status: 'FULL' as any } : {}),
-            },
+        if (batchFull) {
+          await sendEmail({
+            to: process.env.ADMIN_EMAIL || 'admin@club10pool.com',
+            subject: `🎯 Batch Full — ${batch.name} (${batch.batchCode})`,
+            html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;">
+              <h2>Batch Ready for Activation</h2>
+              <p>Batch <strong>${batch.name}</strong> has reached its target. Log in to activate and input MT4/MT5 details.</p>
+            </div>`,
           })
-
-          if (batchFull) {
-            await sendEmail({
-              to: process.env.ADMIN_EMAIL || 'admin@club10pool.com',
-              subject: `🎯 Batch Full — ${batch.name} (${batch.batchCode})`,
-              html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;">
-                <h2>Batch Ready for Activation</h2>
-                <p>Batch <strong>${batch.name}</strong> has reached its target. Log in to activate and input MT4/MT5 details.</p>
-              </div>`,
-            })
-          }
         }
 
-        // Transaction record
         await tx.transaction.create({
           data: {
             investorId: payment.investorId,
