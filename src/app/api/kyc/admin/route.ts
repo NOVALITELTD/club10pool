@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
 import { ok, error, unauthorized, forbidden } from '@/lib/api'
 import { sendEmail } from '@/lib/email'
+import { notifyInvestorKYCApproved, notifyInvestorKYCRejected, notifyAdminKYC } from '@/lib/whatsapp'
 
 export async function GET(req: NextRequest) {
   const auth = getAuthFromRequest(req)
@@ -52,6 +53,14 @@ export async function PATCH(req: NextRequest) {
 
     const baseUrl = process.env.NEXTAUTH_URL || ''
     const firstName = investor.fullName?.split(' ')[0] || 'Member'
+
+    // WhatsApp notification (fire and forget)
+    const investorPhone = investor.phone || ''
+    if (action === 'approve') {
+      notifyInvestorKYCApproved(investorPhone, firstName).catch(() => {})
+    } else {
+      notifyInvestorKYCRejected(investorPhone, firstName, adminNotes || undefined).catch(() => {})
+    }
 
     // Send approval email
     if (action === 'approve') {
@@ -107,9 +116,7 @@ export async function PATCH(req: NextRequest) {
 
     // Send rejection email
     if (action === 'reject') {
-      const { signToken } = await import('@/lib/auth')
-      const resubmitToken = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
-      const resubmitUrl = `${baseUrl}/kyc?token=${resubmitToken}`
+      const resubmitUrl = `${baseUrl}/kyc`
       const reason = adminNotes || 'Your documents did not meet our verification requirements.'
 
       await sendEmail({
@@ -175,4 +182,3 @@ export async function PATCH(req: NextRequest) {
     return error('Server error', 500)
   }
 }
-
