@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 type Tab = 'login' | 'register' | 'forgot'
-type TwoFaState = { investorId: string; method: string } | null
+type TwoFaState = { investorId: string; method: string; step: 'totp' | 'email_otp' } | null
 
 const COUNTRIES = [
   'Nigeria',
@@ -66,7 +66,7 @@ export default function LoginPage() {
   const [tab, setTab] = useState<Tab>('login')
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', phone: '',
-    nationality: 'Nigeria', dateOfBirth: '',
+    whatsapp: '', nationality: 'Nigeria', dateOfBirth: '',
   })
   const [dobRaw, setDobRaw] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
@@ -100,9 +100,10 @@ export default function LoginPage() {
 
       // 2FA required
       if (d.data?.requiresTwoFa) {
-        setTwoFa({ investorId: d.data.investorId, method: d.data.twoFaMethod })
-        // If email OTP method, auto-send code
-        if (d.data.twoFaMethod === 'EMAIL') {
+        const method = d.data.twoFaMethod || 'TOTP'
+        setTwoFa({ investorId: d.data.investorId, method, step: method === 'EMAIL' ? 'email_otp' : 'totp' })
+        // If email-only method, auto-send code
+        if (method === 'EMAIL') {
           await sendEmailOtp(d.data.investorId)
         }
         return
@@ -140,17 +141,25 @@ export default function LoginPage() {
     if (!twoFa || !twoFaCode || twoFaCode.length !== 6) return
     setTwoFaLoading(true); setError('')
     try {
-      const endpoint = twoFa.method === 'TOTP'
-        ? '/api/auth/2fa/verify'
-        : '/api/auth/security-code/verify'
+      // Dual 2FA: step 1 = TOTP, step 2 = email OTP
+      if (twoFa.step === 'totp') {
+        const r = await fetch('/api/auth/2fa/verify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ investorId: twoFa.investorId, token: twoFaCode }),
+        })
+        const d = await r.json()
+        if (!r.ok) { setError(d.error || 'Invalid authenticator code'); return }
+        // TOTP verified — move to email OTP step (code auto-sent by server)
+        setTwoFa(prev => prev ? { ...prev, step: 'email_otp' } : null)
+        setTwoFaCode('')
+        setEmailOtpSent(true)
+        return
+      }
 
-      const body = twoFa.method === 'TOTP'
-        ? { investorId: twoFa.investorId, token: twoFaCode }
-        : { investorId: twoFa.investorId, code: twoFaCode, purpose: 'LOGIN_2FA' }
-
-      const r = await fetch(endpoint, {
+      // Step 2: email OTP — this issues the final token
+      const r = await fetch('/api/auth/security-code/verify', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ investorId: twoFa.investorId, code: twoFaCode, purpose: 'LOGIN_2FA' }),
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Invalid code'); return }
@@ -166,6 +175,11 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     if (!agreedToTerms) return setError('You must agree to the Terms & Conditions to register')
+    if (!form.whatsapp) return setError('WhatsApp number is required')
+    const waDigits = form.whatsapp.replace(/\D/g, '')
+    if (!/^(0[789][01]\d{8}|234[789][01]\d{8}|[789][01]\d{8})$/.test(waDigits)) {
+      return setError('Please enter a valid Nigerian WhatsApp number (e.g. 08012345678)')
+    }
     if (!form.dateOfBirth || form.dateOfBirth.length < 10) return setError('Please enter your date of birth (DD-MM-YYYY)')
     const age = calculateAge(form.dateOfBirth)
     if (age < 18) return setError('You must be at least 18 years old to register')
@@ -309,9 +323,9 @@ export default function LoginPage() {
                   <div style={{ fontSize: 40, marginBottom: 12 }}>🔐</div>
                   <div style={{ fontWeight: 800, fontSize: 20, color: '#e2e8f0', marginBottom: 6 }}>Two-Factor Verification</div>
                   <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
-                    {twoFa.method === 'TOTP'
-                      ? 'Enter the 6-digit code from your Google Authenticator app'
-                      : `Enter the 6-digit code sent to your email`
+                    {twoFa.step === 'totp'
+                      ? 'Step 1 of 2 — Enter the 6-digit code from your Google Authenticator app'
+                      : 'Step 2 of 2 — Enter the 6-digit code sent to your email'
                     }
                   </div>
                   {twoFa.method === 'EMAIL' && emailOtpSent && (
@@ -452,8 +466,18 @@ export default function LoginPage() {
                       </div>
                     </div>
                     <div>
-                      <label style={labelStyle}>Phone Number <span style={{ color: '#334155' }}>(optional)</span></label>
-                      <input type="text" style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} placeholder="+234 801 234 5678" />
+                      <label style={labelStyle}>WhatsApp Number <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input
+                        type="text" inputMode="numeric"
+                        style={{ ...inputStyle, borderColor: form.whatsapp && !/^(0[789][01]\d{8}|234[789][01]\d{8})$/.test(form.whatsapp.replace(/\D/g,'')) ? 'rgba(239,68,68,0.5)' : form.whatsapp ? 'rgba(0,212,170,0.4)' : 'rgba(201,168,76,0.15)' }}
+                        value={form.whatsapp}
+                        onChange={e => setForm(p => ({ ...p, whatsapp: e.target.value }))}
+                        placeholder="08012345678"
+                        maxLength={14}
+                      />
+                      <div style={{ fontSize: 10, color: '#475569', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
+                        Nigerian: 11 digits starting with 0 (e.g. 08012345678)
+                      </div>
                     </div>
                     <div>
                       <label style={labelStyle}>Password</label>
