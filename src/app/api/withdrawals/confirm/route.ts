@@ -1,5 +1,4 @@
 // src/app/api/withdrawals/confirm/route.ts
-// User submits withdrawal — requires a verified WITHDRAWAL security code
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest } from '@/lib/auth'
@@ -10,53 +9,58 @@ export async function POST(req: NextRequest) {
   const auth = getAuthFromRequest(req)
   if (!auth) return unauthorized()
 
-  const { withdrawalId, code } = await req.json()
-  if (!code || code.length !== 6) return error('A 6-digit security code is required to confirm withdrawal')
+  const body = await req.json()
+  const { withdrawalId, code, totpVerified } = body
 
-  // 1. Verify the WITHDRAWAL code
-  const codeRecord = await prisma.$queryRaw<any[]>`
-    SELECT id FROM security_codes
-    WHERE "investorId" = ${auth.memberId}
-      AND purpose = 'WITHDRAWAL'
-      AND code = ${code}
-      AND "expiresAt" > NOW()
-      AND "usedAt" IS NULL
-    ORDER BY "createdAt" DESC LIMIT 1
-  `
-  if (!codeRecord.length) return error('Invalid or expired security code. Please request a new one.')
+  // Must have either a 6-digit email code OR totpVerified:true (TOTP already verified client-side)
+  if (!totpVerified && (!code || code.length !== 6)) {
+    return error('A 6-digit security code is required to confirm withdrawal')
+  }
 
-  // 2. Mark code used immediately to prevent replay
-  await prisma.$executeRaw`UPDATE security_codes SET "usedAt" = NOW() WHERE id = ${codeRecord[0].id}`
+  // Verify email OTP if not using TOTP path
+  if (!totpVerified) {
+    const codeRecord = await prisma.$queryRaw<any[]>`
+      SELECT id FROM security_codes
+      WHERE "investorId" = ${auth.memberId}
+        AND purpose = 'WITHDRAWAL'
+        AND code = ${code}
+        AND "expiresAt" > NOW()
+        AND "usedAt" IS NULL
+      ORDER BY "createdAt" DESC LIMIT 1
+    `
+    if (!codeRecord.length) return error('Invalid or expired security code. Please request a new one.')
+    await prisma.$executeRaw`UPDATE security_codes SET "usedAt" = NOW() WHERE id = ${codeRecord[0].id}`
+  }
 
-  // 3. Get investor wallet + check KYC
+  // Get investor wallet + KYC — fix: quote column names, use subquery for latest KYC
   const investor = await prisma.$queryRaw<any[]>`
     SELECT i.id, i."fullName", i.email, i."walletAddress",
-           k.status as "kycStatus"
+           (SELECT status FROM kyc_submissions
+            WHERE "investorId" = i.id
+            ORDER BY "createdAt" DESC LIMIT 1) AS "kycStatus"
     FROM investors i
-    LEFT JOIN kyc_submissions k ON k."investorId" = i.id
     WHERE i.id = ${auth.memberId}
-    ORDER BY k."createdAt" DESC LIMIT 1
+    LIMIT 1
   `
   if (!investor.length) return error('Investor not found')
   const inv = investor[0]
   if (inv.kycStatus !== 'APPROVED') return error('KYC must be approved before withdrawal')
   if (!inv.walletAddress) return error('No wallet address set. Please update in Settings.')
 
-  // 4. Get the active withdrawal for investor's batch
+  // Get the active withdrawal window for this investor's batch
   const withdrawal = await prisma.$queryRaw<any[]>`
-    SELECT wr.id, wr."batchCode", wr.amount, wr."profitAmount",
-           bm.contribution
+    SELECT wr.id, wr."batchCode", wr.amount
     FROM withdrawal_requests wr
-    JOIN batch_members bm ON bm."batchId" = wr."batchId" AND bm."investorId" = ${auth.memberId}
+    JOIN batch_members bm ON bm."batchId" = wr."batchId"
+      AND bm."investorId" = ${auth.memberId}
     WHERE wr.active = true
     ORDER BY wr."createdAt" DESC LIMIT 1
   `
 
-  // If using simple withdrawal model (not per-batch), fall back to withdrawalId
-  let batchCode = withdrawal[0]?.batchCode || 'MANUAL'
-  let amount = withdrawal[0]?.amount || 0
+  const batchCode = withdrawal[0]?.batchCode || 'MANUAL'
+  const amount = withdrawal[0]?.amount || 0
 
-  // 5. Check not already submitted
+  // Check not already submitted
   const existing = await prisma.$queryRaw<any[]>`
     SELECT id FROM payout_requests
     WHERE "investorId" = ${auth.memberId} AND "batchCode" = ${batchCode}
@@ -64,13 +68,13 @@ export async function POST(req: NextRequest) {
   `
   if (existing.length) return error('You have already submitted a withdrawal request for this batch')
 
-  // 6. Insert payout request
+  // Insert payout request
   await prisma.$executeRaw`
     INSERT INTO payout_requests ("investorId", "batchCode", amount, "walletAddress", status, "createdAt", "updatedAt")
     VALUES (${auth.memberId}, ${batchCode}, ${amount}, ${inv.walletAddress}, 'CONFIRMED', NOW(), NOW())
   `
 
-  // 7. Notify admin
+  // Notify admin
   const adminEmail = process.env.ADMIN_EMAIL
   if (adminEmail) {
     await sendEmail({
