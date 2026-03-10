@@ -16,24 +16,24 @@ datasource db {
 // ─────────────────────────────────────────────
 
 enum BatchStatus {
-  FORMING      // Accepting new members
+  FORMING
   FULL
-  ACTIVE       // Trading in progress
-  DISTRIBUTING // End-of-month profit distribution
-  CLOSED       // Batch completed / all payouts done
+  ACTIVE
+  DISTRIBUTING
+  CLOSED
 }
 
 enum MemberStatus {
   ACTIVE
-  WITHDRAWAL_REQUESTED // Requested to pull out at end of month
+  WITHDRAWAL_REQUESTED
   WITHDRAWN
 }
 
 enum TransactionType {
-  DEPOSIT          // Initial capital contribution
-  PROFIT_SHARE     // End-of-month profit distribution
-  WITHDRAWAL       // Capital withdrawal
-  FEE              // Platform/management fee (optional)
+  DEPOSIT
+  PROFIT_SHARE
+  WITHDRAWAL
+  FEE
 }
 
 enum TransactionStatus {
@@ -43,10 +43,10 @@ enum TransactionStatus {
 }
 
 enum BatchCategory {
-  CENT         // $100  pool | contrib $10–$50
-  STANDARD_1K  // $1,000 pool | contrib $100–$500
-  STANDARD_5K  // $5,000 pool | contrib $1,000–$2,500
-  STANDARD_10K // $10,000 pool | contrib $2,500–$5,000
+  CENT
+  STANDARD_1K
+  STANDARD_5K
+  STANDARD_10K
 }
 
 enum TradingPlatform {
@@ -55,16 +55,16 @@ enum TradingPlatform {
 }
 
 enum ReferralPoolStatus {
-  OPEN    // accepting members / payments
-  FULL    // target amount reached, awaiting admin activation
-  ACTIVE  // admin activated — linked to a real Batch
+  OPEN
+  FULL
+  ACTIVE
   CLOSED
 }
 
 enum ReferralMemberStatus {
-  PENDING_PAYMENT // joined pool, not yet paid
-  PAID            // payment confirmed by Flutterwave webhook
-  ACTIVE          // moved into the activated Batch
+  PENDING_PAYMENT
+  PAID
+  ACTIVE
 }
 
 enum PaymentStatus {
@@ -88,7 +88,7 @@ model User {
   name          String
   phone         String?
   passwordHash  String
-  role          String   @default("admin") // admin | viewer
+  role          String   @default("admin")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -96,20 +96,28 @@ model User {
 }
 
 model Investor {
-  id            String   @id @default(cuid())
-  fullName      String
-  email         String   @unique
-  phone         String?
-  nationalId    String?  @unique
-  bankName      String?
-  bankAccount   String?
-  passwordHash  String?  // nullable so existing investors aren't broken
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String    @id @default(cuid())
+  fullName       String
+  email          String    @unique
+  phone          String?
+  nationalId     String?   @unique
+  bankName       String?
+  bankAccount    String?
+  passwordHash   String?
+  emailVerified  Boolean   @default(false)
+  kycStatus      String    @default("NOT_SUBMITTED")
+  walletAddress  String?
+  nationality    String    @default("Nigeria")
+  dateOfBirth    String?
+  twoFaEnabled   Boolean   @default(false)
+  twoFaSecret    String?
+  twoFaMethod    String    @default("TOTP")
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  memberships   BatchMember[]
-  transactions  Transaction[]
-
+  memberships           BatchMember[]
+  transactions          Transaction[]
   referralPoolsCreated  ReferralPool[]
   referralMemberships   ReferralMember[]
   rebatesEarned         ReferralRebate[]
@@ -119,81 +127,75 @@ model Investor {
 }
 
 model Batch {
-  id              String      @id @default(cuid())
-  batchCode       String      @unique   // e.g. "BATCH-A", "BATCH-B", "BATCH-2024-01"
-  name            String                // Human-readable name
-  description     String?
-  status          BatchStatus @default(FORMING)
+  id                    String          @id @default(cuid())
+  batchCode             String          @unique
+  name                  String
+  description           String?
+  status                BatchStatus     @default(FORMING)
+  targetMembers         Int
+  contributionPerMember Decimal
+  targetCapital         Decimal
+  tradingAccountId      String?
+  brokerName            String?
+  startDate             DateTime?
+  endDate               DateTime?
+  actualEndDate         DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  category              BatchCategory?
+  minContribution       Decimal?        @db.Decimal(18,2)
+  maxContribution       Decimal?        @db.Decimal(18,2)
+  currentAmount         Decimal         @default(0) @db.Decimal(18,2)
+  targetAmount          Decimal?        @db.Decimal(18,2)
+  tradingPlatform       TradingPlatform?
+  investorPassword      String?
+  tradingServer         String?
+  referralPoolId        String?         @unique
+  referralPool          ReferralPool?   @relation(fields: [referralPoolId], references: [id])
+  payments              Payment[]
 
-  targetMembers   Int                   // e.g. 10
-  contributionPerMember Decimal        // e.g. 100.00
-  targetCapital   Decimal              // targetMembers × contributionPerMember
-
-  tradingAccountId String?             // External trading account reference
-  brokerName       String?
-
-  startDate       DateTime?            // When trading begins
-  endDate         DateTime?            // Planned end / distribution date
-  actualEndDate   DateTime?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  members         BatchMember[]
-  monthlyReports  MonthlyReport[]
-  distributions   ProfitDistribution[]
-
-  category          BatchCategory?
-  minContribution   Decimal?        @db.Decimal(18,2)
-  maxContribution   Decimal?        @db.Decimal(18,2)
-  currentAmount     Decimal         @default(0) @db.Decimal(18,2)
-  targetAmount      Decimal?        @db.Decimal(18,2)
-  tradingPlatform   TradingPlatform?
-  investorPassword  String?
-  tradingServer     String?
-  referralPoolId    String?         @unique
-  referralPool      ReferralPool?   @relation(fields: [referralPoolId], references: [id])
-  payments          Payment[]
+  members               BatchMember[]
+  monthlyReports        MonthlyReport[]
+  distributions         ProfitDistribution[]
 
   @@map("batches")
 }
 
 model BatchMember {
-  id              String       @id @default(cuid())
-  batchId         String
-  investorId      String
-  status          MemberStatus @default(ACTIVE)
-  capitalAmount   Decimal      // Actual amount deposited
-  sharePercent    Decimal      // capitalAmount / totalCapital × 100 (computed at distribution)
+  id                      String       @id @default(cuid())
+  batchId                 String
+  investorId              String
+  status                  MemberStatus @default(ACTIVE)
+  capitalAmount           Decimal
+  sharePercent            Decimal
+  joinedAt                DateTime     @default(now())
+  withdrawalRequestedAt   DateTime?
+  withdrawnAt             DateTime?
 
-  joinedAt        DateTime @default(now())
-  withdrawalRequestedAt DateTime?
-  withdrawnAt     DateTime?
-
-  batch           Batch    @relation(fields: [batchId], references: [id])
-  investor        Investor @relation(fields: [investorId], references: [id])
-  transactions    Transaction[]
-  profitShares    ProfitShare[]
+  batch        Batch       @relation(fields: [batchId], references: [id])
+  investor     Investor    @relation(fields: [investorId], references: [id])
+  transactions Transaction[]
+  profitShares ProfitShare[]
 
   @@unique([batchId, investorId])
   @@map("batch_members")
 }
 
 model Transaction {
-  id              String            @id @default(cuid())
-  investorId      String
-  batchMemberId   String?
-  type            TransactionType
-  status          TransactionStatus @default(PENDING)
-  amount          Decimal
-  reference       String?           // External payment reference
-  notes           String?
-  processedAt     DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  investorId    String
+  batchMemberId String?
+  type          TransactionType
+  status        TransactionStatus @default(PENDING)
+  amount        Decimal
+  reference     String?
+  notes         String?
+  processedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
-  investor        Investor     @relation(fields: [investorId], references: [id])
-  batchMember     BatchMember? @relation(fields: [batchMemberId], references: [id])
+  investor    Investor     @relation(fields: [investorId], references: [id])
+  batchMember BatchMember? @relation(fields: [batchMemberId], references: [id])
 
   @@map("transactions")
 }
@@ -201,49 +203,49 @@ model Transaction {
 model MonthlyReport {
   id              String   @id @default(cuid())
   batchId         String
-  reportMonth     DateTime // First day of the month
+  reportMonth     DateTime
   openingBalance  Decimal
   closingBalance  Decimal
-  grossProfit     Decimal  // closingBalance - openingBalance
-  platformFeeRate Decimal  @default(0)   // e.g. 0.10 = 10%
+  grossProfit     Decimal
+  platformFeeRate Decimal  @default(0)
   platformFee     Decimal  @default(0)
-  netProfit       Decimal  // grossProfit - platformFee
+  netProfit       Decimal
   notes           String?
   createdAt       DateTime @default(now())
 
-  batch           Batch    @relation(fields: [batchId], references: [id])
-  distribution    ProfitDistribution?
+  batch        Batch               @relation(fields: [batchId], references: [id])
+  distribution ProfitDistribution?
 
   @@unique([batchId, reportMonth])
   @@map("monthly_reports")
 }
 
 model ProfitDistribution {
-  id              String   @id @default(cuid())
-  batchId         String
-  reportId        String   @unique
-  totalProfit     Decimal
-  distributedAt   DateTime @default(now())
-  notes           String?
+  id            String   @id @default(cuid())
+  batchId       String
+  reportId      String   @unique
+  totalProfit   Decimal
+  distributedAt DateTime @default(now())
+  notes         String?
 
-  batch           Batch         @relation(fields: [batchId], references: [id])
-  report          MonthlyReport @relation(fields: [reportId], references: [id])
-  shares          ProfitShare[]
+  batch   Batch         @relation(fields: [batchId], references: [id])
+  report  MonthlyReport @relation(fields: [reportId], references: [id])
+  shares  ProfitShare[]
 
   @@map("profit_distributions")
 }
 
 model ProfitShare {
-  id               String  @id @default(cuid())
-  distributionId   String
-  batchMemberId    String
-  capitalAmount    Decimal
-  sharePercent     Decimal
-  profitAmount     Decimal // Amount this member receives
-  transactionRef   String?
+  id             String  @id @default(cuid())
+  distributionId String
+  batchMemberId  String
+  capitalAmount  Decimal
+  sharePercent   Decimal
+  profitAmount   Decimal
+  transactionRef String?
 
-  distribution     ProfitDistribution @relation(fields: [distributionId], references: [id])
-  batchMember      BatchMember        @relation(fields: [batchMemberId], references: [id])
+  distribution ProfitDistribution @relation(fields: [distributionId], references: [id])
+  batchMember  BatchMember        @relation(fields: [batchMemberId], references: [id])
 
   @@map("profit_shares")
 }
@@ -260,6 +262,33 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+model SecurityCode {
+  id         String    @id @default(cuid())
+  investorId String
+  purpose    String    // WITHDRAWAL | SETTINGS | LOGIN_2FA
+  code       String
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("security_codes")
+}
+
+model PayoutRequest {
+  id            String    @id @default(cuid())
+  investorId    String
+  batchCode     String
+  amount        Decimal   @db.Decimal(18,2)
+  walletAddress String
+  status        String    @default("PENDING") // PENDING | CONFIRMED | CANCELLED
+  paymentDone   Boolean   @default(false)
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("payout_requests")
+}
+
 model ReferralPool {
   id            String             @id @default(cuid())
   creatorId     String
@@ -271,12 +300,11 @@ model ReferralPool {
   targetAmount  Decimal            @db.Decimal(18, 2)
   members       ReferralMember[]
   rebates       ReferralRebate[]
-  batch         Batch?             
+  batch         Batch?
   batchId       String?            @unique
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  // One active pool per category per creator (until closed/activated)
   @@unique([creatorId, category], name: "one_active_pool_per_category")
 }
 
@@ -296,18 +324,18 @@ model ReferralMember {
 }
 
 model ReferralRebate {
-  id             String         @id @default(cuid())
+  id             String       @id @default(cuid())
   referralPoolId String
-  referralPool   ReferralPool   @relation(fields: [referralPoolId], references: [id])
+  referralPool   ReferralPool @relation(fields: [referralPoolId], references: [id])
   creatorId      String
-  creator        Investor       @relation(fields: [creatorId], references: [id])
-  month          DateTime       // The month this rebate covers (first day of month)
-  totalRebate    Decimal        @db.Decimal(18, 2) // Total rebate entered by admin
-  creatorBonus   Decimal        @db.Decimal(18, 2) // 10% of totalRebate
+  creator        Investor     @relation(fields: [creatorId], references: [id])
+  month          DateTime
+  totalRebate    Decimal      @db.Decimal(18, 2)
+  creatorBonus   Decimal      @db.Decimal(18, 2)
   adminNotes     String?
-  status         RebateStatus   @default(PENDING)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  status         RebateStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@unique([referralPoolId, month])
 }
@@ -316,17 +344,15 @@ model Payment {
   id               String          @id @default(cuid())
   investorId       String
   investor         Investor        @relation(fields: [investorId], references: [id])
-  // For direct batch joins (non-referral)
   batchId          String?
   batch            Batch?          @relation(fields: [batchId], references: [id])
-  // For referral pool joins
   referralMemberId String?         @unique
   referralMember   ReferralMember? @relation(fields: [referralMemberId], references: [id])
   amountUSD        Decimal         @db.Decimal(18, 2)
   amountNGN        Decimal         @db.Decimal(18, 2)
   exchangeRate     Decimal         @db.Decimal(18, 6)
-  flwTxRef         String          @unique // Flutterwave tx_ref (generated by us)
-  flwTxId          String?         // Flutterwave id (from webhook)
+  flwTxRef         String          @unique
+  flwTxId          String?
   status           PaymentStatus   @default(PENDING)
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
