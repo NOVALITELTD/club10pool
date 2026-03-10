@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     SELECT i.id, i."fullName", i.email, i."walletAddress",
            (SELECT status FROM kyc_submissions
             WHERE "investorId" = i.id
-            ORDER BY "createdAt" DESC LIMIT 1) AS "kycStatus"
+            ORDER BY "submittedAt" DESC LIMIT 1) AS "kycStatus"
     FROM investors i
     WHERE i.id = ${auth.memberId}
     LIMIT 1
