@@ -1791,7 +1791,7 @@ function BroadcastBanner({ broadcasts }: { broadcasts: any[] }) {
               <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{b.message}</div>
             </div>
             <button
-              onClick={() => setDismissed(prev => new Set([...prev, b.id]))}
+              onClick={() => setDismissed(prev => new Set(Array.from(prev).concat(b.id)))}
               style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, flexShrink: 0, padding: 4, lineHeight: 1 }}
               title="Dismiss"
             >✕</button>
