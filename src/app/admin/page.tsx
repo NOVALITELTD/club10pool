@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [investors, setInvestors] = useState<any[]>([])
   const [kycList, setKycList] = useState<any[]>([])
   const [referralPools, setReferralPools] = useState<any[]>([])
+  const [broadcasts, setBroadcasts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -62,24 +63,49 @@ export default function AdminDashboard() {
     if (!parsed.isAdmin) { router.push('/dashboard'); return }
     setUser(parsed)
     loadData(token)
+
+    // Background auto-refresh every 1 minute (silent)
+    const interval = setInterval(() => {
+      const t = localStorage.getItem('token')
+      if (!t) return
+      const headers = { Authorization: `Bearer ${t}` }
+      Promise.all([
+        fetch('/api/dashboard', { headers }).then(r => r.ok ? r.json() : null),
+        fetch('/api/batches', { headers }).then(r => r.ok ? r.json() : null),
+        fetch('/api/investors', { headers }).then(r => r.ok ? r.json() : null),
+        fetch('/api/kyc/admin', { headers }).then(r => r.ok ? r.json() : null),
+        fetch('/api/referrals/admin', { headers }).then(r => r.ok ? r.json() : null),
+      ]).then(([statsData, batchData, invData, kycData, refData]) => {
+        if (statsData?.data) setStats(statsData.data)
+        if (batchData?.data) setBatches(batchData.data || [])
+        if (invData?.data) setInvestors(invData.data || [])
+        if (kycData?.data) setKycList(kycData.data || [])
+        if (refData?.data) setReferralPools(refData.data || [])
+      }).catch(() => {})
+    }, 60 * 1000)
+
+    return () => clearInterval(interval)
   }, [])
 
   async function loadData(token: string) {
     setLoading(true)
     try {
       const headers = { Authorization: `Bearer ${token}` }
-      const [statsRes, batchRes, invRes, kycRes, refRes] = await Promise.all([
+      const [statsRes, batchRes, invRes, kycRes, refRes, broadcastRes] = await Promise.all([
         fetch('/api/dashboard', { headers }),
         fetch('/api/batches', { headers }),
         fetch('/api/investors', { headers }),
         fetch('/api/kyc/admin', { headers }),
         fetch('/api/referrals/admin', { headers }),
+        fetch('/api/broadcast', { headers }),
       ])
       if (statsRes.ok) { const d = await statsRes.json(); setStats(d.data) }
       if (batchRes.ok) { const d = await batchRes.json(); setBatches(d.data || []) }
       if (invRes.ok) { const d = await invRes.json(); setInvestors(d.data || []) }
       if (kycRes.ok) { const d = await kycRes.json(); setKycList(d.data || []) }
       if (refRes.ok) { const d = await refRes.json(); setReferralPools(d.data || []) }
+      if (broadcastRes?.ok) { const d = await broadcastRes.json(); setBroadcasts(d.data || []) }
+
     } finally { setLoading(false) }
   }
 
@@ -98,6 +124,7 @@ export default function AdminDashboard() {
     { id: 'withdrawals', label: 'Withdrawals', icon: '⟁' },
     { id: 'referrals', label: 'Referral Pools', icon: '🔗', badge: fullPools || undefined },
     { id: 'audit', label: 'Audit Logs', icon: '≡' },
+    { id: 'broadcast', label: 'Broadcast', icon: '📢' },
   ]
 
   const s: any = {
@@ -250,6 +277,7 @@ export default function AdminDashboard() {
                 {section === 'withdrawals' && <WithdrawalSection batches={batches} token={token!} s={s} />}
                 {section === 'referrals' && <ReferralAdminSection referralPools={referralPools} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'audit' && <AuditSection token={token!} s={s} />}
+                {(section as any) === 'broadcast' && <BroadcastSection token={token!} broadcasts={broadcasts} s={s} reload={() => loadData(token!)} />}
               </>
             )}
           </div>
@@ -1211,6 +1239,158 @@ function AuditSection({ token, s }: any) {
         </div>
       )}
       {!logs.length && !loading && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No audit logs yet</div>}
+    </div>
+  )
+}
+
+// ── BROADCAST SECTION ─────────────────────────────────────
+const BROADCAST_TYPE_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  INFO:    { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', label: 'Notice' },
+  SUCCESS: { color: '#00d4aa', bg: 'rgba(0,212,170,0.08)',   border: 'rgba(0,212,170,0.25)',   label: 'Update' },
+  WARNING: { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  border: 'rgba(245,158,11,0.25)',  label: 'Alert' },
+  URGENT:  { color: '#ef4444', bg: 'rgba(239,68,68,0.08)',   border: 'rgba(239,68,68,0.3)',    label: 'Urgent' },
+}
+
+function BroadcastSection({ token, broadcasts, s, reload }: any) {
+  const [form, setForm] = useState({ title: '', message: '', type: 'INFO', expiresInHours: '' })
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  async function send() {
+    if (!form.title || !form.message) { setError('Title and message required'); return }
+    setSending(true); setError(''); setSuccess('')
+    try {
+      const r = await fetch('/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...form, expiresInHours: form.expiresInHours ? parseInt(form.expiresInHours) : null }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Failed to send'); return }
+      setSuccess('Broadcast sent to all investors!')
+      setForm({ title: '', message: '', type: 'INFO', expiresInHours: '' })
+      reload()
+    } finally { setSending(false) }
+  }
+
+  async function deactivate(id: string) {
+    await fetch('/api/broadcast', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    })
+    reload()
+  }
+
+  const inputStyle: any = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }
+  const labelStyle: any = { fontSize: 10, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
+
+      {/* Compose */}
+      <div style={s.card}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 20 }}>📢 Send Broadcast to All Investors</div>
+        {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 14, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>⚠ {error}</div>}
+        {success && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 14, padding: '10px 14px', background: 'rgba(0,212,170,0.08)', borderRadius: 8 }}>✓ {success}</div>}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={labelStyle}>Notification Title</label>
+            <input style={inputStyle} placeholder="e.g. System Maintenance Notice" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+          </div>
+          <div>
+            <label style={labelStyle}>Type</label>
+            <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
+              <option value="INFO">ℹ️ Info / Notice</option>
+              <option value="SUCCESS">✅ Good News / Update</option>
+              <option value="WARNING">⚠️ Warning / Alert</option>
+              <option value="URGENT">🚨 Urgent</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Auto-Expire After</label>
+            <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.expiresInHours} onChange={e => setForm(p => ({ ...p, expiresInHours: e.target.value }))}>
+              <option value="">Never (manual removal)</option>
+              <option value="6">6 hours</option>
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="168">1 week</option>
+            </select>
+          </div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={labelStyle}>Message</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 100, resize: 'vertical', lineHeight: 1.6 }}
+              placeholder="Write your message to investors here..."
+              value={form.message}
+              onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        {/* Preview */}
+        {(form.title || form.message) && (() => {
+          const cfg = BROADCAST_TYPE_CONFIG[form.type]
+          return (
+            <div style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1.5, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
+                PREVIEW — AS SEEN BY INVESTORS
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginBottom: 4 }}>{form.title || 'Untitled'}</div>
+              <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{form.message || '…'}</div>
+            </div>
+          )
+        })()}
+
+        <button
+          onClick={send}
+          disabled={sending || !form.title || !form.message}
+          style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '13px 28px', fontWeight: 800, fontSize: 14, cursor: sending ? 'wait' : 'pointer', opacity: !form.title || !form.message ? 0.5 : 1, fontFamily: 'inherit' }}
+        >
+          {sending ? 'Sending...' : '📢 Broadcast to All Investors →'}
+        </button>
+      </div>
+
+      {/* Active broadcasts */}
+      <div style={s.card}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Active Broadcasts ({broadcasts.filter((b: any) => b).length})</div>
+        {broadcasts.length === 0 ? (
+          <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>No active broadcasts</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {broadcasts.map((b: any) => {
+              const cfg = BROADCAST_TYPE_CONFIG[b.type] || BROADCAST_TYPE_CONFIG.INFO
+              return (
+                <div key={b.id} style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, letterSpacing: 1 }}>{cfg.label.toUpperCase()}</span>
+                      <span style={{ fontSize: 10, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
+                        {new Date(b.createdAt).toLocaleString('en-GB')}
+                      </span>
+                      {b.expiresAt && (
+                        <span style={{ fontSize: 10, color: '#64748b', fontFamily: "'JetBrains Mono', monospace" }}>
+                          · Expires {new Date(b.expiresAt).toLocaleString('en-GB')}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0', marginBottom: 4 }}>{b.title}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{b.message}</div>
+                  </div>
+                  <button
+                    onClick={() => deactivate(b.id)}
+                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: 6, padding: '5px 12px', fontSize: 11, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', fontWeight: 600 }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
