@@ -136,7 +136,7 @@ export default function LandingPage() {
         }
       `}</style>
 
-      {/* MODALS*/}
+      {/* MODALS */}
       {modal && (
         <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setModal(null) }}>
           <div className="modal-box">
