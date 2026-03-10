@@ -1,3 +1,4 @@
+// src/app/api/withdrawals/admin/route.ts
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
@@ -9,10 +10,12 @@ export async function GET(req: NextRequest) {
   if (!requireAdmin(auth)) return forbidden()
 
   const payouts = await prisma.$queryRaw<any[]>`
-    SELECT w.*, i."fullName" as "investorName", i."bankName", i."bankAccount"
-    FROM withdrawals w
-    JOIN investors i ON w."investorId" = i.id
-    ORDER BY w."createdAt" DESC
+    SELECT 
+      pr.id, pr.amount, pr.status, pr."batchCode", pr."paymentDone", pr."paidAt", pr."createdAt",
+      i."fullName" as "investorName", i.email, i."walletAddress"
+    FROM payout_requests pr
+    JOIN investors i ON i.id = pr."investorId"
+    ORDER BY pr."createdAt" DESC
   `
   return ok(payouts)
 }
