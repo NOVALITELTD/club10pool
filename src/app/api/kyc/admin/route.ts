@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getAuthFromRequest, requireAdmin } from '@/lib/auth'
 import { ok, error, unauthorized, forbidden } from '@/lib/api'
 import { sendEmail } from '@/lib/email'
-import { notifyInvestorKYCApproved, notifyInvestorKYCRejected, notifyAdminKYC } from '@/lib/whatsapp'
+import { notifyInvestorKYCApproved, notifyInvestorKYCRejected, getInvestorNotifSettings } from '@/lib/whatsapp'
 
 export async function GET(req: NextRequest) {
   const auth = getAuthFromRequest(req)
@@ -54,13 +54,15 @@ export async function PATCH(req: NextRequest) {
     const baseUrl = process.env.NEXTAUTH_URL || ''
     const firstName = investor.fullName?.split(' ')[0] || 'Member'
 
-    // WhatsApp notification (fire and forget)
-    const investorPhone = investor.phone || ''
-    if (action === 'approve') {
-      notifyInvestorKYCApproved(investorPhone, firstName).catch(() => {})
-    } else {
-      notifyInvestorKYCRejected(investorPhone, firstName, adminNotes || undefined).catch(() => {})
-    }
+    // WhatsApp: notify investor on their own CallMeBot key (fire and forget)
+    getInvestorNotifSettings(prisma, investorId).then(notif => {
+      if (!notif?.isVerified || !notif?.notifyKyc) return
+      if (action === 'approve') {
+        notifyInvestorKYCApproved(notif.whatsappNumber, notif.callmebotApiKey, firstName).catch(() => {})
+      } else {
+        notifyInvestorKYCRejected(notif.whatsappNumber, notif.callmebotApiKey, firstName, adminNotes || undefined).catch(() => {})
+      }
+    }).catch(() => {})
 
     // Send approval email
     if (action === 'approve') {
