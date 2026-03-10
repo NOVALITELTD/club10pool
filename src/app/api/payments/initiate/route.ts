@@ -76,8 +76,11 @@ export async function POST(req: NextRequest) {
 
   if (amountUSD <= 0) return error('Invalid payment amount')
 
+  const GATEWAY_FEE = 1 // $1 gateway processing fee
+  const chargeAmount = amountUSD + GATEWAY_FEE // what investor actually pays
+
   const rate = await getUSDtoNGNRate()
-  const amountNGN = Math.ceil(amountUSD * rate)
+  const amountNGN = Math.ceil(chargeAmount * rate)
   const txRef = `C10-${nanoid(12).toUpperCase()}`
 
   // Create NowPayments invoice (hosted payment page, USDT)
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
       'x-api-key': NP_API_KEY,
     },
     body: JSON.stringify({
-      price_amount: amountUSD,
+      price_amount: chargeAmount,
       price_currency: 'usd',
       pay_currency: 'usdttrc20',   // USDT on TRC20 (cheapest fees)
       order_id: txRef,
