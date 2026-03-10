@@ -33,6 +33,27 @@ export default function InvestorDashboard() {
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.data) setUser((prev: any) => ({ ...prev, ...d.data })) })
       .catch(() => {})
+
+    // Background auto-refresh every 5 minutes (silent, no loading spinner)
+    const interval = setInterval(() => {
+      const t = localStorage.getItem('token')
+      if (!t) return
+      const headers = { Authorization: `Bearer ${t}` }
+      Promise.all([
+        fetch('/api/batches', { headers }).then(r => r.ok ? r.json() : null),
+        fetch('/api/transactions/my', { headers }).then(r => r.ok ? r.json() : null),
+        fetch('/api/withdrawals/my', { headers }).then(r => r.ok ? r.json() : null),
+      ]).then(([batchData, txData, wdData]) => {
+        if (batchData?.data) {
+          setBatches(batchData.data)
+          setMyBatch(batchData.data.find((b: any) => b.myMembership) || null)
+        }
+        if (txData?.data) setTransactions(txData.data)
+        if (wdData?.data) setWithdrawal(wdData.data)
+      }).catch(() => {})
+    }, 5 * 60 * 1000)
+
+    return () => clearInterval(interval)
   }, [])
 
   async function loadData(token: string) {
@@ -548,12 +569,13 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   const [error, setError] = useState('')
   const rate = useUsdNgnRate()
 
-  // OTP gate — supports email or TOTP
-  const [otpMethod, setOtpMethod] = useState<'choose'|'email'|'totp'>('choose')
-  const [otpStep, setOtpStep] = useState<'idle'|'sent'|'ready'>('idle')
+  // Dual 2FA gate: step 1 = TOTP (if enabled), step 2 = email OTP always
+  const hasTwoFa = !!user?.twoFaEnabled
+  const [dualStep, setDualStep] = useState<'totp'|'email_otp'>('totp')
   const [otpCode, setOtpCode] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
   const [otpCountdown, setOtpCountdown] = useState(0)
   useEffect(() => {
     if (otpCountdown <= 0) return
@@ -561,9 +583,8 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     return () => clearTimeout(t)
   }, [otpCountdown])
 
-  // If 2FA not enabled, skip choose and default to email
-  const hasTwoFa = !!user?.twoFaEnabled
-  const effectiveMethod = hasTwoFa ? otpMethod : 'email'
+  // If no 2FA, start directly at email OTP
+  const currentStep = hasTwoFa ? dualStep : 'email_otp'
 
   async function requestEmailCode() {
     setOtpLoading(true); setOtpError('')
@@ -575,55 +596,43 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
       })
       const d = await r.json()
       if (!r.ok) { setOtpError(d.error || 'Failed to send code'); return }
-      setOtpStep('sent'); setOtpCountdown(60)
+      setOtpSent(true); setOtpCountdown(60)
     } finally { setOtpLoading(false) }
   }
 
-  function selectMethod(method: 'email' | 'totp') {
-    setOtpMethod(method)
-    setOtpCode(''); setOtpError('')
-    if (method === 'email') {
-      setOtpStep('idle')
-      requestEmailCode()
-    } else {
-      // TOTP — no email needed, just show input
-      setOtpStep('ready')
-    }
-  }
+  // Auto-send email OTP when reaching email step
+  useEffect(() => {
+    if (currentStep === 'email_otp' && !otpSent) requestEmailCode()
+  }, [currentStep])
 
   async function submitWithdrawal() {
     if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
     if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the 6-digit code'); return }
-    setLoading(true); setError('')
+    setOtpLoading(true); setOtpError('')
     try {
-      // For TOTP, verify against 2fa/verify; for email, pass code to withdrawals/confirm
-      if (effectiveMethod === 'totp') {
-        const vr = await fetch('/api/auth/2fa/verify', {
+      if (currentStep === 'totp') {
+        // Step 1: verify TOTP
+        const r = await fetch('/api/auth/2fa/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ investorId: user?.id, token: otpCode }),
         })
-        const vd = await vr.json()
-        if (!vr.ok) { setOtpError(vd.error || 'Invalid authenticator code'); setLoading(false); return }
-        // TOTP verified — now confirm withdrawal without code (pass special marker)
-        const r = await fetch('/api/withdrawals/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ withdrawalId: withdrawal?.id, totpVerified: true }),
-        })
         const d = await r.json()
-        if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
-      } else {
-        const r = await fetch('/api/withdrawals/confirm', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ withdrawalId: withdrawal?.id, code: otpCode }),
-        })
-        const d = await r.json()
-        if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
+        if (!r.ok) { setOtpError(d.error || 'Invalid authenticator code'); return }
+        // Move to email OTP step (email auto-sent by server in verify route... but we use separate for withdrawal)
+        setDualStep('email_otp'); setOtpCode(''); setOtpSent(false)
+        return
       }
+      // Step 2 (or only step if no 2FA): email OTP → confirm withdrawal
+      const r = await fetch('/api/withdrawals/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ withdrawalId: withdrawal?.id, code: otpCode }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
       setSubmitted(true); reload()
-    } finally { setLoading(false) }
+    } finally { setOtpLoading(false) }
   }
 
   if (!withdrawal?.active) return (
@@ -783,22 +792,41 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
         )}
 
         {/* TOTP — show input immediately */}
-        {effectiveMethod === 'totp' && otpStep === 'ready' && (
-          <div>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Enter the 6-digit code from your Google Authenticator app:</div>
-            <input
-              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
-              value={otpCode}
-              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
-              style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(0,212,170,0.4)', borderRadius: 8, padding: '12px 14px', color: '#00d4aa', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
-            />
-            {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setOtpMethod('choose'); setOtpCode(''); setOtpStep('idle') }}
-                style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-                Use email instead
-              </button>
-            </div>
+        {/* Step indicator */}
+        {hasTwoFa && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            {['TOTP', 'Email OTP'].map((label, i) => {
+              const isActive = (i === 0 && currentStep === 'totp') || (i === 1 && currentStep === 'email_otp')
+              const isDone = i === 0 && currentStep === 'email_otp'
+              return (
+                <div key={label} style={{ flex: 1, textAlign: 'center', padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: isDone ? 'rgba(0,212,170,0.1)' : isActive ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.03)', color: isDone ? '#00d4aa' : isActive ? '#c9a84c' : '#475569', border: `1px solid ${isDone ? 'rgba(0,212,170,0.3)' : isActive ? 'rgba(201,168,76,0.3)' : '#1e2530'}` }}>
+                  {isDone ? '✓ ' : `${i+1}. `}{label}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+          {currentStep === 'totp'
+            ? '🔐 Step 1: Enter code from Google Authenticator'
+            : `📧 ${hasTwoFa ? 'Step 2: ' : ''}Enter the 6-digit code sent to your email`}
+        </div>
+        <input
+          type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+          value={otpCode}
+          onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+          style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(0,212,170,0.4)', borderRadius: 8, padding: '12px 14px', color: '#00d4aa', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
+        />
+        {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
+        {currentStep === 'email_otp' && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => { setOtpSent(false); requestEmailCode() }}
+              disabled={otpCountdown > 0}
+              style={{ background: 'none', border: 'none', color: otpCountdown > 0 ? '#334155' : '#64748b', fontSize: 12, cursor: otpCountdown > 0 ? 'default' : 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+              {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend email code'}
+            </button>
           </div>
         )}
       </div>
@@ -807,10 +835,10 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
 
       <button
         onClick={submitWithdrawal}
-        disabled={loading || !user?.walletAddress || otpCode.length !== 6 || (hasTwoFa && otpMethod === 'choose')}
-        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpCode.length !== 6 || !user?.walletAddress || (hasTwoFa && otpMethod === 'choose')) ? 0.4 : 1 }}
+        disabled={otpLoading || !user?.walletAddress || otpCode.length !== 6}
+        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpCode.length !== 6 || !user?.walletAddress) ? 0.4 : 1 }}
       >
-        {loading ? 'Submitting...' : '🔐 Confirm Withdrawal →'}
+        {otpLoading ? 'Verifying...' : currentStep === 'totp' ? '🔐 Verify Authenticator →' : '🔐 Confirm Withdrawal →'}
       </button>
     </div>
   )
