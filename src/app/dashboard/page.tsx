@@ -440,7 +440,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                     )}
                   </div>
                   <div style={{ background: 'rgba(0,212,170,0.05)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
-                    💎 Payment is processed in <strong style={{ color: '#00d4aa' }}>USDT (TRC20)</strong> via NowPayments. You will be redirected to complete the crypto payment.
+                    💎 Payment is processed in <strong style={{ color: '#00d4aa' }}>SOLANA</strong> via NowPayments. You will be redirected to complete the crypto payment.
                   </div>
                   {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
                   <button
@@ -448,7 +448,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                     disabled={payLoading || !amountInput}
                     style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
                   >
-                    {payLoading ? 'Redirecting to payment...' : `💎 Pay $${rounded || cfg.min} in USDT →`}
+                    {payLoading ? 'Redirecting to payment...' : `💎 Pay $${rounded || cfg.min} in SOLANA →`}
                   </button>
                 </>
               )
@@ -537,7 +537,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   const rate = useUsdNgnRate()
 
   async function submitWithdrawal() {
-    if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
+    if (!user?.walletAddress) { setError('Please set your SOLANA wallet address in Settings first.'); return }
     setLoading(true); setError('')
     try {
       const r = await fetch('/api/withdrawals/confirm', {
@@ -567,7 +567,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
         <div style={{ fontSize: 20, fontWeight: 800, color: '#00d4aa', marginBottom: 8 }}>Payment Sent!</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
         <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>USDT has been sent to your wallet. Please check your wallet balance.</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>SOLANA has been sent to your wallet. Please check your wallet balance.</div>
         {user?.walletAddress && (
           <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const }}>
             {user.walletAddress}
@@ -623,14 +623,14 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
       </div>
 
       <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (TON)</div>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to SOLANA Wallet</div>
         {user?.walletAddress ? (
           <div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT TON address. Funds sent to wrong address cannot be recovered.</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct SOLANA address. Funds sent to wrong address cannot be recovered.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT TON wallet address first.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your SOLANA TON wallet address first.</div>
         )}
       </div>
 
@@ -1061,7 +1061,7 @@ function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
         disabled={loading}
         style={{ background: `linear-gradient(135deg,${color},${color}aa)`, color: '#000', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 13, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit' }}
       >
-        {loading ? 'Redirecting...' : `💎 Pay $${amount.toLocaleString()} in USDT →`}
+        {loading ? 'Redirecting...' : `💎 Pay $${amount.toLocaleString()} in SOLANA →`}
       </button>
     </div>
   )
@@ -1166,7 +1166,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             { label: 'Full Name', value: user?.fullName },
             { label: 'Email', value: user?.email },
             { label: 'Phone', value: user?.phone || '—' },
-            { label: 'Wallet (USDT TON)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
+            { label: 'Wallet (SOLANA)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
             { label: 'KYC Status', value: user?.kycStatus },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '10px 0', borderBottom: '1px solid #1e2530', gap: 12 }}>
@@ -1240,16 +1240,16 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <div style={{ borderTop: '1px solid #1e2530', paddingTop: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 14 }}>💎</span>
-              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (TON Network)</span>
+              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — SOLANA (TON Network)</span>
             </div>
 
             {/* Warning */}
             <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#ef4444' }}>
-              ⚠ <strong>Enter your USDT TON Network address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
+              ⚠ <strong>Enter your SOLANA Network address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>USDT Wallet Address (TON Network)</label>
+              <label style={labelStyle}>SOLANA Wallet Address (Solana Network)</label>
               <input
                 style={inputStyle}
                 value={form.walletAddress}
@@ -1262,10 +1262,10 @@ function SettingsSection({ user, token, s, setUser }: any) {
             <div style={{ background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 10, padding: 16, marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <span style={{ fontSize: 16 }}>💡</span>
-                <span style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa' }}>Don't have a USDT wallet?</span>
+                <span style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa' }}>Don't have a SOLANA wallet?</span>
               </div>
               <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.7, marginBottom: 12 }}>
-                We recommend <strong style={{ color: '#e2e8f0' }}>Spenda</strong> — it receives USDT and instantly converts to Naira in your local bank account. Perfect for Nigerian investors.
+                We recommend <strong style={{ color: '#e2e8f0' }}>Spenda</strong> — it receives SOLANA and instantly converts to Naira in your local bank account. Perfect for Nigerian investors.
               </div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
                 <strong style={{ color: '#e2e8f0', display: 'block', marginBottom: 6 }}>How to get started with Spenda:</strong>
@@ -1274,8 +1274,8 @@ function SettingsSection({ user, token, s, setUser }: any) {
                     '1. Download Spenda app (iOS or Android)',
                     '2. Sign up and complete verification',
                     '3. Use referral code below to get started',
-                    '4. Go to Wallet → Receive → Select USDT (TON)',
-                    '5. Copy your TON address and paste it above',
+                    '4. Go to Wallet → Receive → Select SOLANA',
+                    '5. Copy your SOLANA address and paste it above',
                   ].map((step, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ color: '#00d4aa', flexShrink: 0 }}>→</span>
