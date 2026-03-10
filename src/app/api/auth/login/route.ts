@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (!email || !password) return error('Email and password are required')
     const normalizedEmail = email.toLowerCase()
 
-    // ── Admin (User table) ─────────────────────────────────
+    // ── Admin (User table) — Prisma model is fine here ────
     const adminUser = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (adminUser) {
       const valid = await comparePassword(password, adminUser.passwordHash)
@@ -33,56 +33,57 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // ── Investor ───────────────────────────────────────────
-    const investor = await prisma.investor.findUnique({ where: { email: normalizedEmail } })
-    if (!investor) return error('Invalid credentials', 401)
-    if (!investor.passwordHash) return error('Account has no password set. Contact admin.', 401)
+    // ── Investor — single raw query for ALL fields ─────────
+    // Using prisma.investor.findUnique() would miss columns added
+    // after the last prisma generate (twoFaEnabled, lastLoginAt etc.)
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT id, email, "fullName", "passwordHash",
+             "emailVerified", "kycStatus",
+             "twoFaEnabled", "twoFaMethod", "lastLoginAt"
+      FROM investors
+      WHERE LOWER(email) = LOWER(${normalizedEmail})
+      LIMIT 1
+    `
+    if (!rows.length) return error('Invalid credentials', 401)
+    const inv = rows[0]
 
-    const valid = await comparePassword(password, investor.passwordHash)
+    if (!inv.passwordHash) return error('Account has no password set. Contact admin.', 401)
+
+    const valid = await comparePassword(password, inv.passwordHash)
     if (!valid) return error('Invalid credentials', 401)
 
-    // Fetch 2FA fields + emailVerified + kycStatus via raw (not yet in Prisma model)
-    const investorData = await prisma.$queryRaw<any[]>`
-      SELECT "emailVerified", "kycStatus", "twoFaEnabled", "twoFaMethod", "lastLoginAt"
-      FROM investors WHERE id = ${investor.id} LIMIT 1
-    `
-    const row = investorData[0] ?? {}
-    const emailVerified = row.emailVerified ?? false
-    const kycStatus = row.kycStatus ?? 'NOT_SUBMITTED'
-
     // ── 2FA gate ───────────────────────────────────────────
-    // Required if: 2FA enabled AND (never logged in OR last login > 24h ago)
-    const hoursSinceLast = row.lastLoginAt
-      ? (Date.now() - new Date(row.lastLoginAt).getTime()) / 36e5
+    const hoursSinceLast = inv.lastLoginAt
+      ? (Date.now() - new Date(inv.lastLoginAt).getTime()) / 36e5
       : Infinity
-    const require2FA = row.twoFaEnabled && hoursSinceLast > 24
+    const require2FA = inv.twoFaEnabled && hoursSinceLast > 24
 
     if (require2FA) {
       return ok({
         requiresTwoFa: true,
-        twoFaMethod: row.twoFaMethod || 'TOTP',
-        investorId: investor.id,
+        twoFaMethod: inv.twoFaMethod || 'TOTP',
+        investorId: inv.id,
       })
     }
 
     // ── Issue token ────────────────────────────────────────
-    await prisma.$executeRaw`UPDATE investors SET "lastLoginAt" = NOW() WHERE id = ${investor.id}`
+    await prisma.$executeRaw`UPDATE investors SET "lastLoginAt" = NOW() WHERE id = ${inv.id}`
 
-    const token = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
+    const token = signToken({ memberId: inv.id, email: inv.email, isAdmin: false })
     await prisma.auditLog.create({
-      data: { actorId: investor.id, actorEmail: investor.email, action: 'LOGIN' },
+      data: { actorId: inv.id, actorEmail: inv.email, action: 'LOGIN' },
     })
 
     return ok({
       token,
       requiresTwoFa: false,
       member: {
-        id: investor.id,
-        fullName: investor.fullName,
-        email: investor.email,
+        id: inv.id,
+        fullName: inv.fullName,
+        email: inv.email,
         isAdmin: false,
-        emailVerified,
-        kycStatus,
+        emailVerified: inv.emailVerified ?? false,
+        kycStatus: inv.kycStatus ?? 'NOT_SUBMITTED',
       },
     })
 
