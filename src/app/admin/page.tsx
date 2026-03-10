@@ -950,7 +950,7 @@ function InvestorSection({ investors, batches, s }: any) {
       <div style={{ overflowX: 'auto' }}>
         <table style={s.table}>
           <thead>
-            <tr>{['Investor', 'Phone', 'Bank Details', 'KYC Status', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+            <tr>{['Investor', 'Phone', 'Nationality', 'Date of Birth', 'Wallet (Solana)', 'KYC Status', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.map((inv: any) => (
@@ -960,10 +960,13 @@ function InvestorSection({ investors, batches, s }: any) {
                   <div style={{ fontSize: 11, color: '#64748b' }}>{inv.email}</div>
                 </td>
                 <td style={s.td}><span style={{ color: '#94a3b8', fontSize: 12 }}>{inv.phone || '—'}</span></td>
+                <td style={s.td}><span style={{ fontSize: 12, color: '#94a3b8' }}>{inv.nationality || 'Nigeria'}</span></td>
+                <td style={s.td}><span style={{ fontSize: 12, color: '#94a3b8' }}>{inv.dateOfBirth || '—'}</span></td>
                 <td style={s.td}>
-                  {inv.bankName ? (
-                    <div><div style={{ fontSize: 12 }}>{inv.bankName}</div><div style={{ fontSize: 11, color: '#64748b' }}>{inv.bankAccount}</div></div>
-                  ) : <span style={{ color: '#64748b', fontSize: 12 }}>Not set</span>}
+                  {inv.walletAddress
+                    ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }} title={inv.walletAddress}>{inv.walletAddress.slice(0, 8)}...{inv.walletAddress.slice(-5)}</span>
+                    : <span style={{ color: '#475569', fontSize: 12 }}>Not set</span>
+                  }
                 </td>
                 <td style={s.td}><span style={s.tag(inv.kycStatus === 'APPROVED' ? '#00d4aa' : inv.kycStatus === 'PENDING' ? '#f59e0b' : '#ef4444')}>{inv.kycStatus || 'NOT_SUBMITTED'}</span></td>
                 <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(inv.createdAt).toLocaleDateString()}</span></td>
@@ -1141,7 +1144,7 @@ function WithdrawalSection({ batches, token, s }: any) {
             <div style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
-                  <tr>{['Investor', 'Amount', 'USDT Wallet (TON)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                  <tr>{['Investor', 'Amount', 'USDT Wallet (Solana)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {batchPayouts.map((p: any) => (
