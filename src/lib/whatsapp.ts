@@ -1,50 +1,47 @@
 // src/lib/whatsapp.ts
-// Free WhatsApp notifications via CallMeBot API
-// Setup: Admin must send "I allow callmebot to send me messages" to +34 644 597 103 on WhatsApp first
-// Then visit: https://www.callmebot.com/blog/free-api-whatsapp-messages/
-// CallMeBot will reply with your personal API key — set it in env as CALLMEBOT_API_KEY
+// WhatsApp notifications via CallMeBot (free)
+// Setup: https://www.callmebot.com/blog/free-api-whatsapp-messages/
 
 const CALLMEBOT_URL = 'https://api.callmebot.com/whatsapp.php'
 
-// Format Nigerian number: strip leading 0, add +234
-export function formatNigerianWhatsApp(phone: string): string {
+export function formatWhatsAppNumber(phone: string): string {
   const digits = phone.replace(/\D/g, '')
   if (digits.startsWith('234')) return `+${digits}`
   if (digits.startsWith('0') && digits.length === 11) return `+234${digits.slice(1)}`
   if (digits.length === 10) return `+234${digits}`
-  return `+${digits}` // international, pass through
+  return `+${digits}`
 }
 
 export function validateNigerianPhone(phone: string): boolean {
   const digits = phone.replace(/\D/g, '')
-  // Nigerian numbers: 11 digits starting with 0, or 13 digits starting with 234
   return (digits.length === 11 && digits.startsWith('0')) ||
          (digits.length === 13 && digits.startsWith('234')) ||
-         (digits.length === 10) // without leading 0
+         (digits.length === 10)
 }
 
-async function sendWhatsApp(phone: string, message: string, apiKey: string): Promise<void> {
-  const formatted = formatNigerianWhatsApp(phone)
+async function sendWhatsApp(phone: string, apiKey: string, message: string): Promise<boolean> {
+  const formatted = formatWhatsAppNumber(phone)
   const url = `${CALLMEBOT_URL}?phone=${encodeURIComponent(formatted)}&text=${encodeURIComponent(message)}&apikey=${apiKey}`
   try {
     const res = await fetch(url)
-    if (!res.ok) console.error(`WhatsApp send failed for ${formatted}:`, await res.text())
+    return res.ok
   } catch (e) {
-    console.error('WhatsApp notification error:', e)
+    console.error('WhatsApp send error:', e)
+    return false
   }
 }
 
-// ── ADMIN NOTIFICATIONS ────────────────────────────────────────────────────
+// ── ADMIN NOTIFICATIONS (uses env vars) ───────────────────────────────────
 
 export async function notifyAdminWhatsApp(message: string): Promise<void> {
-  const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER
+  const phone = process.env.ADMIN_WHATSAPP_NUMBER
   const apiKey = process.env.CALLMEBOT_API_KEY
-  if (!adminPhone || !apiKey) return
-  await sendWhatsApp(adminPhone, `🏦 *Club10 Pool*\n\n${message}`, apiKey)
+  if (!phone || !apiKey) return
+  await sendWhatsApp(phone, apiKey, `🏦 *Club10 Pool — Admin*\n\n${message}`)
 }
 
-export async function notifyAdminKYC(investorName: string, investorEmail: string): Promise<void> {
-  await notifyAdminWhatsApp(`📋 *KYC Submitted*\n\nInvestor: ${investorName}\nEmail: ${investorEmail}\n\nReview required on admin dashboard.`)
+export async function notifyAdminKYCSubmitted(investorName: string, email: string): Promise<void> {
+  await notifyAdminWhatsApp(`📋 *KYC Submitted*\n\nInvestor: ${investorName}\nEmail: ${email}\n\nReview required on admin dashboard.`)
 }
 
 export async function notifyAdminWithdrawal(investorName: string, amount: number, wallet: string): Promise<void> {
@@ -52,37 +49,50 @@ export async function notifyAdminWithdrawal(investorName: string, amount: number
 }
 
 export async function notifyAdminPoolFull(poolCode: string, category: string, totalAmount: number): Promise<void> {
-  await notifyAdminWhatsApp(`🎯 *Pool Full - Action Required*\n\nPool: ${poolCode}\nCategory: ${category}\nTotal: $${totalAmount}\n\nPlease activate the batch on admin dashboard.`)
+  await notifyAdminWhatsApp(`🎯 *Pool Full — Action Required*\n\nPool: ${poolCode}\nCategory: ${category}\nTotal: $${totalAmount}\n\nPlease activate the batch.`)
 }
 
-export async function notifyAdminNewInvestor(investorName: string, email: string): Promise<void> {
-  await notifyAdminWhatsApp(`👤 *New Registration*\n\nName: ${investorName}\nEmail: ${email}\n\nAwaiting KYC submission.`)
+export async function notifyAdminNewRegistration(investorName: string, email: string): Promise<void> {
+  await notifyAdminWhatsApp(`👤 *New Registration*\n\nName: ${investorName}\nEmail: ${email}`)
 }
 
-// ── INVESTOR NOTIFICATIONS ─────────────────────────────────────────────────
+// ── INVESTOR NOTIFICATIONS (uses investor's own CallMeBot key) ────────────
 
-export async function notifyInvestorWhatsApp(phone: string, message: string): Promise<void> {
-  const apiKey = process.env.CALLMEBOT_INVESTOR_API_KEY || process.env.CALLMEBOT_API_KEY
-  if (!phone || !apiKey) return
-  await sendWhatsApp(phone, `🏦 *Club10 Pool*\n\n${message}`, apiKey)
+export async function notifyInvestor(
+  whatsappNumber: string,
+  apiKey: string,
+  message: string
+): Promise<void> {
+  if (!whatsappNumber || !apiKey) return
+  await sendWhatsApp(whatsappNumber, apiKey, `🏦 *Club10 Pool*\n\n${message}`)
 }
 
-export async function notifyInvestorKYCApproved(phone: string, name: string): Promise<void> {
-  await notifyInvestorWhatsApp(phone, `✅ *KYC Approved*\n\nHi ${name}, your identity has been verified!\n\nYou can now join a pool and start investing. Log in to your dashboard to get started.`)
+export async function notifyInvestorKYCApproved(whatsappNumber: string, apiKey: string, name: string): Promise<void> {
+  await notifyInvestor(whatsappNumber, apiKey,
+    `✅ *KYC Approved!*\n\nHi ${name}, your identity has been verified.\n\nYou can now join a pool. Log in to get started.`)
 }
 
-export async function notifyInvestorKYCRejected(phone: string, name: string, reason?: string): Promise<void> {
-  await notifyInvestorWhatsApp(phone, `❌ *KYC Rejected*\n\nHi ${name}, your KYC submission was not approved.\n\n${reason ? `Reason: ${reason}\n\n` : ''}Please re-submit your documents on the dashboard.`)
+export async function notifyInvestorKYCRejected(whatsappNumber: string, apiKey: string, name: string, reason?: string): Promise<void> {
+  await notifyInvestor(whatsappNumber, apiKey,
+    `❌ *KYC Rejected*\n\nHi ${name}, your KYC was not approved.\n\n${reason ? `Reason: ${reason}\n\n` : ''}Please re-submit your documents on the dashboard.`)
 }
 
-export async function notifyInvestorPaymentConfirmed(phone: string, name: string, amount: number, batchName: string): Promise<void> {
-  await notifyInvestorWhatsApp(phone, `💰 *Payment Confirmed*\n\nHi ${name}, your payment of $${amount} for *${batchName}* has been confirmed!\n\nYou are now an active pool member.`)
+export async function notifyInvestorBatchActive(whatsappNumber: string, apiKey: string, name: string, batchName: string): Promise<void> {
+  await notifyInvestor(whatsappNumber, apiKey,
+    `🚀 *Batch Activated!*\n\nHi ${name}, *${batchName}* is now live.\n\nLog in to access your MT4 trading credentials.`)
 }
 
-export async function notifyInvestorBatchActive(phone: string, name: string, batchName: string): Promise<void> {
-  await notifyInvestorWhatsApp(phone, `🚀 *Your Batch is Live!*\n\nHi ${name}, *${batchName}* has been activated.\n\nLog in to your dashboard to access your MT4 trading credentials.`)
+export async function notifyInvestorWithdrawalProcessed(whatsappNumber: string, apiKey: string, name: string, amount: number): Promise<void> {
+  await notifyInvestor(whatsappNumber, apiKey,
+    `✅ *Withdrawal Sent*\n\nHi ${name}, your withdrawal of $${amount} has been processed to your USDT wallet.`)
 }
 
-export async function notifyInvestorWithdrawalProcessed(phone: string, name: string, amount: number): Promise<void> {
-  await notifyInvestorWhatsApp(phone, `✅ *Withdrawal Processed*\n\nHi ${name}, your withdrawal of $${amount} has been sent to your USDT wallet.\n\nThank you for investing with Club10 Pool.`)
+// ── HELPER: fetch investor notification settings from DB ──────────────────
+
+export async function getInvestorNotifSettings(prisma: any, investorId: string) {
+  const rows = await prisma.$queryRaw<any[]>`
+    SELECT "whatsappNumber", "callmebotApiKey", "notifyKyc", "notifyBatch", "notifyWithdrawal", "isVerified"
+    FROM investor_notifications WHERE "investorId" = ${investorId} LIMIT 1
+  `
+  return rows[0] || null
 }
