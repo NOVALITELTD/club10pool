@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
         isAdmin: false,
         emailVerified: inv.emailVerified ?? false,
         kycStatus: inv.kycStatus ?? 'NOT_SUBMITTED',
+        twoFaEnabled: inv.twoFaEnabled ?? false,
       },
     })
 
