@@ -7,7 +7,7 @@ import { randomBytes } from 'crypto'
 
 export async function POST(req: NextRequest) {
   try {
-    const { fullName, email, password, phone } = await req.json()
+    const { fullName, email, password, phone, nationality, dateOfBirth } = await req.json()
 
     if (!fullName || !email || !password) {
       return error('Full name, email and password are required')
@@ -16,10 +16,24 @@ export async function POST(req: NextRequest) {
       return error('Password must be at least 8 characters')
     }
 
+    // Age validation (DD-MM-YYYY)
+    if (!dateOfBirth) return error('Date of birth is required')
+    const parts = dateOfBirth.split('-')
+    if (parts.length !== 3) return error('Invalid date of birth format (DD-MM-YYYY)')
+    const [dd, mm, yyyy] = parts
+    const birth = new Date(`${yyyy}-${mm}-${dd}`)
+    if (isNaN(birth.getTime())) return error('Invalid date of birth')
+    const today = new Date()
+    let age = today.getFullYear() - birth.getFullYear()
+    const m = today.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--
+    if (age < 18) return error('You must be at least 18 years old to register')
+
     const existing = await prisma.investor.findUnique({ where: { email: email.toLowerCase() } })
     if (existing) return error('Email already registered', 409)
 
     const passwordHash = await hashPassword(password)
+
     const investor = await prisma.investor.create({
       data: {
         fullName,
@@ -29,17 +43,23 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Save nationality + dateOfBirth via raw (not yet in Prisma schema)
+    await prisma.$executeRaw`
+      UPDATE investors
+      SET nationality = ${nationality || 'Nigeria'},
+          "dateOfBirth" = ${dateOfBirth}
+      WHERE id = ${investor.id}
+    `
+
     // Create verification token
     const token = randomBytes(32).toString('hex')
     await prisma.$executeRaw`
       INSERT INTO email_verifications (id, "investorId", token, "expiresAt")
       VALUES (${crypto.randomUUID()}, ${investor.id}, ${token}, ${new Date(Date.now() + 24 * 60 * 60 * 1000)})
     `
-
     await sendVerificationEmail(investor.email, investor.fullName, token)
 
     const authToken = signToken({ memberId: investor.id, email: investor.email, isAdmin: false })
-
     return ok({
       token: authToken,
       member: {
