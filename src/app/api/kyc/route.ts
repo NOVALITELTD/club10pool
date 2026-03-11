@@ -16,12 +16,6 @@ export async function POST(req: NextRequest) {
       return error('All KYC documents are required')
     }
 
-    // Verify investor exists before inserting
-    const investor = await prisma.$queryRaw<any[]>`
-      SELECT id, "fullName", email FROM investors WHERE id = ${auth.memberId} LIMIT 1
-    `
-    if (!investor.length) return error('Investor account not found', 404)
-
     const existing = await prisma.$queryRaw<any[]>`
       SELECT id, status FROM kyc_submissions WHERE "investorId" = ${auth.memberId}
     `
@@ -48,18 +42,10 @@ export async function POST(req: NextRequest) {
         WHERE "investorId" = ${auth.memberId}
       `
     } else {
-      // Fresh insert — include submittedAt explicitly (no default in DB)
+      // Use gen_random_uuid() from Postgres instead of crypto.randomUUID()
       await prisma.$executeRaw`
-        INSERT INTO kyc_submissions (
-          id, "investorId", "idType",
-          "idFrontUrl", "idBackUrl", "passportPhotoUrl", "proofOfAddressUrl",
-          status, "submittedAt"
-        )
-        VALUES (
-          ${crypto.randomUUID()}, ${auth.memberId}, ${idType},
-          ${idFrontUrl}, ${idBackUrl}, ${passportPhotoUrl}, ${proofOfAddressUrl},
-          'PENDING', NOW()
-        )
+        INSERT INTO kyc_submissions (id, "investorId", "idType", "idFrontUrl", "idBackUrl", "passportPhotoUrl", "proofOfAddressUrl")
+        VALUES (gen_random_uuid()::text, ${auth.memberId}, ${idType}, ${idFrontUrl}, ${idBackUrl}, ${passportPhotoUrl}, ${proofOfAddressUrl})
       `
     }
 
@@ -67,9 +53,12 @@ export async function POST(req: NextRequest) {
       UPDATE investors SET "kycStatus" = 'PENDING' WHERE id = ${auth.memberId}
     `
 
-    // Notify admin
-    const inv = investor[0]
-    notifyAdminKYCSubmitted(inv.fullName, inv.email).catch(() => {})
+    const inv = await prisma.$queryRaw<any[]>`
+      SELECT "fullName", email FROM investors WHERE id = ${auth.memberId} LIMIT 1
+    `
+    if (inv.length) {
+      notifyAdminKYCSubmitted(inv[0].fullName, inv[0].email).catch(() => {})
+    }
 
     return ok({ message: 'KYC submitted successfully' }, 201)
   } catch (e) {
@@ -88,3 +77,4 @@ export async function GET(req: NextRequest) {
   `
   return ok(records[0] || null)
 }
+
