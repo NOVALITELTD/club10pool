@@ -715,14 +715,14 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
       </div>
 
       <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (TRC-20)</div>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to Solana Address</div>
         {user?.walletAddress ? (
           <div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT TRC-20 address. Funds sent to wrong address cannot be recovered.</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct Solana address. Funds sent to wrong address cannot be recovered.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT TRC-20 wallet address first.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your Solana wallet address first.</div>
         )}
       </div>
 
@@ -1332,7 +1332,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             { label: 'Full Name', value: user?.fullName },
             { label: 'Email', value: user?.email },
             { label: 'Phone', value: user?.phone || '—' },
-            { label: 'Wallet (USDT TRC-20)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
+            { label: 'Wallet (Solana)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
             { label: 'KYC Status', value: user?.kycStatus },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '10px 0', borderBottom: '1px solid #1e2530', gap: 12 }}>
@@ -1439,7 +1439,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
 
             {/* Warning */}
             <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#ef4444' }}>
-              ⚠ <strong>Enter your USDT TRC-20 (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
+              ⚠ <strong>Enter your Solana (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
             </div>
 
             <div style={{ marginBottom: 16 }}>
