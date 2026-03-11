@@ -481,7 +481,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e2530', paddingTop: 6, fontWeight: 700 }}>
                       <span style={{ color: '#e2e8f0' }}>Total to pay</span><span style={{ color: '#c9a84c' }}>${(rounded || cfg.min) + 1}</span>
                     </div>
-                    <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (Solana)</strong> via NowPayments</div>
+                    <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (TRC-20)</strong> via NowPayments</div>
                   </div>
                   {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
                   <button
@@ -715,14 +715,14 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
       </div>
 
       <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (Solana)</div>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (TRC-20)</div>
         {user?.walletAddress ? (
           <div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT Solana address. Funds sent to wrong address cannot be recovered.</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT TRC-20 address. Funds sent to wrong address cannot be recovered.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT Solana wallet address first.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT TRC-20 wallet address first.</div>
         )}
       </div>
 
@@ -1332,7 +1332,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             { label: 'Full Name', value: user?.fullName },
             { label: 'Email', value: user?.email },
             { label: 'Phone', value: user?.phone || '—' },
-            { label: 'Wallet (USDT Solana)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
+            { label: 'Wallet (USDT TRC-20)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
             { label: 'KYC Status', value: user?.kycStatus },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '10px 0', borderBottom: '1px solid #1e2530', gap: 12 }}>
@@ -1434,21 +1434,21 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <div style={{ borderTop: '1px solid #1e2530', paddingTop: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <span style={{ fontSize: 14 }}>💎</span>
-              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (Solana)</span>
+              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (TRC-20)</span>
             </div>
 
             {/* Warning */}
             <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#ef4444' }}>
-              ⚠ <strong>Enter your USDT Solana (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
+              ⚠ <strong>Enter your USDT TRC-20 (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>USDT Wallet Address (Solana Network)</label>
+              <label style={labelStyle}>USDT Wallet Address (TRC-20 Network)</label>
               <input
                 style={inputStyle}
                 value={form.walletAddress}
                 onChange={e => setForm(p => ({ ...p, walletAddress: e.target.value.trim() }))}
-                placeholder="Solana USDT address (starts with a letter/number)"
+                placeholder="TRC-20 USDT address (starts with a letter/number)"
               />
             </div>
 
@@ -1468,8 +1468,8 @@ function SettingsSection({ user, token, s, setUser }: any) {
                     '1. Download Spenda app (iOS or Android)',
                     '2. Sign up and complete verification',
                     '3. Use referral code below to get started',
-                    '4. Go to Wallet → Receive → Select USDT (Solana)',
-                    '5. Copy your Solana address and paste it above',
+                    '4. Go to Wallet → Receive → Select USDT (TRC-20)',
+                    '5. Copy your TRC-20 address and paste it above',
                   ].map((step, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ color: '#00d4aa', flexShrink: 0 }}>→</span>
