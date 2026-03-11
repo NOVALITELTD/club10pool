@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       price_amount: chargeAmount,
       price_currency: 'usd',
-      pay_currency: 'usdtsol',     // USDT on Solana
+      pay_currency: 'usdttrc20',
       order_id: txRef,
       order_description: description,
       ipn_callback_url: `${APP_URL}/api/payments/webhook`,
