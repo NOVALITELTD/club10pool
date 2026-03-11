@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     const token = randomBytes(32).toString('hex')
 
-    // Omit id — let DB default gen_random_uuid() handle it
+    // Omit id — DB default gen_random_uuid() handles it
     await prisma.$executeRaw`
       INSERT INTO password_resets ("investorId", token, "expiresAt")
       VALUES (${investor.id}, ${token}, ${new Date(Date.now() + 60 * 60 * 1000)})
