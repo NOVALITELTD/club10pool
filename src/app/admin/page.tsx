@@ -978,7 +978,7 @@ function InvestorSection({ investors, batches, s }: any) {
       <div style={{ overflowX: 'auto' }}>
         <table style={s.table}>
           <thead>
-            <tr>{['Investor', 'Phone', 'Nationality', 'Date of Birth', 'Wallet (Solana)', 'KYC Status', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+            <tr>{['Investor', 'Phone', 'Nationality', 'Date of Birth', 'Wallet (TRC-20)', 'KYC Status', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.map((inv: any) => (
@@ -1172,7 +1172,7 @@ function WithdrawalSection({ batches, token, s }: any) {
             <div style={{ overflowX: 'auto' }}>
               <table style={s.table}>
                 <thead>
-                  <tr>{['Investor', 'Amount', 'USDT Wallet (Solana)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                  <tr>{['Investor', 'Amount', 'USDT Wallet (TRC-20)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {batchPayouts.map((p: any) => (
@@ -1394,3 +1394,4 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
