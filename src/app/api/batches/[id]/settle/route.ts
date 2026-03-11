@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   try {
     const body = await req.json()
-    const { closingBalance, reportMonth, notes } = body
+    const { closingBalance, reportMonth, notes, platformFeePercent } = body
 
     if (!closingBalance || !reportMonth) {
       return error('closingBalance and reportMonth are required')
@@ -20,33 +20,45 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const batch = await prisma.batch.findUnique({
       where: { id: params.id },
-      include: { members: true },
+      include: { members: { where: { status: 'ACTIVE' } } },
     })
     if (!batch) return notFound('Batch')
     if (batch.status !== 'ACTIVE') return error('Batch must be ACTIVE to settle')
 
-    // Find withdrawing members (WITHDRAWAL_REQUESTED status)
+    // Use actual collected capital (currentAmount) not targetCapital
+    // This is the real opening balance for the trading account
+    const openingBalance = parseFloat((batch.currentAmount ?? batch.targetCapital).toString())
+
+    if (openingBalance <= 0) return error('Batch has no capital to distribute')
+
+    // Platform fee: admin can pass custom rate, default 5%
+    const platformFeeRate = platformFeePercent
+      ? parseFloat(platformFeePercent) / 100
+      : 0.05
+
     const withdrawingMembers = await prisma.batchMember.findMany({
       where: { batchId: params.id, status: 'WITHDRAWAL_REQUESTED' },
     })
     const withdrawingInvestorIds = withdrawingMembers.map(w => w.investorId)
 
+    // Only distribute among ACTIVE members
     const members = batch.members.map(bm => ({
       batchMemberId: bm.id,
       investorId: bm.investorId,
       capitalAmount: parseFloat(bm.capitalAmount.toString()),
     }))
 
+    if (!members.length) return error('No active members in this batch')
+
     const result = calculateMonthlyDistribution({
-      openingBalance: parseFloat(batch.targetCapital.toString()),
+      openingBalance,
       closingBalance: Number(closingBalance),
-      platformFeeRate: parseFloat(batch.contributionPerMember.toString()) / 100,
+      platformFeeRate,
       members,
       withdrawingInvestorIds,
     })
 
     const [monthlyReport] = await prisma.$transaction(async (tx) => {
-      // 1. Create monthly report
       const mr = await tx.monthlyReport.create({
         data: {
           batchId: params.id,
@@ -54,14 +66,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           openingBalance: result.openingBalance,
           closingBalance: result.closingBalance,
           grossProfit: result.grossProfit,
-          platformFeeRate: 0.05,
+          platformFeeRate,
           platformFee: result.platformFee,
           netProfit: result.netProfit,
           notes,
         },
       })
 
-      // 2. Create profit distribution
       const distribution = await tx.profitDistribution.create({
         data: {
           batchId: params.id,
@@ -71,7 +82,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         },
       })
 
-      // 3. Create profit shares and transactions
       for (const dist of result.distributions) {
         const isWithdrawing = withdrawingInvestorIds.includes(dist.investorId)
 
@@ -85,7 +95,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           },
         })
 
-        // Record profit transaction
         await tx.transaction.create({
           data: {
             investorId: dist.investorId,
@@ -93,13 +102,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             type: 'PROFIT_SHARE',
             status: 'CONFIRMED',
             amount: dist.profitShare,
-            reference: `PROFIT-${batch.name.replace(/\s/g, '')}-${mr.id.slice(-6)}`,
-            notes: `Profit share for ${batch.name}`,
+            reference: `PROFIT-${batch.batchCode}-${mr.id.slice(-6)}`,
+            notes: `Profit share for ${batch.name} — ${result.profitPercent}% return`,
             processedAt: new Date(),
           },
         })
 
-        // If withdrawing: record withdrawal transaction and update status
         if (isWithdrawing) {
           await tx.transaction.create({
             data: {
@@ -108,7 +116,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
               type: 'WITHDRAWAL',
               status: 'CONFIRMED',
               amount: dist.capitalAmount,
-              reference: `WDRAW-${batch.name.replace(/\s/g, '')}-${dist.investorId.slice(-6)}`,
+              reference: `WDRAW-${batch.batchCode}-${dist.investorId.slice(-6)}`,
               notes: `Capital withdrawal from ${batch.name}`,
               processedAt: new Date(),
             },
@@ -121,7 +129,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }
       }
 
-      // 4. Audit
       await tx.auditLog.create({
         data: {
           actorId: auth.memberId,
@@ -131,8 +138,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           metadata: {
             batchId: params.id,
             monthlyReportId: mr.id,
+            openingBalance: result.openingBalance,
+            closingBalance: result.closingBalance,
             grossProfit: result.grossProfit,
+            platformFee: result.platformFee,
             netProfit: result.netProfit,
+            profitPercent: result.profitPercent,
+            memberCount: members.length,
             withdrawals: withdrawingInvestorIds.length,
           },
         },
@@ -141,7 +153,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return [mr]
     })
 
-    return ok({ monthlyReport, distributions: result.distributions })
+    return ok({
+      monthlyReport,
+      openingBalance: result.openingBalance,
+      closingBalance: result.closingBalance,
+      grossProfit: result.grossProfit,
+      platformFee: result.platformFee,
+      netProfit: result.netProfit,
+      profitPercent: result.profitPercent,
+      distributions: result.distributions,
+    })
   } catch (e) {
     console.error(e)
     return error('Server error', 500)
