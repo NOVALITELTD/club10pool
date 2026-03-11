@@ -1,4 +1,4 @@
-// src/app/kyc/route.ts
+// src/app/kyc/route.tsx
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,11 +13,11 @@ const ID_TYPES = [
 
 type FileField = 'idFront' | 'idBack' | 'passportPhoto' | 'proofOfAddress'
 
-const FILE_FIELDS: { key: FileField; label: string; desc: string; required: boolean }[] = [
-  { key: 'idFront', label: 'ID Front', desc: 'Front side of your identity document', required: true },
-  { key: 'idBack', label: 'ID Back', desc: 'Back side of your identity document', required: true },
-  { key: 'passportPhoto', label: 'Passport Photo', desc: 'Clear face photo on white background', required: true },
-  { key: 'proofOfAddress', label: 'Proof of Address', desc: 'Utility bill or bank statement (last 3 months)', required: true },
+const FILE_FIELDS: { key: FileField; label: string; desc: string; required: boolean; acceptPdf?: boolean }[] = [
+  { key: 'idFront', label: 'ID Front', desc: 'Front side of your identity document', required: true, acceptPdf: false },
+  { key: 'idBack', label: 'ID Back', desc: 'Back side of your identity document', required: true, acceptPdf: false },
+  { key: 'passportPhoto', label: 'Passport Photo', desc: 'Clear face photo on white background', required: true, acceptPdf: false },
+  { key: 'proofOfAddress', label: 'Proof of Address', desc: 'Utility bill or bank statement (last 3 months)', required: true, acceptPdf: true },
 ]
 
 const MAX_PER_FILE = 3 * 1024 * 1024  // 3MB
@@ -25,6 +25,32 @@ const MAX_TOTAL   = 5 * 1024 * 1024  // 5MB
 
 function formatMB(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1) + 'MB'
+}
+
+function getFileIcon(file: File | null, fieldKey: FileField) {
+  if (!file) return '📄';
+  
+  // Check if it's a PDF (only for proof of address)
+  if (fieldKey === 'proofOfAddress' && file.type === 'application/pdf') {
+    return '📑'; // PDF icon
+  }
+  
+  // Check if it's an image
+  if (file.type.startsWith('image/')) {
+    return '🖼️'; // Image icon
+  }
+  
+  return '📄'; // Default file icon
+}
+
+function isFileTypeValid(file: File, fieldKey: FileField) {
+  // For proof of address, accept both images and PDFs
+  if (fieldKey === 'proofOfAddress') {
+    return file.type.startsWith('image/') || file.type === 'application/pdf';
+  }
+  
+  // For all other fields, only accept images
+  return file.type.startsWith('image/');
 }
 
 export default function KYCPage() {
@@ -65,6 +91,16 @@ export default function KYCPage() {
   function handleFile(key: FileField, file: File | null) {
     if (!file) return
 
+    // Validate file type
+    if (!isFileTypeValid(file, key)) {
+      if (key === 'proofOfAddress') {
+        setError(`"${file.name}" is not supported. Please upload an image (JPG, PNG) or PDF file.`)
+      } else {
+        setError(`"${file.name}" is not supported. Please upload an image (JPG, PNG).`)
+      }
+      return
+    }
+
     if (file.size > MAX_PER_FILE) {
       setError(`"${file.name}" is ${formatMB(file.size)} — each file must be under 3MB.`)
       return
@@ -73,14 +109,22 @@ export default function KYCPage() {
     const updatedFiles = { ...files, [key]: file }
     const totalSize = getTotalSize(updatedFiles)
     if (totalSize > MAX_TOTAL) {
-      setError(`Total size would be ${formatMB(totalSize)} — all files combined must be under 5MB. Please use smaller or compressed images.`)
+      setError(`Total size would be ${formatMB(totalSize)} — all files combined must be under 5MB. Please use smaller or compressed files.`)
       return
     }
 
     setFiles(updatedFiles)
-    const reader = new FileReader()
-    reader.onload = e => setPreviews(p => ({ ...p, [key]: e.target?.result as string }))
-    reader.readAsDataURL(file)
+    
+    // Only create preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = e => setPreviews(p => ({ ...p, [key]: e.target?.result as string }))
+      reader.readAsDataURL(file)
+    } else {
+      // For PDFs, set a placeholder preview
+      setPreviews(p => ({ ...p, [key]: 'pdf' }))
+    }
+    
     setError('')
   }
 
@@ -94,7 +138,7 @@ export default function KYCPage() {
 
     const totalSize = getTotalSize(files)
     if (totalSize > MAX_TOTAL) {
-      return setError(`Total file size is ${formatMB(totalSize)} — must be under 5MB. Please use smaller or compressed images.`)
+      return setError(`Total file size is ${formatMB(totalSize)} — must be under 5MB. Please use smaller or compressed files.`)
     }
 
     const token = localStorage.getItem('token')
@@ -267,7 +311,7 @@ export default function KYCPage() {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <div style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
-                  Accepted formats: JPG, PNG
+                  Accepted formats: JPG, PNG {files.proofOfAddress?.type === 'application/pdf' ? '' : '(PDF only for Proof of Address)'}
                 </div>
                 <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: totalColor }}>
                   {formatMB(totalSize)} / 5.0MB
@@ -293,21 +337,30 @@ export default function KYCPage() {
                     style={{ border: `1px dashed ${files[field.key] ? 'rgba(0,212,170,0.4)' : 'rgba(201,168,76,0.2)'}`, borderRadius: 10, padding: 16, cursor: 'pointer', background: files[field.key] ? 'rgba(0,212,170,0.04)' : 'rgba(255,255,255,0.02)', minHeight: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, position: 'relative', overflow: 'hidden' }}
                   >
                     {previews[field.key] ? (
-                      <>
-                        <img src={previews[field.key]!} alt={field.label} style={{ width: '100%', height: 100, objectFit: 'cover', borderRadius: 6 }} />
-                        <div style={{ fontSize: 10, color: '#00d4aa', fontFamily: "'JetBrains Mono', monospace" }}>✓ {files[field.key]?.name}</div>
-                      </>
+                      previews[field.key] === 'pdf' ? (
+                        <>
+                          <div style={{ fontSize: 48, opacity: 0.8 }}>📑</div>
+                          <div style={{ fontSize: 10, color: '#00d4aa', fontFamily: "'JetBrains Mono', monospace" }}>✓ {files[field.key]?.name}</div>
+                        </>
+                      ) : (
+                        <>
+                          <img src={previews[field.key]!} alt={field.label} style={{ width: '100%', height: 100, objectFit: 'cover', borderRadius: 6 }} />
+                          <div style={{ fontSize: 10, color: '#00d4aa', fontFamily: "'JetBrains Mono', monospace" }}>✓ {files[field.key]?.name}</div>
+                        </>
+                      )
                     ) : (
                       <>
-                        <div style={{ fontSize: 28, opacity: 0.4 }}>📄</div>
+                        <div style={{ fontSize: 28, opacity: 0.4 }}>{getFileIcon(files[field.key], field.key)}</div>
                         <div style={{ fontSize: 12, color: '#475569', textAlign: 'center' }}>{field.desc}</div>
-                        <div style={{ fontSize: 10, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace" }}>Click to upload</div>
+                        <div style={{ fontSize: 10, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace" }}>
+                          Click to upload {field.acceptPdf ? '(JPG, PNG, PDF)' : '(JPG, PNG)'}
+                        </div>
                       </>
                     )}
                     <input
                       ref={refs[field.key]}
                       type="file"
-                      accept="image/jpeg,image/png,image/jpg"
+                      accept={field.acceptPdf ? "image/jpeg,image/png,image/jpg,application/pdf" : "image/jpeg,image/png,image/jpg"}
                       style={{ display: 'none' }}
                       onChange={e => handleFile(field.key, e.target.files?.[0] || null)}
                     />
