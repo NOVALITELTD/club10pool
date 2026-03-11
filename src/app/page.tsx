@@ -38,7 +38,7 @@ export default function LandingPage() {
 
   const pools = [
     { size: '$100', desc: 'Entry Pool', members: '10', color: '#c9a84c' },
-    { size: '$500', desc: 'Standard Pool', members: '10', color: '#00d4aa' },
+    { size: '$1000', desc: 'Standard Pool', members: '10', color: '#00d4aa' },
     { size: '$5,000', desc: 'Advanced Pool', members: '10', color: '#818cf8' },
     { size: '$10,000', desc: 'Elite Pool', members: '10', color: '#f472b6' },
   ]
