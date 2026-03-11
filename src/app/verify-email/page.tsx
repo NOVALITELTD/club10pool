@@ -1,3 +1,4 @@
+// src/app/verify-email/page.tsx
 'use client'
 import { Suspense } from 'react'
 import { useEffect, useState } from 'react'
@@ -21,12 +22,28 @@ function VerifyEmailContent() {
       .then(d => {
         if (d.success) {
           setStatus('success')
+
+          // If a JWT token is returned, update localStorage so user stays logged in
+          if (d.data?.token) {
+            localStorage.setItem('token', d.data.token)
+          }
+
+          // Update emailVerified flag if user object exists
           const user = localStorage.getItem('user')
           if (user) {
             const parsed = JSON.parse(user)
             localStorage.setItem('user', JSON.stringify({ ...parsed, emailVerified: true }))
           }
-          setTimeout(() => router.push('/kyc'), 2000)
+
+          // Check if user has a valid token — if yes go to KYC, if not go to login
+          const hasToken = !!localStorage.getItem('token')
+          setTimeout(() => {
+            if (hasToken) {
+              router.push('/kyc')
+            } else {
+              router.push('/login?verified=1')
+            }
+          }, 2500)
         } else {
           setStatus('error')
         }
@@ -35,21 +52,32 @@ function VerifyEmailContent() {
   }, [])
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center', padding: 40 }}>
-        {status === 'loading' && <div style={{ color: 'var(--accent)', fontSize: 16 }}>Verifying your email...</div>}
+    <div style={{ minHeight: '100vh', background: '#06080d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace' }}>
+      <div style={{ textAlign: 'center', padding: 40, maxWidth: 440 }}>
+        {status === 'loading' && (
+          <div style={{ color: '#c9a84c', fontSize: 16 }}>Verifying your email...</div>
+        )}
         {status === 'success' && (
           <div>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>Email Verified!</div>
-            <div style={{ color: 'var(--muted)', marginTop: 8 }}>Redirecting to KYC setup...</div>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 32 }}>✓</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#e2e8f0', marginBottom: 8 }}>Email Verified!</div>
+            <div style={{ color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
+              Your email has been confirmed.<br />
+              Redirecting you now...
+            </div>
           </div>
         )}
         {status === 'error' && (
           <div>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✕</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#ef4444' }}>Invalid or expired link</div>
-            <button onClick={() => router.push('/login')} style={{ marginTop: 16, background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8, padding: '10px 24px', fontWeight: 700, cursor: 'pointer' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 32 }}>✕</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#ef4444', marginBottom: 8 }}>Invalid or Expired Link</div>
+            <div style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>
+              This verification link has expired or already been used. Please log in and request a new one.
+            </div>
+            <button
+              onClick={() => router.push('/login')}
+              style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 8, padding: '12px 28px', fontWeight: 800, cursor: 'pointer', fontSize: 14 }}
+            >
               Back to Login
             </button>
           </div>
@@ -61,7 +89,11 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div style={{ color: 'var(--accent)' }}>Loading...</div></div>}>
+    <Suspense fallback={
+      <div style={{ minHeight: '100vh', background: '#06080d', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#c9a84c' }}>Loading...</div>
+      </div>
+    }>
       <VerifyEmailContent />
     </Suspense>
   )
