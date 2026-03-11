@@ -1,3 +1,4 @@
+// src/app/api/kyc/upload/route.ts
 import { NextRequest } from 'next/server'
 import { v2 as cloudinary } from 'cloudinary'
 import { verifyToken } from '@/lib/auth'
@@ -9,21 +10,27 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 })
 
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+const ALLOWED_PROOF_TYPES = [...ALLOWED_IMAGE_TYPES, 'application/pdf']
+const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
 async function uploadToCloudinary(
   buffer: Buffer,
   fileName: string,
-  investorId: string
+  investorId: string,
+  isPdf: boolean
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: `club10-kyc/${investorId}`,
         public_id: fileName,
-        resource_type: 'auto',
+        resource_type: isPdf ? 'raw' : 'image',
         access_mode: 'authenticated',
+        ...(isPdf ? {} : { format: 'jpg', quality: 'auto' }),
       },
-      (error, result) => {
-        if (error) return reject(error)
+      (err, result) => {
+        if (err) return reject(err)
         resolve(result!.secure_url)
       }
     )
@@ -41,18 +48,35 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData()
     const investorId = payload.memberId
 
-    const fileFields = ['idFront', 'idBack', 'passportPhoto', 'proofOfAddress']
+    const IMAGE_ONLY_FIELDS = ['idFront', 'idBack', 'passportPhoto']
+    const PROOF_FIELD = 'proofOfAddress'
+    const allFields = [...IMAGE_ONLY_FIELDS, PROOF_FIELD]
+
     const results: Record<string, string> = {}
 
-    for (const field of fileFields) {
+    for (const field of allFields) {
       const file = formData.get(field) as File | null
       if (!file) continue
 
-      const buffer = Buffer.from(await file.arrayBuffer())
-      const ext = file.name.split('.').pop() || 'jpg'
-      const fileName = field
+      if (file.size > MAX_FILE_SIZE) {
+        return error(`${field} exceeds 5MB limit`)
+      }
 
-      const url = await uploadToCloudinary(buffer, fileName, investorId)
+      const mimeType = file.type
+
+      if (field === PROOF_FIELD) {
+        if (!ALLOWED_PROOF_TYPES.includes(mimeType)) {
+          return error('Proof of address must be an image (JPG, PNG, WEBP) or PDF')
+        }
+      } else {
+        if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+          return error(`${field} must be an image (JPG, PNG, WEBP) — PDFs not accepted here`)
+        }
+      }
+
+      const isPdf = mimeType === 'application/pdf'
+      const buffer = Buffer.from(await file.arrayBuffer())
+      const url = await uploadToCloudinary(buffer, field, investorId, isPdf)
       results[field] = url
     }
 
@@ -62,4 +86,3 @@ export async function POST(req: NextRequest) {
     return error(err.message || 'Upload failed')
   }
 }
-
