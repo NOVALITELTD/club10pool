@@ -325,7 +325,7 @@ export default function LoginPage() {
             {[
               { step: '1', text: 'Check your email and click the verification link', icon: '📨' },
               { step: '2', text: 'Complete your KYC verification to start investing', icon: '🪪' },
-              { step: '3', text: 'Fund your account and join an active pool', icon: '💰' },
+              { step: '3', text: 'Join an active pool', icon: '💰' },
             ].map((item, i) => (
               <div key={i} style={{ 
                 display: 'flex', 
@@ -370,7 +370,16 @@ export default function LoginPage() {
             animation: 'fadeUp 0.5s ease 0.6s both'
           }}>
             <Link 
-              href="/login" 
+              href="/login"
+              onClick={() => {
+                setRegistrationSuccess(false);
+                setTab('login');
+                setForm({
+                  fullName: '', email: '', password: '', phone: '',
+                  whatsapp: '', nationality: 'Nigeria', dateOfBirth: '',
+                });
+                setDobRaw('');
+              }}
               style={{ 
                 background: 'linear-gradient(135deg,#c9a84c,#a07830)', 
                 color: '#000', 
@@ -407,41 +416,6 @@ export default function LoginPage() {
               Open Email →
             </button>
           </div>
-          
-          {/* Help Text */}
-          <p style={{ 
-            marginTop: 32, 
-            fontSize: 12, 
-            color: '#475569',
-            animation: 'fadeUp 0.5s ease 0.7s both'
-          }}>
-            Didn't receive the email? Check your spam folder or{' '}
-            <button 
-              onClick={async () => {
-                try {
-                  await fetch('/api/auth/resend-verification', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: form.email }),
-                  })
-                  alert('Verification email resent! Please check your inbox.')
-                } catch {
-                  alert('Failed to resend email. Please try again later.')
-                }
-              }}
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                color: '#c9a84c', 
-                textDecoration: 'underline', 
-                cursor: 'pointer',
-                fontSize: 12,
-                fontFamily: "'Syne', Georgia, serif"
-              }}
-            >
-              click here to resend
-            </button>
-          </p>
         </div>
         
         {/* Add animations */}
@@ -838,3 +812,4 @@ function TermsContent() {
     </div>
   )
 }
+
