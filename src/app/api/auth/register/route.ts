@@ -14,10 +14,9 @@ export async function POST(req: NextRequest) {
     if (!fullName || !email || !password) return error('Full name, email and password are required')
     if (password.length < 8) return error('Password must be at least 8 characters')
 
-    // WhatsApp validation
     if (!whatsapp) return error('WhatsApp number is required')
     if (!validateNigerianPhone(whatsapp)) {
-      return error('Please enter a valid WhatsApp number (e.g. 08012345678 — 11 digits for Nigerian numbers)')
+      return error('Please enter a valid WhatsApp number (e.g. 08012345678 - 11 digits for Nigerian numbers)')
     }
 
     if (!dateOfBirth) return error('Date of birth is required')
@@ -40,11 +39,13 @@ export async function POST(req: NextRequest) {
       data: { fullName, email: email.toLowerCase(), phone: phone || null, passwordHash },
     })
 
+    // Set extra fields not in original schema via raw update
     await prisma.$executeRaw`
       UPDATE investors
-      SET nationality = ${nationality || 'Nigeria'},
+      SET nationality   = ${nationality || 'Nigeria'},
           "dateOfBirth" = ${dateOfBirth},
-          phone = COALESCE(${whatsapp}, phone)
+          whatsapp      = ${whatsapp},
+          phone         = COALESCE(${phone || null}, phone)
       WHERE id = ${investor.id}
     `
 
@@ -75,11 +76,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Email verification
+    // Email verification — omit id column, let DB default gen_random_uuid() handle it
     const token = randomBytes(32).toString('hex')
     await prisma.$executeRaw`
-      INSERT INTO email_verifications (id, "investorId", token, "expiresAt")
-      VALUES (${crypto.randomUUID()}, ${investor.id}, ${token}, ${new Date(Date.now() + 24 * 60 * 60 * 1000)})
+      INSERT INTO email_verifications ("investorId", token, "expiresAt")
+      VALUES (${investor.id}, ${token}, ${new Date(Date.now() + 24 * 60 * 60 * 1000)})
     `
     await sendVerificationEmail(investor.email, investor.fullName, token)
 
