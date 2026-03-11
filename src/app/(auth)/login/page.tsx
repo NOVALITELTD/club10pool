@@ -1,3 +1,4 @@
+// src/app/(auth)/login/page.tsx
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -74,6 +75,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
 
   // 2FA state
   const [twoFa, setTwoFa] = useState<TwoFaState>(null)
@@ -192,11 +194,14 @@ export default function LoginPage() {
       })
       const d = await r.json()
       if (!r.ok) return setError(d.error || 'Registration failed')
+      
       localStorage.setItem('token', d.data.token)
       localStorage.setItem('user', JSON.stringify(d.data.member))
       // Clear pending referral code after use
       if (d.data.referralPoolJoined) localStorage.removeItem('pendingReferral')
-      setSuccess('Account created! Please check your email to verify your account.')
+      
+      // Show full-screen success message instead of just a notification
+      setRegistrationSuccess(true)
     } catch { setError('Server error') } finally { setLoading(false) }
   }
 
@@ -231,6 +236,227 @@ export default function LoginPage() {
     fontSize: 10, color: '#64748b', display: 'block',
     marginBottom: 7, letterSpacing: 1.5, textTransform: 'uppercase' as const,
     fontFamily: "'JetBrains Mono', monospace",
+  }
+
+  // Registration Success Full-Screen View
+  if (registrationSuccess) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#06080d', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: "'Syne', Georgia, serif" }}>
+        <div style={{ textAlign: 'center', maxWidth: 520 }}>
+          {/* Success Animation */}
+          <div style={{ 
+            width: 100, 
+            height: 100, 
+            borderRadius: '50%', 
+            background: 'rgba(0,212,170,0.1)', 
+            border: '2px solid rgba(0,212,170,0.3)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto 32px',
+            fontSize: 48,
+            animation: 'scaleIn 0.5s ease'
+          }}>
+            ✓
+          </div>
+          
+          <h1 style={{ 
+            fontSize: 36, 
+            fontWeight: 800, 
+            color: '#e2e8f0', 
+            marginBottom: 16,
+            letterSpacing: -0.5,
+            animation: 'fadeUp 0.5s ease 0.2s both'
+          }}>
+            Account Created Successfully! 🎉
+          </h1>
+          
+          <p style={{ 
+            color: '#94a3b8', 
+            fontSize: 16, 
+            lineHeight: 1.7, 
+            marginBottom: 32,
+            animation: 'fadeUp 0.5s ease 0.3s both'
+          }}>
+            Welcome to Nova-Lite Club10 Pool! We've sent a verification email to <strong style={{ color: '#c9a84c' }}>{form.email}</strong>.
+          </p>
+          
+          {/* Email Verification Card */}
+          <div style={{ 
+            background: 'rgba(201,168,76,0.06)', 
+            border: '1px solid rgba(201,168,76,0.15)', 
+            borderRadius: 16, 
+            padding: '28px 24px', 
+            marginBottom: 32,
+            animation: 'fadeUp 0.5s ease 0.4s both'
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 16 }}>📧</div>
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>
+              Verify Your Email Address
+            </h3>
+            <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>
+              We've sent a verification link to your email. Please check your inbox and click the link to activate your account.
+            </p>
+            <div style={{ 
+              background: '#0d1117', 
+              borderRadius: 10, 
+              padding: '12px 16px',
+              border: '1px solid rgba(255,255,255,0.05)',
+              fontSize: 13,
+              color: '#64748b',
+              fontFamily: "'JetBrains Mono', monospace"
+            }}>
+              ✉️ {form.email}
+            </div>
+          </div>
+          
+          {/* What's Next Section */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: 16,
+            marginBottom: 32,
+            animation: 'fadeUp 0.5s ease 0.5s both'
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#c9a84c', textTransform: 'uppercase', letterSpacing: 2 }}>
+              Next Steps
+            </div>
+            
+            {[
+              { step: '1', text: 'Check your email and click the verification link', icon: '📨' },
+              { step: '2', text: 'Complete your KYC verification to start investing', icon: '🪪' },
+              { step: '3', text: 'Fund your account and join an active pool', icon: '💰' },
+            ].map((item, i) => (
+              <div key={i} style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 16,
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: 12,
+                padding: '16px 20px',
+                border: '1px solid rgba(255,255,255,0.03)'
+              }}>
+                <div style={{ 
+                  width: 40, 
+                  height: 40, 
+                  borderRadius: '50%', 
+                  background: 'rgba(201,168,76,0.1)',
+                  border: '1px solid rgba(201,168,76,0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 20,
+                  flexShrink: 0
+                }}>
+                  {item.icon}
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: 11, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginBottom: 2 }}>
+                    STEP {item.step}
+                  </div>
+                  <div style={{ fontSize: 14, color: '#e2e8f0' }}>
+                    {item.text}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Action Buttons */}
+          <div style={{ 
+            display: 'flex', 
+            gap: 16, 
+            justifyContent: 'center',
+            animation: 'fadeUp 0.5s ease 0.6s both'
+          }}>
+            <Link 
+              href="/login" 
+              style={{ 
+                background: 'linear-gradient(135deg,#c9a84c,#a07830)', 
+                color: '#000', 
+                border: 'none', 
+                borderRadius: 12, 
+                padding: '16px 32px', 
+                fontWeight: 800, 
+                fontSize: 15, 
+                textDecoration: 'none',
+                display: 'inline-block',
+                flex: 1,
+                maxWidth: 200
+              }}
+            >
+              Go to Login →
+            </Link>
+            <button
+              onClick={() => window.open('https://mail.google.com', '_blank')}
+              style={{ 
+                background: 'transparent', 
+                border: '1px solid rgba(201,168,76,0.3)', 
+                color: '#e2e8f0', 
+                borderRadius: 12, 
+                padding: '16px 32px', 
+                fontWeight: 600, 
+                fontSize: 15, 
+                cursor: 'pointer',
+                flex: 1,
+                maxWidth: 200,
+                transition: 'all 0.2s',
+                fontFamily: "'Syne', Georgia, serif"
+              }}
+            >
+              Open Email →
+            </button>
+          </div>
+          
+          {/* Help Text */}
+          <p style={{ 
+            marginTop: 32, 
+            fontSize: 12, 
+            color: '#475569',
+            animation: 'fadeUp 0.5s ease 0.7s both'
+          }}>
+            Didn't receive the email? Check your spam folder or{' '}
+            <button 
+              onClick={async () => {
+                try {
+                  await fetch('/api/auth/resend-verification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: form.email }),
+                  })
+                  alert('Verification email resent! Please check your inbox.')
+                } catch {
+                  alert('Failed to resend email. Please try again later.')
+                }
+              }}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: '#c9a84c', 
+                textDecoration: 'underline', 
+                cursor: 'pointer',
+                fontSize: 12,
+                fontFamily: "'Syne', Georgia, serif"
+              }}
+            >
+              click here to resend
+            </button>
+          </p>
+        </div>
+        
+        {/* Add animations */}
+        <style>{`
+          @keyframes scaleIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+          }
+          @keyframes fadeUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+        `}</style>
+      </div>
+    )
   }
 
   return (
@@ -409,7 +635,7 @@ export default function LoginPage() {
                     <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span> {error}
                   </div>
                 )}
-                {success && (
+                {success && !registrationSuccess && (
                   <div style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#00d4aa', fontSize: 13, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <span style={{ flexShrink: 0 }}>✓</span> {success}
                   </div>
