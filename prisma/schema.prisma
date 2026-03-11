@@ -167,7 +167,7 @@ model BatchMember {
   investorId              String
   status                  MemberStatus @default(ACTIVE)
   capitalAmount           Decimal
-  sharePercent            Decimal
+  sharePercent            Decimal?
   joinedAt                DateTime     @default(now())
   withdrawalRequestedAt   DateTime?
   withdrawnAt             DateTime?
@@ -240,7 +240,7 @@ model ProfitShare {
   distributionId String
   batchMemberId  String
   capitalAmount  Decimal
-  sharePercent   Decimal
+  sharePercent   Decimal?
   profitAmount   Decimal
   transactionRef String?
 
