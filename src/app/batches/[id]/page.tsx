@@ -1,3 +1,4 @@
+//src/app/batches/[id]/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
@@ -82,7 +83,7 @@ export default function BatchDetailPage() {
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
       <Sidebar />
       <main style={{ marginLeft: 220, flex: 1, padding: '32px 40px' }}>
-        <a href="/batches" style={{ fontSize: 12, color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: 20 }}>← All Batches</a>
+        <a href="/batches" style={{ fontSize: 16, color: 'var(--muted)', textDecoration: 'none', display: 'inline-block', marginBottom: 20 }}>← All Batches</a>
 
         {msg && (
           <div style={{ background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.3)', borderRadius: 8, padding: '10px 16px', marginBottom: 20, color: 'var(--accent)', fontSize: 13 }}>
@@ -96,8 +97,8 @@ export default function BatchDetailPage() {
             <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: -1 }}>{batch.name}</h1>
             <div style={{ display: 'flex', gap: 12, marginTop: 8, alignItems: 'center' }}>
               <Badge status={batch.status} />
-              {batch.brokerName && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Broker: {batch.brokerName}</span>}
-              {batch.tradingAccountId && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Account: {batch.tradingAccountId}</span>}
+              {batch.brokerName && <span style={{ fontSize: 16, color: 'var(--muted)' }}>Broker: {batch.brokerName}</span>}
+              {batch.tradingAccountId && <span style={{ fontSize: 16, color: 'var(--muted)' }}>Account: {batch.tradingAccountId}</span>}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
@@ -242,7 +243,7 @@ export default function BatchDetailPage() {
                     </button>
                   ) : <span style={{ fontSize: 11, color: 'var(--accent)' }}>✓ Distributed</span>}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 16 }}>
                   <div><span style={{ color: 'var(--muted)' }}>Gross Profit: </span><span style={{ fontFamily: 'JetBrains Mono', color: parseFloat(r.grossProfit) >= 0 ? 'var(--accent)' : '#ef4444' }}>{fmt(r.grossProfit)}</span></div>
                   <div><span style={{ color: 'var(--muted)' }}>Net Profit: </span><span style={{ fontFamily: 'JetBrains Mono', fontWeight: 700, color: 'var(--accent)' }}>{fmt(r.netProfit)}</span></div>
                   <div><span style={{ color: 'var(--muted)' }}>Fee: </span><span style={{ fontFamily: 'JetBrains Mono' }}>{fmt(r.platformFee)}</span></div>
