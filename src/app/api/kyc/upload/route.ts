@@ -29,7 +29,6 @@ async function uploadToCloudinary(
         folder: `club10-kyc/${investorId}`,
         public_id: publicId,
         resource_type: isPdf ? 'raw' : 'image',
-        access_mode: 'authenticated',
         overwrite: true,
         ...(isPdf ? {} : { format: 'jpg', quality: 'auto' }),
       },
@@ -90,3 +89,4 @@ export async function POST(req: NextRequest) {
     return error(err.message || 'Upload failed')
   }
 }
+
