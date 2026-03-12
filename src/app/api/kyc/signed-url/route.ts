@@ -39,7 +39,7 @@ const isPdf = publicId.toLowerCase().endsWith('.pdf')
 
 const signedUrl = cloudinary.url(publicId, {
   resource_type: resourceType,
-  type: isPdf ? 'authenticated' : 'upload',
+  type: 'upload',
   sign_url: true,
   secure: true,
   expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
@@ -51,6 +51,7 @@ const signedUrl = cloudinary.url(publicId, {
     return error(err.message || 'Failed to generate signed URL')
   }
 }
+
 
 
 
