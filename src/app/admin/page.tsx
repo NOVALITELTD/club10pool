@@ -628,7 +628,7 @@ function KycDocViewer({ url, label, token }: { url: string; label: string; token
             <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div>
           </div>
           
-            href={url}
+            <a href={url}
             download
             target="_blank"
             rel="noreferrer"
@@ -1437,6 +1437,7 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
 
 
