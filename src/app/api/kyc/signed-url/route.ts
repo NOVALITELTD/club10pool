@@ -19,9 +19,6 @@ export async function POST(req: NextRequest) {
     const { url } = await req.json()
     if (!url || typeof url !== 'string') return error('Missing url')
 
-    // Extract public_id and resource_type from the Cloudinary URL
-    // e.g. https://res.cloudinary.com/CLOUD/raw/upload/s--SIG--/v123/club10-kyc/ID/proofOfAddress.pdf
-    //   or https://res.cloudinary.com/CLOUD/image/upload/s--SIG--/v123/club10-kyc/ID/idFront.jpg
     const rawMatch = url.match(/\/raw\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
     const imageMatch = url.match(/\/image\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
 
@@ -32,19 +29,21 @@ export async function POST(req: NextRequest) {
       publicId = rawMatch[1]
       resourceType = 'raw'
     } else if (imageMatch) {
-      // Strip file extension for image public_id
       publicId = imageMatch[1].replace(/\.[^.]+$/, '')
       resourceType = 'image'
     } else {
       return error('Could not parse Cloudinary URL')
     }
 
-    // Generate a signed URL valid for 60 minutes
-    const signedUrl = cloudinary.utils.private_download_url(publicId, '', {
-      resource_type: resourceType,
-      expires_at: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
-      attachment: false, // inline view, not download
-    })
+    const signedUrl = cloudinary.utils.private_download_url(
+      publicId,
+      resourceType === 'raw' ? 'pdf' : '',  // ← the only change from your version
+      {
+        resource_type: resourceType,
+        expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+        attachment: false,
+      }
+    )
 
     return ok({ signedUrl })
   } catch (err: any) {
