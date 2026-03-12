@@ -1,3 +1,4 @@
+//src/app/admin/page.tsx
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -596,14 +597,71 @@ function ReferralAdminSection({ referralPools, token, s, reload }: any) {
     </div>
   )
 }
+function KycDocViewer({ url, label, token }: { url: string; label: string; token: string }) {
+  const [loading, setLoading] = useState(false)
+  const [signingError, setSigningError] = useState('')
 
+  const isPdf = url.includes('/raw/') || url.toLowerCase().endsWith('.pdf')
+
+  async function openSigned() {
+    setLoading(true); setSigningError('')
+    try {
+      const r = await fetch('/api/kyc/signed-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ url }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setSigningError(d.error || 'Failed to get link'); return }
+      window.open(d.data.signedUrl, '_blank')
+    } catch { setSigningError('Network error') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
+      {isPdf ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+          <span style={{ fontSize: 28 }}>📄</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 2 }}>{label}</div>
+            <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div>
+          </div>
+          <button onClick={openSigned} disabled={loading}
+            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? '...' : '🔗 View PDF'}
+          </button>
+        </div>
+      ) : (
+        <>
+          <div onClick={openSigned} style={{ cursor: loading ? 'wait' : 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
+            <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; const fb = el.nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex' }} />
+            <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}>
+              <span style={{ fontSize: 28 }}>🖼</span><span>Click to open</span>
+            </div>
+            <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>
+              {loading ? '⏳ Loading...' : '🔍 View Full'}
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+            <button onClick={openSigned} disabled={loading} style={{ background: 'none', border: 'none', fontSize: 11, color: '#c9a84c', cursor: 'pointer', padding: 0 }}>
+              {loading ? 'Loading...' : 'Open ↗'}
+            </button>
+          </div>
+        </>
+      )}
+      {signingError && <div style={{ fontSize: 11, color: '#ef4444', padding: '4px 14px 8px' }}>⚠ {signingError}</div>}
+    </div>
+  )
+}
 // ── KYC ──────────────────────────────────────────────────
 function KYCSection({ kycList, token, s, reload }: any) {
   const [selected, setSelected] = useState<any>(null)
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState('PENDING')
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   async function handleAction(action: 'approve' | 'reject') {
     if (!selected) return
@@ -622,10 +680,10 @@ function KYCSection({ kycList, token, s, reload }: any) {
   const idTypeLabel: any = { voters_card: "Voter's Card", nin: 'NIN', drivers_licence: "Driver's Licence", international_passport: 'Int. Passport' }
 
   const docs = selected ? [
-    { label: 'ID Front', url: getStorageUrl(selected.idFrontUrl) },
-    { label: 'ID Back', url: getStorageUrl(selected.idBackUrl) },
-    { label: 'Passport Photo', url: getStorageUrl(selected.passportPhotoUrl) },
-    { label: 'Proof of Address', url: getStorageUrl(selected.proofOfAddressUrl) },
+    { label: 'ID Front',         url: selected.idFrontUrl },
+    { label: 'ID Back',          url: selected.idBackUrl },
+    { label: 'Passport Photo',   url: selected.passportPhotoUrl },
+    { label: 'Proof of Address', url: selected.proofOfAddressUrl },
   ].filter(d => d.url) : []
 
   return (
@@ -680,31 +738,15 @@ function KYCSection({ kycList, token, s, reload }: any) {
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ID Type: {idTypeLabel[selected.idType] || selected.idType}</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Documents</div>
-              {docs.map(doc => (
-                <div key={doc.label} style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
-                  <div onClick={() => setPreviewUrl(doc.url)} style={{ cursor: 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
-                    <img src={doc.url} alt={doc.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={e => {
-                        const el = e.target as HTMLImageElement
-                        el.style.display = 'none'
-                        const fb = el.nextElementSibling as HTMLElement
-                        if (fb) fb.style.display = 'flex'
-                      }}
-                    />
-                    <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}>
-                      <span style={{ fontSize: 28 }}>📄</span><span>Click to open</span>
-                    </div>
-                    <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>🔍 Preview</div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>{doc.label}</span>
-                    <a href={doc.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#c9a84c', textDecoration: 'none' }}>Open ↗</a>
-                  </div>
-                </div>
-              ))}
-              {docs.length === 0 && <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>No documents found</div>}
-            </div>
+  <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Documents</div>
+  {docs.map(doc => (
+    <KycDocViewer key={doc.label} url={doc.url} label={doc.label} token={token} />
+  ))}
+  {docs.length === 0 && (
+    <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>No documents found</div>
+  )}
+</div>
+            
             {selected.status === 'PENDING' && (
               <>
                 <div>
@@ -1394,4 +1436,5 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
