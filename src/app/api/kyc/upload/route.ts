@@ -21,12 +21,16 @@ async function uploadToCloudinary(
   isPdf: boolean
 ): Promise<string> {
   return new Promise((resolve, reject) => {
+    // For PDFs: append .pdf to public_id so Cloudinary stores/serves it with extension
+    const publicId = isPdf ? `${fileName}.pdf` : fileName
+
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: `club10-kyc/${investorId}`,
-        public_id: fileName,
+        public_id: publicId,
         resource_type: isPdf ? 'raw' : 'image',
         access_mode: 'authenticated',
+        overwrite: true,
         ...(isPdf ? {} : { format: 'jpg', quality: 'auto' }),
       },
       (err, result) => {
