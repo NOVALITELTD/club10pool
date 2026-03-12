@@ -1,3 +1,4 @@
+//src/app/batches/page.tsx
 'use client';
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
@@ -50,7 +51,7 @@ export default function BatchesPage() {
           <div>
             <div style={{ fontSize: 11, color: 'var(--accent)', letterSpacing: 3, marginBottom: 4 }}>MANAGEMENT</div>
             <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: -1 }}>Batches</h1>
-            <p style={{ color: 'var(--muted)', marginTop: 6, fontSize: 14 }}>Create and manage investment pool batches</p>
+            <p style={{ color: 'var(--muted)', marginTop: 6, fontSize: 16 }}>Create and manage investment pool batches</p>
           </div>
           <button onClick={() => setShowForm(!showForm)} style={{
             background: 'var(--accent)', color: '#000', border: 'none', borderRadius: 8,
@@ -100,8 +101,8 @@ export default function BatchesPage() {
               <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--accent)', letterSpacing: 2, marginBottom: 4 }}>{b.batchCode}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700 }}>{b.name}</div>
-                  {b.description && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{b.description}</div>}
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>{b.name}</div>
+                  {b.description && <div style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>{b.description}</div>}
                 </div>
                 <Badge status={b.status} />
               </div>
@@ -109,13 +110,13 @@ export default function BatchesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Members</div>
-                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: 700 }}>
+                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: 700 }}>
                       {b._count.members}<span style={{ color: 'var(--muted)', fontSize: 13 }}>/{b.targetMembers}</span>
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Capital/Member</div>
-                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: 18, fontWeight: 700 }}>{fmt(b.contributionPerMember)}</div>
+                    <div style={{ fontFamily: 'JetBrains Mono', fontSize: 20, fontWeight: 700 }}>{fmt(b.contributionPerMember)}</div>
                   </div>
                   <div>
                     <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Target Capital</div>
