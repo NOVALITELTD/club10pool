@@ -1,7 +1,9 @@
 // src/app/(auth)/login/page.tsx
 'use client'
 import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type Tab = 'login' | 'register' | 'forgot'
@@ -62,8 +64,10 @@ function completeLogin(router: any, token: string, member: any) {
   return 'ok'
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const emailJustVerified = searchParams.get('verified') === '1'
   const [tab, setTab] = useState<Tab>('login')
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', phone: '',
@@ -572,6 +576,11 @@ export default function LoginPage() {
                 >
                   ← Back to Sign In
                 </button>
+                {emailJustVerified && (
+  <div style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#00d4aa', fontSize: 13, display: 'flex', gap: 8 }}>
+    <span>✓</span> Email verified! Please sign in to complete your KYC setup.
+  </div>
+)}
               </div>
             ) : (
               <>
@@ -810,6 +819,13 @@ function TermsContent() {
         <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7 }}>By clicking "I Agree", you confirm you are 18+, have read and understood all terms above, acknowledge the risks of forex trading, and agree to participate under these conditions.</div>
       </div>
     </div>
+  )
+}
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#06080d' }} />}>
+      <LoginPageContent />
+    </Suspense>
   )
 }
 
