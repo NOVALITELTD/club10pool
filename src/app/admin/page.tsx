@@ -618,40 +618,47 @@ function KycDocViewer({ url, label, token }: { url: string; label: string; token
     finally { setLoading(false) }
   }
 
-  return (
-    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
-      {isPdf ? (
+  if (isPdf) {
+    return (
+      <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
           <span style={{ fontSize: 28 }}>📄</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 2 }}>{label}</div>
             <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div>
           </div>
-          <button onClick={openSigned} disabled={loading}
-            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-            {loading ? '...' : '🔗 View PDF'}
-          </button>
+          
+            href={url}
+            download
+            target="_blank"
+            rel="noreferrer"
+            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer', textDecoration: 'none' }}
+          >
+            ⬇ Download PDF
+          </a>
         </div>
-      ) : (
-        <>
-          <div onClick={openSigned} style={{ cursor: loading ? 'wait' : 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
-            <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; const fb = el.nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex' }} />
-            <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}>
-              <span style={{ fontSize: 28 }}>🖼</span><span>Click to open</span>
-            </div>
-            <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>
-              {loading ? '⏳ Loading...' : '🔍 View Full'}
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
-            <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
-            <button onClick={openSigned} disabled={loading} style={{ background: 'none', border: 'none', fontSize: 11, color: '#c9a84c', cursor: 'pointer', padding: 0 }}>
-              {loading ? 'Loading...' : 'Open ↗'}
-            </button>
-          </div>
-        </>
-      )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
+      <div onClick={openSigned} style={{ cursor: loading ? 'wait' : 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
+        <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; const fb = el.nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex' }} />
+        <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}>
+          <span style={{ fontSize: 28 }}>🖼</span><span>Click to open</span>
+        </div>
+        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>
+          {loading ? '⏳ Loading...' : '🔍 View Full'}
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+        <button onClick={openSigned} disabled={loading} style={{ background: 'none', border: 'none', fontSize: 11, color: '#c9a84c', cursor: 'pointer', padding: 0 }}>
+          {loading ? 'Loading...' : 'Open ↗'}
+        </button>
+      </div>
       {signingError && <div style={{ fontSize: 11, color: '#ef4444', padding: '4px 14px 8px' }}>⚠ {signingError}</div>}
     </div>
   )
@@ -1430,6 +1437,7 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
 
 
