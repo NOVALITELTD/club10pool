@@ -35,18 +35,22 @@ export async function POST(req: NextRequest) {
       return error('Could not parse Cloudinary URL')
     }
 
+const isPdf = publicId.toLowerCase().endsWith('.pdf')
+
 const signedUrl = cloudinary.url(publicId, {
   resource_type: resourceType,
-  type: 'upload',
+  type: isPdf ? 'authenticated' : 'upload',
   sign_url: true,
   secure: true,
   expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
 })
+    
     return ok({ signedUrl })
   } catch (err: any) {
     console.error('Signed URL error:', err)
     return error(err.message || 'Failed to generate signed URL')
   }
 }
+
 
 
