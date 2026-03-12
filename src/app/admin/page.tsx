@@ -618,28 +618,38 @@ function KycDocViewer({ url, label, token }: { url: string; label: string; token
     finally { setLoading(false) }
   }
 
-  if (isPdf) {
-    return (
-      <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-          <span style={{ fontSize: 28 }}>📄</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 2 }}>{label}</div>
-            <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div>
-          </div>
-          
-            <a href={url}
-            download
-            target="_blank"
-            rel="noreferrer"
-            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer', textDecoration: 'none' }}
-          >
-            ⬇ Download PDF
-          </a>
+if (isPdf) {
+  return (
+    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+        <span style={{ fontSize: 28 }}>📄</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 2 }}>{label}</div>
+          <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div>
         </div>
+        <button
+          onClick={async () => {
+            try {
+              const res = await fetch(url)
+              const blob = await res.blob()
+              const blobUrl = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = blobUrl
+              a.download = `${label.replace(/\s+/g, '-')}.pdf`
+              a.click()
+              URL.revokeObjectURL(blobUrl)
+            } catch {
+              window.open(url, '_blank')
+            }
+          }}
+          style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
+        >
+          ⬇ Download PDF
+        </button>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   return (
     <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
@@ -1437,6 +1447,7 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
 
 
