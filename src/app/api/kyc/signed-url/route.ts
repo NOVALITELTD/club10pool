@@ -22,36 +22,29 @@ export async function POST(req: NextRequest) {
     const rawMatch = url.match(/\/raw\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
     const imageMatch = url.match(/\/image\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
 
-    let publicId: string
-    let resourceType: 'raw' | 'image'
-
+    // For raw/PDF files — use fl_attachment transformation to force download
     if (rawMatch) {
-      publicId = rawMatch[1]
-      resourceType = 'raw'
-    } else if (imageMatch) {
-      publicId = imageMatch[1]
-      resourceType = 'image'
-    } else {
+      const downloadUrl = url.replace('/raw/upload/', '/raw/upload/fl_attachment/')
+      return ok({ signedUrl: downloadUrl })
+    }
+
+    if (!imageMatch) {
       return error('Could not parse Cloudinary URL')
     }
 
-const isPdf = publicId.toLowerCase().endsWith('.pdf')
+    const publicId = imageMatch[1]
 
-const signedUrl = cloudinary.url(publicId, {
-  resource_type: resourceType,
-  type: 'upload',
-  sign_url: true,
-  secure: true,
-  expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
-})
-    
+    const signedUrl = cloudinary.url(publicId, {
+      resource_type: 'image',
+      type: 'upload',
+      sign_url: true,
+      secure: true,
+      expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+    })
+
     return ok({ signedUrl })
   } catch (err: any) {
     console.error('Signed URL error:', err)
     return error(err.message || 'Failed to generate signed URL')
   }
 }
-
-
-
-
