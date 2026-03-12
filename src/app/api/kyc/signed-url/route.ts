@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       publicId = rawMatch[1]
       resourceType = 'raw'
     } else if (imageMatch) {
-      publicId = imageMatch[1].replace(/\.[^.]+$/, '')
+      publicId = imageMatch[1]
       resourceType = 'image'
     } else {
       return error('Could not parse Cloudinary URL')
@@ -51,3 +51,4 @@ export async function POST(req: NextRequest) {
     return error(err.message || 'Failed to generate signed URL')
   }
 }
+
