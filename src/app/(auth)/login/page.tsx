@@ -225,7 +225,7 @@ function LoginPageContent() {
 
   const inputStyle = {
     width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.15)',
-    borderRadius: 8, padding: '11px 14px', color: '#e2e8f0', fontSize: 14,
+    borderRadius: 8, padding: '11px 14px', color: '#e2e8f0', fontSize: 16,
     boxSizing: 'border-box' as const, outline: 'none', transition: 'border-color 0.2s',
     fontFamily: "'Syne', Georgia, serif",
   }
@@ -235,7 +235,7 @@ function LoginPageContent() {
     backgroundRepeat: 'no-repeat', backgroundPosition: 'right 14px center', paddingRight: 36,
   }
   const labelStyle = {
-    fontSize: 10, color: '#64748b', display: 'block',
+    fontSize: 12, color: '#64748b', display: 'block',
     marginBottom: 7, letterSpacing: 1.5, textTransform: 'uppercase' as const,
     fontFamily: "'JetBrains Mono', monospace",
   }
@@ -296,7 +296,7 @@ function LoginPageContent() {
             <h3 style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 12 }}>
               Verify Your Email Address
             </h3>
-            <p style={{ color: '#94a3b8', fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>
+            <p style={{ color: '#94a3b8', fontSize: 16, lineHeight: 1.7, marginBottom: 16 }}>
               We've sent a verification link to your email. Please check your inbox and click the link to activate your account.
             </p>
             <div style={{ 
@@ -320,7 +320,7 @@ function LoginPageContent() {
             marginBottom: 32,
             animation: 'fadeUp 0.5s ease 0.5s both'
           }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#c9a84c', textTransform: 'uppercase', letterSpacing: 2 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#c9a84c', textTransform: 'uppercase', letterSpacing: 2 }}>
               Next Steps
             </div>
             
@@ -356,7 +356,7 @@ function LoginPageContent() {
                   <div style={{ fontSize: 11, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginBottom: 2 }}>
                     STEP {item.step}
                   </div>
-                  <div style={{ fontSize: 14, color: '#e2e8f0' }}>
+                  <div style={{ fontSize: 16, color: '#e2e8f0' }}>
                     {item.text}
                   </div>
                 </div>
@@ -495,13 +495,13 @@ function LoginPageContent() {
                 { icon: '⟁', text: 'Withdraw monthly with zero penalties' },
               ].map(item => (
                 <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c9a84c', fontSize: 14, flexShrink: 0 }}>{item.icon}</div>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c9a84c', fontSize: 16, flexShrink: 0 }}>{item.icon}</div>
                   <span style={{ fontSize: 13, color: '#94a3b8' }}>{item.text}</span>
                 </div>
               ))}
             </div>
           </div>
-          <div style={{ position: 'absolute', bottom: 40, left: 80, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: '#334155' }}>
+          <div style={{ position: 'absolute', bottom: 40, left: 80, fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: '#334155' }}>
             Built on Transparency. Driven by Integrity.
           </div>
         </div>
@@ -531,7 +531,7 @@ function LoginPageContent() {
                     }
                   </div>
                   {twoFa.method === 'EMAIL' && emailOtpSent && (
-                    <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 8 }}>✓ Code sent to your email</div>
+                    <div style={{ fontSize: 14, color: '#00d4aa', marginTop: 8 }}>✓ Code sent to your email</div>
                   )}
                 </div>
 
@@ -554,7 +554,7 @@ function LoginPageContent() {
                 <button
                   onClick={handleTwoFaVerify}
                   disabled={twoFaLoading || twoFaCode.length !== 6}
-                  style={{ width: '100%', background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: twoFaCode.length === 6 ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: twoFaLoading || twoFaCode.length !== 6 ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", transition: 'all 0.2s' }}
+                  style={{ width: '100%', background: twoFaCode.length === 6 ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: twoFaCode.length === 6 ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 16, cursor: twoFaLoading || twoFaCode.length !== 6 ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", transition: 'all 0.2s' }}
                 >
                   {twoFaLoading ? 'Verifying...' : 'Verify & Sign In →'}
                 </button>
@@ -562,7 +562,7 @@ function LoginPageContent() {
                 {twoFa.method === 'EMAIL' && (
                   <button
                     onClick={() => sendEmailOtp(twoFa.investorId)}
-                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Syne', Georgia, serif", textAlign: 'center' }}
+                    style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Syne', Georgia, serif", textAlign: 'center' }}
                   >
                     Resend code to email
                   </button>
@@ -570,7 +570,7 @@ function LoginPageContent() {
 
                 <button
                   onClick={() => { setTwoFa(null); setTwoFaCode(''); setError('') }}
-                  style={{ background: 'none', border: 'none', color: '#475569', fontSize: 12, cursor: 'pointer', fontFamily: "'Syne', Georgia, serif", textAlign: 'center' }}
+                  style={{ background: 'none', border: 'none', color: '#475569', fontSize: 14, cursor: 'pointer', fontFamily: "'Syne', Georgia, serif", textAlign: 'center' }}
                 >
                   ← Back to Sign In
                 </button>
@@ -600,7 +600,7 @@ function LoginPageContent() {
 
                 {tab === 'forgot' && (
                   <div style={{ marginBottom: 28 }}>
-                    <button onClick={() => { setTab('login'); setError(''); setSuccess('') }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, fontFamily: "'Syne', Georgia, serif" }}>
+                    <button onClick={() => { setTab('login'); setError(''); setSuccess('') }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 20, fontFamily: "'Syne', Georgia, serif" }}>
                       ← Back to Sign In
                     </button>
                     <div style={{ textAlign: 'center' }}>
@@ -633,10 +633,10 @@ function LoginPageContent() {
                       <label style={labelStyle}>Password</label>
                       <input type="password" style={inputStyle} value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="••••••••" onKeyDown={e => e.key === 'Enter' && handleLogin(e)} />
                     </div>
-                    <button onClick={handleLogin} disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4, fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.2s' }}>
+                    <button onClick={handleLogin} disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, marginTop: 4, fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.2s' }}>
                       {loading ? 'Signing in...' : 'Sign In →'}
                     </button>
-                    <button onClick={() => { setTab('forgot'); setError(''); setSuccess('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Syne', Georgia, serif", textAlign: 'center' }}>
+                    <button onClick={() => { setTab('forgot'); setError(''); setSuccess('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer', textDecoration: 'underline', fontFamily: "'Syne', Georgia, serif", textAlign: 'center' }}>
                       Forgot your password?
                     </button>
                   </div>
@@ -668,8 +668,8 @@ function LoginPageContent() {
                           value={dobRaw} onChange={e => handleDobChange(e.target.value)}
                           placeholder="DD-MM-YYYY" maxLength={10}
                         />
-                        {age !== null && age < 18 && age > 0 && <div style={{ fontSize: 10, color: '#ef4444', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Must be 18+</div>}
-                        {age !== null && age >= 18 && <div style={{ fontSize: 10, color: '#00d4aa', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Age: {age} ✓</div>}
+                        {age !== null && age < 18 && age > 0 && <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Must be 18+</div>}
+                        {age !== null && age >= 18 && <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Age: {age} ✓</div>}
                       </div>
                     </div>
                     <div>
@@ -682,7 +682,7 @@ function LoginPageContent() {
                         placeholder="08012345678"
                         maxLength={14}
                       />
-                      <div style={{ fontSize: 10, color: '#475569', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <div style={{ fontSize: 12, color: '#475569', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
                         Nigerian: 11 digits starting with 0 (e.g. 08012345678)
                       </div>
                     </div>
@@ -706,7 +706,7 @@ function LoginPageContent() {
                     </div>
                     <button
                       onClick={handleRegister} disabled={loading || !agreedToTerms}
-                      style={{ width: '100%', background: agreedToTerms ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: agreedToTerms ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: loading || !agreedToTerms ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.3s' }}
+                      style={{ width: '100%', background: agreedToTerms ? 'linear-gradient(135deg,#c9a84c,#a07830)' : 'rgba(201,168,76,0.2)', color: agreedToTerms ? '#000' : '#64748b', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 16, cursor: loading || !agreedToTerms ? 'not-allowed' : 'pointer', fontFamily: "'Syne', Georgia, serif", letterSpacing: 0.5, transition: 'all 0.3s' }}
                     >
                       {loading ? 'Creating Account...' : 'Create Account →'}
                     </button>
@@ -720,7 +720,7 @@ function LoginPageContent() {
                       <label style={labelStyle}>Email Address</label>
                       <input type="email" style={inputStyle} value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" />
                     </div>
-                    <button onClick={handleForgot} disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, fontFamily: "'Syne', Georgia, serif" }}>
+                    <button onClick={handleForgot} disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 16, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, fontFamily: "'Syne', Georgia, serif" }}>
                       {loading ? 'Sending...' : 'Send Reset Link →'}
                     </button>
                   </div>
@@ -743,7 +743,7 @@ function LoginPageContent() {
             <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 17, color: '#e2e8f0' }}>Terms & Conditions</div>
-                <div style={{ fontSize: 10, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2, marginTop: 2 }}>CLUB10 POOL AGREEMENT</div>
+                <div style={{ fontSize: 12, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", letterSpacing: 2, marginTop: 2 }}>CLUB10 POOL AGREEMENT</div>
               </div>
               <button onClick={() => setShowTerms(false)} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 36, height: 36, cursor: 'pointer', color: '#94a3b8', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
             </div>
@@ -774,8 +774,8 @@ function TermsContent() {
   return (
     <div style={{ fontFamily: "'Syne', Georgia, serif" }}>
       <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '14px 18px', marginBottom: 24 }}>
-        <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>⚠ Risk Warning</div>
-        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>Forex trading involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. Only invest funds you can afford to lose entirely.</div>
+        <div style={{ fontSize: 14, color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>⚠ Risk Warning</div>
+        <div style={{ fontSize: 14, color: '#94a3b8', lineHeight: 1.6 }}>Forex trading involves substantial risk of loss and is not suitable for all investors. Past performance is not indicative of future results. Only invest funds you can afford to lose entirely.</div>
       </div>
       <div style={{ fontSize: 11, color: '#475569', fontFamily: "'JetBrains Mono', monospace", marginBottom: 20 }}>Last Updated: January 2025 · Nova-Lite Ltd</div>
       <h2 style={s.h2}>1. Introduction & Acceptance</h2>
@@ -813,8 +813,8 @@ function TermsContent() {
       <h2 style={s.h2}>12. Governing Law</h2>
       <p style={s.p}>These terms are governed by the laws of the Federal Republic of Nigeria. Any disputes shall be resolved through the appropriate legal channels in Nigeria.</p>
       <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '16px 18px', marginTop: 24 }}>
-        <div style={{ fontSize: 12, color: '#c9a84c', fontWeight: 700, marginBottom: 6 }}>Agreement Summary</div>
-        <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7 }}>By clicking "I Agree", you confirm you are 18+, have read and understood all terms above, acknowledge the risks of forex trading, and agree to participate under these conditions.</div>
+        <div style={{ fontSize: 14, color: '#c9a84c', fontWeight: 700, marginBottom: 6 }}>Agreement Summary</div>
+        <div style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7 }}>By clicking "I Agree", you confirm you are 18+, have read and understood all terms above, acknowledge the risks of forex trading, and agree to participate under these conditions.</div>
       </div>
     </div>
   )
@@ -826,5 +826,4 @@ export default function LoginPage() {
     </Suspense>
   )
 }
-
 
