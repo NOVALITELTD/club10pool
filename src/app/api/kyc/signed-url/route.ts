@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const signedUrl = cloudinary.utils.private_download_url(
       publicId,
-      resourceType === 'raw' ? 'pdf' : '',  // ← the only change from your version
+      '',
       {
         resource_type: resourceType,
         expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
@@ -51,4 +51,5 @@ export async function POST(req: NextRequest) {
     return error(err.message || 'Failed to generate signed URL')
   }
 }
+
 
