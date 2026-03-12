@@ -35,19 +35,18 @@ export async function POST(req: NextRequest) {
       return error('Could not parse Cloudinary URL')
     }
 
+const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60
+
 const signedUrl = cloudinary.url(publicId, {
   resource_type: resourceType,
   type: 'authenticated',
   sign_url: true,
-  expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+  expires_at: expiresAt,
+  secure: true,
 })
-
     return ok({ signedUrl })
   } catch (err: any) {
     console.error('Signed URL error:', err)
     return error(err.message || 'Failed to generate signed URL')
   }
 }
-
-
-
