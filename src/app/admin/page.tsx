@@ -629,19 +629,31 @@ if (isPdf) {
         </div>
         <button
           onClick={async () => {
-            try {
-              const res = await fetch(url)
-              const blob = await res.blob()
-              const blobUrl = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = blobUrl
-              a.download = `${label.replace(/\s+/g, '-')}.pdf`
-              a.click()
-              URL.revokeObjectURL(blobUrl)
-            } catch {
-              window.open(url, '_blank')
-            }
-          }}
+  try {
+    // Get a signed URL first
+    const r = await fetch('/api/kyc/signed-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ url }),
+    })
+    const d = await r.json()
+    const signedUrl = d.data?.signedUrl || url
+
+    // Fetch the actual file using the signed URL
+    const res = await fetch(signedUrl)
+    if (!res.ok) { window.open(signedUrl, '_blank'); return }
+    const blob = await res.blob()
+    if (blob.size === 0) { window.open(signedUrl, '_blank'); return }
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = `${label.replace(/\s+/g, '-')}.pdf`
+    a.click()
+    URL.revokeObjectURL(blobUrl)
+  } catch {
+    window.open(url, '_blank')
+  }
+}}
           style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
         >
           ⬇ Download PDF
@@ -1447,6 +1459,7 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
 
 
