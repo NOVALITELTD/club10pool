@@ -35,15 +35,12 @@ export async function POST(req: NextRequest) {
       return error('Could not parse Cloudinary URL')
     }
 
-    const signedUrl = cloudinary.utils.private_download_url(
-      publicId,
-      '',
-      {
-        resource_type: resourceType,
-        expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
-        attachment: false,
-      }
-    )
+const signedUrl = cloudinary.url(publicId, {
+  resource_type: resourceType,
+  type: 'authenticated',
+  sign_url: true,
+  expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
+})
 
     return ok({ signedUrl })
   } catch (err: any) {
@@ -51,5 +48,6 @@ export async function POST(req: NextRequest) {
     return error(err.message || 'Failed to generate signed URL')
   }
 }
+
 
 
