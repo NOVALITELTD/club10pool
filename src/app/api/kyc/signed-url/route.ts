@@ -19,15 +19,18 @@ export async function POST(req: NextRequest) {
     const { url } = await req.json()
     if (!url || typeof url !== 'string') return error('Missing url')
 
-    const rawMatch = url.match(/\/raw\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
-    const imageMatch = url.match(/\/image\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
-
-    // For raw/PDF files — use fl_attachment transformation to force download
-    if (rawMatch) {
-      const downloadUrl = url.replace('/raw/upload/', '/raw/upload/fl_attachment/')
-      return ok({ signedUrl: downloadUrl })
+    // Supabase URLs — return as-is, already public
+    if (url.includes('supabase.co/storage')) {
+      return ok({ signedUrl: url })
     }
 
+    // Raw/PDF Cloudinary URLs — return as-is (public bucket)
+    if (url.includes('/raw/upload/')) {
+      return ok({ signedUrl: url })
+    }
+
+    // Image URLs — generate signed URL
+    const imageMatch = url.match(/\/image\/upload\/(?:s--[^/]+--\/)?(?:v\d+\/)?(.+)$/)
     if (!imageMatch) {
       return error('Could not parse Cloudinary URL')
     }
