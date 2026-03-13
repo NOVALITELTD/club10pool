@@ -78,32 +78,34 @@ function PaymentVerifyContent() {
     </div>
   )
 
-  if (status === 'success') return (
-    <div style={base}>
-      <div style={{ textAlign: 'center', maxWidth: 480 }}>
-        <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 36 }}>✓</div>
-        <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 8, color: '#00d4aa' }}>Payment Confirmed!</div>
-        <div style={{ color: '#64748b', fontSize: 14, lineHeight: 1.7, marginBottom: 28 }}>
-          Your payment of <strong style={{ color: '#c9a84c' }}>${Number(data?.amountUSD).toLocaleString()}</strong>{' '}
-          (₦{Number(data?.amountNGN).toLocaleString()}) has been confirmed.
-          You are now an active member of the pool.
-        </div>
-        {data?.poolCategory && (
-          <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, fontSize: 13, color: '#94a3b8' }}>
-            📊 Pool: <strong style={{ color: '#c9a84c' }}>{data.poolCategory}</strong>
-            {data.poolStatus === 'FULL' && (
-              <div style={{ marginTop: 8, color: '#f59e0b' }}>
-                ⏳ Pool is full — awaiting admin activation. You'll receive trading details by email once activated.
-              </div>
-            )}
-          </div>
-        )}
-        <Link href="/dashboard" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#00d4aa,#0099aa)', color: '#000', fontWeight: 800, fontSize: 14, padding: '14px 36px', borderRadius: 10, textDecoration: 'none' }}>
-          Go to Dashboard →
-        </Link>
+if (status === 'success') return (
+  <div style={base}>
+    <div style={{ textAlign: 'center', maxWidth: 480 }}>
+      <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 36 }}>✓</div>
+      <div style={{ fontSize: 26, fontWeight: 800, marginBottom: 8, color: '#00d4aa' }}>Payment Confirmed!</div>
+      <div style={{ color: '#64748b', fontSize: 14, lineHeight: 1.7, marginBottom: 28 }}>
+        Your contribution of{' '}
+        <strong style={{ color: '#c9a84c' }}>${Number(data?.amountUSD).toLocaleString()}</strong>
+        {' '}has been confirmed via USDT (total charged: <strong style={{ color: '#e2e8f0' }}>${(Number(data?.amountUSD) + 1).toLocaleString()}</strong> incl. $1 gateway fee).
+        You are now an active member of the pool.
       </div>
+      {data?.poolCategory && (
+        <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '14px 20px', marginBottom: 24, fontSize: 13, color: '#94a3b8' }}>
+          📊 Pool: <strong style={{ color: '#c9a84c' }}>{data.poolCategory}</strong>
+          {data.poolName && <span style={{ color: '#64748b' }}> · {data.poolName}</span>}
+          {data.poolStatus === 'FULL' && (
+            <div style={{ marginTop: 8, color: '#f59e0b' }}>
+              ⏳ Pool is full — awaiting admin activation. You'll receive trading details by email once activated.
+            </div>
+          )}
+        </div>
+      )}
+      <Link href="/dashboard" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#00d4aa,#0099aa)', color: '#000', fontWeight: 800, fontSize: 14, padding: '14px 36px', borderRadius: 10, textDecoration: 'none' }}>
+        Go to Dashboard →
+      </Link>
     </div>
-  )
+  </div>
+)
 
   if (status === 'failed') return (
     <div style={base}>
