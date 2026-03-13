@@ -289,31 +289,111 @@ export default function AdminDashboard() {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────
+// DROP-IN REPLACEMENT for OverviewSection in src/app/admin/page.tsx
+// Replace the entire `function OverviewSection(...)` block with this.
+
+const CATEGORY_CONFIG_OVERVIEW: Record<string, { label: string; color: string; icon: string }> = {
+  CENT:         { label: '$100 Pool',    color: '#00d4aa', icon: '💎' },
+  STANDARD_1K:  { label: '$1,000 Pool',  color: '#818cf8', icon: '⭐' },
+  STANDARD_5K:  { label: '$5,000 Pool',  color: '#f59e0b', icon: '🏆' },
+  STANDARD_10K: { label: '$10,000 Pool', color: '#c9a84c', icon: '👑' },
+}
+
 function OverviewSection({ stats, batches, investors, kycList, referralPools, s, setSection }: any) {
   const pendingKyc = kycList.filter((k: any) => k.status === 'PENDING').length
   const activeBatches = batches.filter((b: any) => b.status === 'ACTIVE').length
   const fullPools = referralPools.filter((p: any) => p.status === 'FULL').length
-  const totalCapital = batches.reduce((sum: number, b: any) => sum + parseFloat(b.targetCapital || 0), 0)
   const rate = useUsdNgnRate()
+
+  const activeCapital: number = stats?.activeCapital ?? 0
+  const allTimeCapital: number = stats?.allTimeCapital ?? 0
+  const capitalByCategory: Record<string, number> = stats?.capitalByCategory ?? {}
+  const allTimeByCategory: Record<string, number> = stats?.allTimeByCategory ?? {}
+
+  const allCategories = Array.from(
+    new Set([...Object.keys(capitalByCategory), ...Object.keys(allTimeByCategory)])
+  )
 
   return (
     <div>
+      {/* Top stat cards */}
       <div style={s.grid4}>
         {[
           { label: 'Total Investors', value: investors.length, usd: null, color: '#c9a84c', icon: '◎' },
           { label: 'Active Batches', value: activeBatches, usd: null, color: '#00d4aa', icon: '⬡' },
-          { label: 'Total Capital', value: `$${totalCapital.toLocaleString()}`, usd: totalCapital, color: '#818cf8', icon: '◈' },
+          { label: 'Active Capital', value: `$${activeCapital.toLocaleString()}`, usd: activeCapital, color: '#818cf8', icon: '◈', sub: 'Currently in live pools' },
           { label: 'Pending KYC', value: pendingKyc, usd: null, color: '#f59e0b', icon: '⊡' },
         ].map(stat => (
           <div key={stat.label} style={s.statCard}>
-            <div style={{ fontSize: 24, color: stat.color }}>{stat.icon}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
-            {stat.usd !== null && <NgnEquiv usd={stat.usd as number} rate={rate} />}
+            <div style={{ fontSize: 22, color: stat.color }}>{stat.icon}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
+            {stat.usd !== null && stat.usd > 0 && <NgnEquiv usd={stat.usd as number} rate={rate} />}
             <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>{stat.label}</div>
+            {(stat as any).sub && <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{(stat as any).sub}</div>}
           </div>
         ))}
       </div>
 
+      {/* Capital breakdown card */}
+      <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(129,140,248,0.2)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 4 }}>💰 Capital Summary</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>Active = funds in live batches · All-time = total ever deposited</div>
+          </div>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: '#818cf8', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>Active Capital</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#818cf8' }}>${activeCapital.toLocaleString()}</div>
+              {rate && activeCapital > 0 && <div style={{ fontSize: 11, color: '#475569' }}>≈ ₦{(activeCapital * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>}
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: '#c9a84c', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 }}>All-Time Total</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#c9a84c' }}>${allTimeCapital.toLocaleString()}</div>
+              {rate && allTimeCapital > 0 && <div style={{ fontSize: 11, color: '#475569' }}>≈ ₦{(allTimeCapital * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>}
+            </div>
+          </div>
+        </div>
+
+        {/* Per-category breakdown */}
+        {allCategories.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+            {allCategories.map(cat => {
+              const cfg = CATEGORY_CONFIG_OVERVIEW[cat] || { label: cat, color: '#64748b', icon: '◈' }
+              const active = capitalByCategory[cat] ?? 0
+              const allTime = allTimeByCategory[cat] ?? 0
+              const pct = allTimeCapital > 0 ? (allTime / allTimeCapital) * 100 : 0
+              return (
+                <div key={cat} style={{ background: '#080a0f', border: `1px solid ${cfg.color}22`, borderRadius: 10, padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <span style={{ fontSize: 18 }}>{cfg.icon}</span>
+                    <span style={{ fontWeight: 700, fontSize: 13, color: cfg.color }}>{cfg.label}</span>
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                      <span style={{ color: '#64748b' }}>Active</span>
+                      <span style={{ color: cfg.color, fontWeight: 700 }}>${active.toLocaleString()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                      <span style={{ color: '#64748b' }}>All-time</span>
+                      <span style={{ color: '#94a3b8', fontWeight: 600 }}>${allTime.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  {/* Mini progress bar showing this category's share of all-time total */}
+                  <div style={{ height: 4, background: '#1e2530', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: cfg.color, width: `${Math.min(100, pct)}%`, borderRadius: 2 }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 4, textAlign: 'right' }}>{pct.toFixed(1)}% of total</div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: '#475569', textAlign: 'center', padding: '16px 0' }}>No capital data yet — activate a batch to see breakdown</div>
+        )}
+      </div>
+
+      {/* Alert banners */}
       {pendingKyc > 0 && (
         <div style={{ ...s.card, marginBottom: 16, border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -338,6 +418,7 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
         </div>
       )}
 
+      {/* Recent activity grid */}
       <div className="admin-grid2" style={s.grid2}>
         <div style={s.card}>
           <div style={{ fontWeight: 700, marginBottom: 16, color: '#e2e8f0' }}>Recent Batches</div>
@@ -1459,6 +1540,7 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
 
 
