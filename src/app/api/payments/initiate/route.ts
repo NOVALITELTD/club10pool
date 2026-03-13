@@ -10,6 +10,8 @@ const NP_API_KEY = process.env.NOWPAYMENTS_API_KEY || ''
 const NP_BASE    = 'https://api.nowpayments.io/v1'
 const APP_URL    = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
+const NP_MINIMUM_USD = 12 // NowPayments minimum charge amount
+
 async function getUSDtoNGNRate(): Promise<number> {
   try {
     const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
@@ -39,14 +41,23 @@ export async function POST(req: NextRequest) {
 
   let amountUSD = 0
   let description = ''
+  let isCentPool = false
 
   if (type === 'batch' && batchId) {
     const { capitalAmount: bodyAmount } = body as any
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
-      select: { name: true, batchCode: true, minContribution: true, maxContribution: true, contributionPerMember: true, targetAmount: true, targetCapital: true, currentAmount: true },
+      select: {
+        name: true, batchCode: true, category: true,
+        minContribution: true, maxContribution: true,
+        contributionPerMember: true, targetAmount: true,
+        targetCapital: true, currentAmount: true,
+      },
     })
     if (!batch) return error('Batch not found')
+
+    isCentPool = batch.category === 'CENT'
+
     const min = Number(batch.minContribution || batch.contributionPerMember || 10)
     const max = Number(batch.maxContribution || batch.contributionPerMember || 50)
     const raw = bodyAmount ? Number(bodyAmount) : min
@@ -60,11 +71,13 @@ export async function POST(req: NextRequest) {
   } else if (type === 'referral' && referralMemberId) {
     const member = await prisma.referralMember.findUnique({
       where: { id: referralMemberId, investorId: auth.memberId },
-      include: { referralPool: { select: { referralCode: true, status: true } } },
+      include: { referralPool: { select: { referralCode: true, status: true, category: true } } },
     })
     if (!member) return error('Referral membership not found')
     if (member.status !== 'PENDING_PAYMENT') return error('Payment already completed or not required')
     if (member.referralPool.status !== 'OPEN') return error('This referral pool is no longer accepting payments')
+
+    isCentPool = member.referralPool.category === 'CENT'
     amountUSD = Number(member.contribution)
     description = `Club10 Pool — Referral Pool (${member.referralPool.referralCode})`
 
@@ -75,7 +88,18 @@ export async function POST(req: NextRequest) {
   if (amountUSD <= 0) return error('Invalid payment amount')
 
   const GATEWAY_FEE = 1
-  const chargeAmount = amountUSD + GATEWAY_FEE
+  let chargeAmount = amountUSD + GATEWAY_FEE
+
+  // NowPayments minimum check — only bump CENT pool ($10 → $15 + $1 fee = $16)
+  if (chargeAmount < NP_MINIMUM_USD) {
+    if (isCentPool) {
+      // Bump contribution to $15, charge becomes $16
+      amountUSD = 15
+      chargeAmount = 16
+    } else {
+      return error(`Minimum payment amount is $${NP_MINIMUM_USD - GATEWAY_FEE}`)
+    }
+  }
 
   const rate = await getUSDtoNGNRate()
   const amountNGN = Math.ceil(chargeAmount * rate)
@@ -117,7 +141,7 @@ export async function POST(req: NextRequest) {
       amountNGN,
       exchangeRate: rate,
       flwTxRef: txRef,
-      flwTxId: npData.id ? String(npData.id) : null,
+      flwTxId: npData.invoice_url ? String(npData.id) : null,
       status: PaymentStatus.PENDING,
     },
   })
@@ -127,7 +151,9 @@ export async function POST(req: NextRequest) {
     txRef,
     paymentLink: npData.invoice_url,
     amountUSD,
+    chargeAmount,
     amountNGN,
     exchangeRate: rate,
+    note: amountUSD === 15 ? 'Minimum investment adjusted to $15 + $1 gateway fee' : undefined,
   })
 }
