@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
 import { ReferralPoolStatus } from '@prisma/client'
+import { BatchStatus } from '@prisma/client'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CENT: '$100 Pool', STANDARD_1K: '$1,000 Pool',
@@ -85,10 +86,9 @@ export async function POST(req: NextRequest) {
           where: { id: payment.batchId! },
           data: {
             currentAmount: newAmount,
-            ...(batchFull ? { status: 'FULL' as any } : {}),
+            status: batchFull ? BatchStatus.FULL : undefined,
           },
         })
-
         await tx.transaction.create({
           data: {
             investorId: payment.investorId,
@@ -112,3 +112,4 @@ export async function POST(req: NextRequest) {
     type: payment.batchId ? 'batch' : 'referral',
   })
 }
+
