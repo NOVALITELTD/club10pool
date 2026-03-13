@@ -1162,7 +1162,7 @@ function ReferralSection({ token, user, s }: any) {
                     </div>
                     <span style={{ background: isPaid ? 'rgba(0,212,170,0.15)' : 'rgba(245,158,11,0.15)', color: isPaid ? '#00d4aa' : '#f59e0b', border: `1px solid ${isPaid ? 'rgba(0,212,170,0.3)' : 'rgba(245,158,11,0.3)'}`, padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{jm.status}</span>
                   </div>
-                  {jm.status === 'PENDING_PAYMENT' && <ReferralPayButton token={token} referralMemberId={jm.id} amount={Number(jm.contribution)} color={cat.color} />}
+                  {jm.status === 'PENDING_PAYMENT' && <ReferralPayButton token={token} referralMemberId={jm.id} amount={Number(jm.contribution)} color={cat.color} category={pool?.category} />}
                   {batch?.status === 'ACTIVE' && isPaid && (
                     <div style={{ background: '#080a0f', borderRadius: 8, padding: '12px 14px', marginTop: 10 }}>
                       <div style={{ fontSize: 11, color: '#00d4aa', fontWeight: 700, marginBottom: 8 }}>📊 Trading Access</div>
@@ -1197,6 +1197,9 @@ function ReferralSection({ token, user, s }: any) {
 }
 
 function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
+  const NP_MIN_CONTRIBUTION = 11
+  const isCent = category === 'CENT'
+  const actualAmount = isCent && amount < NP_MIN_CONTRIBUTION ? 11 : amount
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   async function pay() {
@@ -1220,7 +1223,7 @@ function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
         disabled={loading}
         style={{ background: `linear-gradient(135deg,${color},${color}aa)`, color: '#000', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 13, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit' }}
       >
-        {loading ? 'Redirecting...' : `💎 Pay $${(amount + 1).toLocaleString()} in USDT (incl. $1 fee) →`}
+        {loading ? 'Redirecting...' : `💎 Pay $${(actualAmount + 1).toLocaleString()} in USDT (incl. $1 fee) →`}
       </button>
     </div>
   )
