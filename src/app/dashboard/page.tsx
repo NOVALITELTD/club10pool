@@ -601,14 +601,19 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   const [error, setError] = useState('')
   const rate = useUsdNgnRate()
 
+  // ── Declaration step (PROFIT_ONLY vs PROFIT_AND_CAPITAL) ──
+  const [declared, setDeclared] = useState(false)
+  const [withdrawalType, setWithdrawalType] = useState<'PROFIT_ONLY' | 'PROFIT_AND_CAPITAL' | null>(null)
+
   // Dual 2FA gate: step 1 = TOTP (if enabled), step 2 = email OTP always
   const hasTwoFa = !!user?.twoFaEnabled
-  const [dualStep, setDualStep] = useState<'totp'|'email_otp'>('totp')
+  const [dualStep, setDualStep] = useState<'totp' | 'email_otp'>('totp')
   const [otpCode, setOtpCode] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
   const [otpError, setOtpError] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [otpCountdown, setOtpCountdown] = useState(0)
+
   useEffect(() => {
     if (otpCountdown <= 0) return
     const t = setTimeout(() => setOtpCountdown(c => c - 1), 1000)
@@ -617,6 +622,12 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
 
   // If no 2FA, start directly at email OTP
   const currentStep = hasTwoFa ? dualStep : 'email_otp'
+
+  const profitAmount = parseFloat(withdrawal?.amount || 0)
+  const capitalAmount = parseFloat(withdrawal?.myCapitalAmount || 0)
+  const totalPayout = withdrawalType === 'PROFIT_AND_CAPITAL'
+    ? profitAmount + capitalAmount
+    : profitAmount
 
   async function requestEmailCode() {
     setOtpLoading(true); setOtpError('')
@@ -635,10 +646,10 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   async function submitWithdrawal() {
     if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
     if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the 6-digit code'); return }
+    if (!withdrawalType) { setError('Please select withdrawal type.'); return }
     setOtpLoading(true); setOtpError('')
     try {
       if (currentStep === 'totp') {
-        // Step 1: verify TOTP
         const r = await fetch('/api/auth/2fa/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -646,15 +657,18 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
         })
         const d = await r.json()
         if (!r.ok) { setOtpError(d.error || 'Invalid authenticator code'); return }
-        // Move to email OTP step (email auto-sent by server in verify route... but we use separate for withdrawal)
         setDualStep('email_otp'); setOtpCode(''); setOtpSent(false)
         return
       }
-      // Step 2 (or only step if no 2FA): email OTP → confirm withdrawal
+      // Email OTP → confirm withdrawal with type
       const r = await fetch('/api/withdrawals/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ withdrawalId: withdrawal?.id, code: otpCode }),
+        body: JSON.stringify({
+          withdrawalId: withdrawal?.id,
+          code: otpCode,
+          withdrawalType,
+        }),
       })
       const d = await r.json()
       if (!r.ok) { setOtpError(d.error || 'Failed to submit'); return }
@@ -662,6 +676,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     } finally { setOtpLoading(false) }
   }
 
+  // ── LOCKED ──
   if (!withdrawal?.active) return (
     <div style={{ textAlign: 'center', padding: '60px 20px' }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
@@ -670,14 +685,19 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     </div>
   )
 
-  // Payment done by admin — final state
+  // ── PAYMENT DONE ──
   if (withdrawal?.paymentDone) return (
     <div style={{ maxWidth: 480 }}>
       <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', textAlign: 'center', padding: '40px 24px' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
         <div style={{ fontSize: 20, fontWeight: 800, color: '#00d4aa', marginBottom: 8 }}>Payment Sent!</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
-        <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
+        <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal.payoutAmount || withdrawal.amount || 0).toLocaleString()}</div>
+        <NgnEquiv usd={parseFloat(withdrawal.payoutAmount || withdrawal.amount || 0)} rate={rate} />
+        {withdrawal.withdrawalType === 'PROFIT_ONLY' && (
+          <div style={{ marginTop: 10, padding: '8px 16px', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 8, fontSize: 13, color: '#818cf8' }}>
+            📊 Profit Only — Your capital of <strong>${capitalAmount.toLocaleString()}</strong> remains active in the pool.
+          </div>
+        )}
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>USDT has been sent to your wallet. Please check your wallet balance.</div>
         {user?.walletAddress && (
           <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const }}>
@@ -688,31 +708,50 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     </div>
   )
 
-  // Already submitted — show pending/progress
-  if (submitted || withdrawal?.status === 'CONFIRMED') {
+  // ── ALREADY SUBMITTED ──
+  if (submitted || withdrawal?.submitted) {
     const totalMembers = withdrawal?.totalMembers || 1
     const confirmedCount = withdrawal?.confirmedCount || 0
     const progress = Math.round((confirmedCount / totalMembers) * 100)
+    const wdType = withdrawal?.withdrawalType || withdrawalType
+    const payoutAmt = withdrawal?.payoutAmount || totalPayout
+
     return (
       <div style={{ maxWidth: 480 }}>
         <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.3)', marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b', animation: 'pulse 2s infinite' }} />
-            <span style={{ fontWeight: 700, color: '#f59e0b' }}>Withdrawal Pending — Admin Processing</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f59e0b' }} />
+            <span style={{ fontWeight: 700, color: '#f59e0b' }}>Withdrawal Submitted — Pending Processing</span>
           </div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal?.amount || 0).toLocaleString()}</div>
-          <NgnEquiv usd={parseFloat(withdrawal?.amount || 0)} rate={rate} />
+
+          {/* Type badge */}
+          <div style={{ marginBottom: 16 }}>
+            {wdType === 'PROFIT_ONLY' ? (
+              <span style={{ background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.3)', borderRadius: 20, padding: '4px 14px', fontSize: 12, color: '#818cf8', fontWeight: 700 }}>
+                📊 Profit Only — Capital Stays In Pool
+              </span>
+            ) : (
+              <span style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, padding: '4px 14px', fontSize: 12, color: '#ef4444', fontWeight: 700 }}>
+                🚪 Full Exit — Profit + Capital
+              </span>
+            )}
+          </div>
+
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(payoutAmt || 0).toLocaleString()}</div>
+          <NgnEquiv usd={parseFloat(payoutAmt || 0)} rate={rate} />
           <div style={{ fontSize: 13, color: '#64748b', marginTop: 6, marginBottom: 16 }}>Your withdrawal for {withdrawal?.batchCode}</div>
-          {/* Progress */}
+
           <div style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 6 }}>
               <span>Batch withdrawal progress</span>
-              <span style={{ color: '#00d4aa' }}>{confirmedCount}/{totalMembers} confirmed</span>
+              <span style={{ color: '#00d4aa' }}>{confirmedCount}/{totalMembers} submitted</span>
             </div>
             <div style={{ background: '#080a0f', borderRadius: 6, height: 6, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'linear-gradient(90deg,#f59e0b,#c9a84c)', width: `${progress}%`, borderRadius: 6, transition: 'width 0.5s ease' }} />
+              <div style={{ height: '100%', background: 'linear-gradient(90deg,#f59e0b,#c9a84c)', width: `${progress}%`, borderRadius: 6 }} />
             </div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>Payment will be processed once all members confirm or window closes</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+              Payment processed after all members submit or window closes
+            </div>
           </div>
         </div>
         <div style={{ ...s.card, border: '1px solid #1e2530' }}>
@@ -723,29 +762,148 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     )
   }
 
-  // Ready to submit
-  return (
-    <div style={{ maxWidth: 480 }}>
-      <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: '#00d4aa', letterSpacing: 2, marginBottom: 10, textTransform: 'uppercase' as const }}>Withdrawal Open</div>
-        <div style={{ fontSize: 30, fontWeight: 800, color: '#c9a84c', marginBottom: 2 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
-        <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>Your profit share for {withdrawal.batchCode}</div>
+  // ── DECLARATION STEP ──
+  if (!declared || !withdrawalType) return (
+    <div style={{ maxWidth: 520 }}>
+      <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', marginBottom: 20 }}>
+        <div style={{ fontSize: 11, color: '#00d4aa', letterSpacing: 2, marginBottom: 10, textTransform: 'uppercase' as const }}>Withdrawal Window Open</div>
+        <div style={{ fontSize: 30, fontWeight: 800, color: '#c9a84c', marginBottom: 2 }}>${profitAmount.toLocaleString()}</div>
+        <NgnEquiv usd={profitAmount} rate={rate} />
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>Your profit share for <strong>{withdrawal.batchCode}</strong></div>
+        {capitalAmount > 0 && (
+          <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+            Your capital in pool: <strong style={{ color: '#e2e8f0' }}>${capitalAmount.toLocaleString()}</strong>
+          </div>
+        )}
       </div>
 
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>How would you like to withdraw?</div>
+
+      {/* Option 1 — Profit Only */}
+      <div
+        onClick={() => setWithdrawalType('PROFIT_ONLY')}
+        style={{
+          ...s.card,
+          marginBottom: 14,
+          cursor: 'pointer',
+          border: withdrawalType === 'PROFIT_ONLY'
+            ? '2px solid #818cf8'
+            : '1px solid #1e2530',
+          background: withdrawalType === 'PROFIT_ONLY' ? 'rgba(129,140,248,0.07)' : '#0d1117',
+          transition: 'all 0.15s',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(129,140,248,0.12)', border: '1px solid rgba(129,140,248,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📊</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontWeight: 800, fontSize: 15, color: '#818cf8' }}>Profit Only</span>
+              {withdrawalType === 'PROFIT_ONLY' && (
+                <span style={{ background: '#818cf8', color: '#fff', borderRadius: 20, padding: '2px 10px', fontSize: 10, fontWeight: 700 }}>SELECTED</span>
+              )}
+            </div>
+            <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, marginBottom: 8 }}>
+              Withdraw only your profit share. Your capital stays in the pool — you remain an active investor.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#64748b' }}>You receive</span>
+              <span style={{ fontWeight: 800, color: '#818cf8' }}>${profitAmount.toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}>
+              <span style={{ color: '#64748b' }}>Capital remaining</span>
+              <span style={{ color: '#00d4aa' }}>${capitalAmount.toLocaleString()} stays in pool</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Option 2 — Profit + Capital */}
+      <div
+        onClick={() => setWithdrawalType('PROFIT_AND_CAPITAL')}
+        style={{
+          ...s.card,
+          marginBottom: 20,
+          cursor: 'pointer',
+          border: withdrawalType === 'PROFIT_AND_CAPITAL'
+            ? '2px solid #ef4444'
+            : '1px solid #1e2530',
+          background: withdrawalType === 'PROFIT_AND_CAPITAL' ? 'rgba(239,68,68,0.07)' : '#0d1117',
+          transition: 'all 0.15s',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🚪</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontWeight: 800, fontSize: 15, color: '#ef4444' }}>Profit + Capital (Full Exit)</span>
+              {withdrawalType === 'PROFIT_AND_CAPITAL' && (
+                <span style={{ background: '#ef4444', color: '#fff', borderRadius: 20, padding: '2px 10px', fontSize: 10, fontWeight: 700 }}>SELECTED</span>
+              )}
+            </div>
+            <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6, marginBottom: 8 }}>
+              Withdraw your full profit + capital. You will fully exit the pool and can join a new one afterwards.
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ color: '#64748b' }}>Profit</span>
+              <span style={{ color: '#c9a84c' }}>${profitAmount.toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginTop: 4 }}>
+              <span style={{ color: '#64748b' }}>Capital returned</span>
+              <span style={{ color: '#c9a84c' }}>+ ${capitalAmount.toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 800, marginTop: 8, borderTop: '1px solid #1e2530', paddingTop: 8 }}>
+              <span style={{ color: '#e2e8f0' }}>Total</span>
+              <span style={{ color: '#ef4444' }}>${(profitAmount + capitalAmount).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {withdrawalType && (
+        <button
+          onClick={() => setDeclared(true)}
+          style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15 }}
+        >
+          Continue with {withdrawalType === 'PROFIT_ONLY' ? 'Profit Only' : 'Full Exit'} →
+        </button>
+      )}
+    </div>
+  )
+
+  // ── SECURITY VERIFICATION STEP ──
+  return (
+    <div style={{ maxWidth: 480 }}>
+      {/* Summary reminder */}
+      <div style={{ ...s.card, marginBottom: 16, border: withdrawalType === 'PROFIT_ONLY' ? '1px solid rgba(129,140,248,0.3)' : '1px solid rgba(239,68,68,0.3)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 11, color: withdrawalType === 'PROFIT_ONLY' ? '#818cf8' : '#ef4444', letterSpacing: 2, textTransform: 'uppercase' as const, marginBottom: 6 }}>
+              {withdrawalType === 'PROFIT_ONLY' ? '📊 Profit Only' : '🚪 Full Exit — Profit + Capital'}
+            </div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c' }}>${totalPayout.toLocaleString()}</div>
+            <NgnEquiv usd={totalPayout} rate={rate} />
+          </div>
+          <button
+            onClick={() => { setDeclared(false); setWithdrawalType(null); setOtpCode(''); setOtpSent(false) }}
+            style={{ background: 'none', border: '1px solid #1e2530', borderRadius: 8, padding: '6px 14px', color: '#64748b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+          >Change</button>
+        </div>
+      </div>
+
+      {/* Wallet */}
       <div style={{ ...s.card, marginBottom: 16 }}>
         <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (Solana)</div>
         {user?.walletAddress ? (
           <div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT Solana address. Funds sent to wrong address cannot be recovered.</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT Solana address.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT Solana wallet address first.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> first.</div>
         )}
       </div>
 
-      {/* ── Security Verification Gate ── */}
+      {/* Security verification */}
       <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.2)', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <span style={{ fontSize: 16 }}>🔐</span>
@@ -760,7 +918,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
               const isDone = i === 0 && currentStep === 'email_otp'
               return (
                 <div key={label} style={{ flex: 1, textAlign: 'center', padding: '6px 10px', borderRadius: 8, fontSize: 11, fontWeight: 700, background: isDone ? 'rgba(0,212,170,0.1)' : isActive ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.03)', color: isDone ? '#00d4aa' : isActive ? '#c9a84c' : '#475569', border: `1px solid ${isDone ? 'rgba(0,212,170,0.3)' : isActive ? 'rgba(201,168,76,0.3)' : '#1e2530'}` }}>
-                  {isDone ? '✓ ' : `${i+1}. `}{label}
+                  {isDone ? '✓ ' : `${i + 1}. `}{label}
                 </div>
               )
             })}
@@ -769,9 +927,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
 
         {currentStep === 'totp' ? (
           <>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-              🔐 Step 1: Enter code from Google Authenticator
-            </div>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>🔐 Step 1: Enter code from Google Authenticator</div>
             <input
               type="text" inputMode="numeric" maxLength={6} placeholder="000000"
               value={otpCode}
@@ -782,7 +938,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
         ) : !otpSent ? (
           <>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-              📧 {hasTwoFa ? 'Step 2: ' : ''}We will send a 6-digit code to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong> to confirm this withdrawal.
+              📧 {hasTwoFa ? 'Step 2: ' : ''}Send a 6-digit code to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong> to confirm.
             </div>
             <button
               onClick={requestEmailCode}
@@ -813,7 +969,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
             </div>
           </>
         )}
-        {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
+        {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginTop: 8 }}>⚠ {otpError}</div>}
       </div>
 
       {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>⚠ {error}</div>}
