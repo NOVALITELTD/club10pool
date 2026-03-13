@@ -1,7 +1,4 @@
 // src/app/api/payments/webhook/route.ts
-// NowPayments IPN callback — set this URL in NowPayments dashboard → Store Settings → IPN URL
-// https://club10pool.vercel.app/api/payments/webhook
-
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendEmail } from '@/lib/email'
@@ -15,11 +12,22 @@ const CATEGORY_LABELS: Record<string, string> = {
   STANDARD_5K: '$5,000 Pool', STANDARD_10K: '$10,000 Pool',
 }
 
-// Verify NowPayments IPN signature
-function verifySignature(body: string, signature: string): boolean {
-  const hmac = crypto.createHmac('sha512', NP_IPN_SECRET)
-  hmac.update(body)  
-  return hmac.digest('hex') === signature
+function verifySignature(rawBody: string, signature: string): boolean {
+  try {
+    const parsed = JSON.parse(rawBody)
+    // NowPayments requires keys sorted alphabetically before hashing
+    const sorted = JSON.stringify(
+      Object.keys(parsed).sort().reduce((obj: any, key) => {
+        obj[key] = parsed[key]
+        return obj
+      }, {})
+    )
+    const hmac = crypto.createHmac('sha512', NP_IPN_SECRET)
+    hmac.update(sorted)
+    return hmac.digest('hex') === signature
+  } catch {
+    return false
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -32,7 +40,11 @@ export async function POST(req: NextRequest) {
   }
 
   const data = JSON.parse(rawBody)
-  const { payment_status, order_id: txRef, payment_id: npPaymentId, actually_paid, pay_currency } = data
+  const {
+    payment_status,
+    order_id: txRef,
+    payment_id: npPaymentId,
+  } = data
 
   // Only process terminal statuses
   if (!['finished', 'partially_paid', 'failed', 'expired'].includes(payment_status)) {
@@ -42,7 +54,6 @@ export async function POST(req: NextRequest) {
   const isSuccess = payment_status === 'finished'
 
   if (!isSuccess) {
-    // Mark as failed
     await prisma.payment.updateMany({
       where: { flwTxRef: txRef, status: 'PENDING' },
       data: { status: 'FAILED', flwTxId: String(npPaymentId) },
@@ -92,7 +103,7 @@ export async function POST(req: NextRequest) {
 
       if (poolFull) {
         await sendEmail({
-          to: process.env.ADMIN_EMAIL || 'admin@club10pool.com',
+          to: process.env.ADMIN_EMAIL || 'nlclub10admin@novaliteltd.com.ng',
           subject: `🎯 Referral Pool Full — ${CATEGORY_LABELS[pool.category]} (${pool.referralCode})`,
           html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;">
             <h2>Referral Pool Ready for Activation</h2>
@@ -108,7 +119,7 @@ export async function POST(req: NextRequest) {
       if (batch) {
         const capitalAmount = Number(payment.amountUSD)
 
-        // Create BatchMember only now — payment is confirmed
+        // Create or update BatchMember — payment confirmed
         const existing = await tx.batchMember.findFirst({
           where: { batchId: payment.batchId!, investorId: payment.investorId },
         })
@@ -140,7 +151,7 @@ export async function POST(req: NextRequest) {
 
         if (batchFull) {
           await sendEmail({
-            to: process.env.ADMIN_EMAIL || 'admin@club10pool.com',
+            to: process.env.ADMIN_EMAIL || 'nlclub10admin@novaliteltd.com.ng',
             subject: `🎯 Batch Full — ${batch.name} (${batch.batchCode})`,
             html: `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;">
               <h2>Batch Ready for Activation</h2>
