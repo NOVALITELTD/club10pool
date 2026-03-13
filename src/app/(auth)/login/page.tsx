@@ -66,6 +66,7 @@ function LoginPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const emailJustVerified = searchParams.get('verified') === '1'
+  const sessionTimedOut = searchParams.get('reason') === 'timeout'
   const [tab, setTab] = useState<Tab>('login')
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', phone: '',
@@ -574,6 +575,15 @@ function LoginPageContent() {
                 >
                   ← Back to Sign In
                 </button>
+                {/* Session timeout banner */}
+{sessionTimedOut && tab === 'login' && (
+  <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#f59e0b', fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' }}>
+    <span>🔒</span>
+    <span>You were logged out after 30 minutes of inactivity. Please sign in again.</span>
+  </div>
+)}
+
+{/* Email verified banner */}
                 {emailJustVerified && (
   <div style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.25)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, color: '#00d4aa', fontSize: 13, display: 'flex', gap: 8 }}>
     <span>✓</span> Email verified! Please sign in to complete your KYC setup.
@@ -826,4 +836,5 @@ export default function LoginPage() {
     </Suspense>
   )
 }
+
 
