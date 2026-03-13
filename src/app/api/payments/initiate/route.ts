@@ -90,12 +90,12 @@ export async function POST(req: NextRequest) {
   const GATEWAY_FEE = 1
   let chargeAmount = amountUSD + GATEWAY_FEE
 
-  // NowPayments minimum check — only bump CENT pool ($10 → $15 + $1 fee = $16)
+  // NowPayments minimum check — only bump CENT pool ($10 → $11 + $1 fee = $12)
   if (chargeAmount < NP_MINIMUM_USD) {
     if (isCentPool) {
-      // Bump contribution to $15, charge becomes $16
-      amountUSD = 15
-      chargeAmount = 16
+      // Bump contribution to $11, charge becomes $12
+      amountUSD = 11
+      chargeAmount = 12
     } else {
       return error(`Minimum payment amount is $${NP_MINIMUM_USD - GATEWAY_FEE}`)
     }
@@ -154,6 +154,6 @@ export async function POST(req: NextRequest) {
     chargeAmount,
     amountNGN,
     exchangeRate: rate,
-    note: amountUSD === 15 ? 'Minimum investment adjusted to $15 + $1 gateway fee' : undefined,
+    note: amountUSD === 11 ? 'Minimum investment adjusted to $11 + $1 gateway fee' : undefined,
   })
 }
