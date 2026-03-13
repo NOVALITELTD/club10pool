@@ -457,7 +457,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
               return (
                 <>
                   <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Contribution (USD)</label>
+                    <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Contribution (USD) Amount Must be in tens (E.g 10, 20, 30, 110, 140 etc)</label>
                     <input
                       type="number"
                       placeholder={`$${cfg.min} – $${cfg.max}`}
