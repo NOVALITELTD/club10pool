@@ -448,53 +448,73 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
               <div style={{ fontWeight: 700, fontSize: 17 }}>Join {payingBatch.name}</div>
               <button onClick={() => { setPayingBatch(null); setAmountInput(''); setPayError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 21, cursor: 'pointer' }}>✕</button>
             </div>
-            {(() => {
-              const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || {
-                min: Number(payingBatch.minContribution || payingBatch.contributionPerMember || 10),
-                max: Number(payingBatch.maxContribution || payingBatch.targetAmount || payingBatch.targetCapital || 50),
-                color: '#00d4aa', label: ''
-              }
-              return (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Contribution (USD) Amount Must be in tens (E.g 10, 20, 30, 110, 140 etc)</label>
-                    <input
-                      type="number"
-                      placeholder={`$${cfg.min} – $${cfg.max}`}
-                      value={amountInput}
-                      onChange={e => setAmountInput(e.target.value)}
-                      style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '12px 14px', color: '#e2e8f0', fontSize: 19, fontWeight: 700, boxSizing: 'border-box' as const }}
-                    />
-                    {rounded > 0 && rounded !== parseFloat(amountInput) && (
-                      <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 6 }}>→ Rounded to nearest $10: <strong>${rounded}</strong></div>
-                    )}
-                    {rounded > 0 && rate && (
-                      <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(rounded * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
-                    )}
-                  </div>
-                  <div style={{ background: 'rgba(0,212,170,0.05)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span>Pool contribution</span><span style={{ color: '#e2e8f0' }}>${rounded || cfg.min}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span>Gateway fee</span><span style={{ color: '#e2e8f0' }}>$1</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e2530', paddingTop: 6, fontWeight: 700 }}>
-                      <span style={{ color: '#e2e8f0' }}>Total to pay</span><span style={{ color: '#c9a84c' }}>${(rounded || cfg.min) + 1}</span>
-                    </div>
-                    <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (TRC-20)</strong> via NowPayments</div>
-                  </div>
-                  {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
-                  <button
-                    onClick={initiatePayment}
-                    disabled={payLoading || !amountInput}
-                    style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
-                  >
-                    {payLoading ? 'Redirecting to payment...' : `💎 Pay $${(rounded || cfg.min) + 1} in USDT (incl. $1 fee) →`}
-                  </button>
-                </>
-              )
-            })()}
+{(() => {
+  const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || {
+    min: Number(payingBatch.minContribution || payingBatch.contributionPerMember || 10),
+    max: Number(payingBatch.maxContribution || payingBatch.targetAmount || payingBatch.targetCapital || 50),
+    color: '#00d4aa', label: ''
+  }
+  
+  // NowPayments minimum: charge must be >= $12, so contribution must be >= $11
+  // For CENT pool: if amount < $11, display shows $15 (what server will charge)
+  const NP_MIN_CONTRIBUTION = 11
+  const isCent = payingBatch.category === 'CENT'
+  const displayAmount = rounded || cfg.min
+  const actualAmount = isCent && displayAmount < NP_MIN_CONTRIBUTION ? 11 : displayAmount
+  const wasAdjusted = actualAmount !== displayAmount && displayAmount > 0
+
+  return (
+    <>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>
+          Your Contribution (USD) — must be in tens (e.g. 10, 20, 30...)
+        </label>
+        <input
+          type="number"
+          placeholder={`$${cfg.min} – $${cfg.max}`}
+          value={amountInput}
+          onChange={e => setAmountInput(e.target.value)}
+          style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '12px 14px', color: '#e2e8f0', fontSize: 19, fontWeight: 700, boxSizing: 'border-box' as const }}
+        />
+        {rounded > 0 && rounded !== parseFloat(amountInput) && (
+          <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 6 }}>→ Rounded to nearest $10: <strong>${rounded}</strong></div>
+        )}
+        {wasAdjusted && (
+          <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 6 }}>
+            ⚠ Minimum gateway amount: contribution adjusted to <strong>${actualAmount}</strong>
+          </div>
+        )}
+        {actualAmount > 0 && rate && (
+          <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(actualAmount * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
+        )}
+      </div>
+
+      <div style={{ background: 'rgba(0,212,170,0.05)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span>Pool contribution</span>
+          <span style={{ color: '#e2e8f0' }}>${actualAmount || cfg.min}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span>Gateway fee</span><span style={{ color: '#e2e8f0' }}>$1</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e2530', paddingTop: 6, fontWeight: 700 }}>
+          <span style={{ color: '#e2e8f0' }}>Total to pay</span>
+          <span style={{ color: '#c9a84c' }}>${(actualAmount || cfg.min) + 1}</span>
+        </div>
+        <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (TRC-20)</strong> via NowPayments</div>
+      </div>
+
+      {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
+      <button
+        onClick={initiatePayment}
+        disabled={payLoading || !amountInput}
+        style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
+      >
+        {payLoading ? 'Redirecting to payment...' : `💎 Pay $${(actualAmount || cfg.min) + 1} in USDT (incl. $1 fee) →`}
+      </button>
+    </>
+  )
+})()}
           </div>
         </div>
       )}
