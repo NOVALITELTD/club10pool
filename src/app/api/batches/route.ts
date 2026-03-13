@@ -54,8 +54,8 @@ export async function GET(req: NextRequest) {
     )
 
     const allOccupiedCategories = [
-      ...occupiedBatchCategories,
-      ...referralCategories,
+      ...Array.from(occupiedBatchCategories),
+      ...Array.from(referralCategories),
     ]
 
     return ok(
