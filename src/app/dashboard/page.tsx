@@ -1,4 +1,4 @@
-// src/app/dashboard/page.tsx
+//src/app/dashboard/page.tsx
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -187,7 +187,7 @@ export default function InvestorDashboard() {
             <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#00d4aa,#0099aa)', display: 'none', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, color: '#fff', flexShrink: 0 }}>C</div>
             {sidebarOpen && (
               <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontWeight: 800, fontSize: 16, color: '#e2e8f0', whiteSpace: 'nowrap' }}>Club10 Pool</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: '#e2e8f0', whiteSpace: 'nowrap' }}>Club10 Pool</div>
                 <div style={{ fontSize: 9, color: '#00d4aa', letterSpacing: 2, whiteSpace: 'nowrap' }}>INVESTOR</div>
               </div>
             )}
@@ -196,7 +196,7 @@ export default function InvestorDashboard() {
           <div style={s.nav}>
             {navItems.map(item => (
               <div key={item.id} style={s.navItem(section === item.id)} onClick={() => { setSection(item.id as Section); if (window.innerWidth < 768) setSidebarOpen(false) }}>
-                <span style={{ fontSize: 19, flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
                 {sidebarOpen && <span>{item.label}</span>}
               </div>
             ))}
@@ -241,7 +241,7 @@ export default function InvestorDashboard() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: '#00d4aa', fontSize: 10 }}>●</span>
+                <span style={{ color: '#00d4aa', fontSize: 8 }}>●</span>
                 <span style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</span>
               </div>
               <button
@@ -327,7 +327,7 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
     <div style={{ textAlign: 'center', padding: '80px 20px' }}>
       <div style={{ fontSize: 56, marginBottom: 20 }}>⬡</div>
       <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>No Active Batch</div>
-      <div style={{ color: '#64748b', fontSize: 16, marginBottom: 28 }}>You are not currently part of any investment batch.</div>
+      <div style={{ color: '#64748b', fontSize: 14, marginBottom: 28 }}>You are not currently part of any investment batch.</div>
       <button style={s.btn()} onClick={() => setSection('batches')}>Browse Available Batches</button>
     </div>
   )
@@ -347,9 +347,9 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
           { label: 'Batch Status', value: myBatch.status, usd: null, color: myBatch.status === 'ACTIVE' ? '#00d4aa' : '#f59e0b' },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 12, padding: 18 }}>
-            <div style={{ fontSize: 21, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
             {stat.usd !== null && <NgnEquiv usd={stat.usd} rate={rate} />}
-            <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>{stat.label}</div>
+            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>{stat.label}</div>
           </div>
         ))}
       </div>
@@ -445,76 +445,56 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, fontSize: 17 }}>Join {payingBatch.name}</div>
-              <button onClick={() => { setPayingBatch(null); setAmountInput(''); setPayError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 21, cursor: 'pointer' }}>✕</button>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>Join {payingBatch.name}</div>
+              <button onClick={() => { setPayingBatch(null); setAmountInput(''); setPayError('') }} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
-{(() => {
-  const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || {
-    min: Number(payingBatch.minContribution || payingBatch.contributionPerMember || 10),
-    max: Number(payingBatch.maxContribution || payingBatch.targetAmount || payingBatch.targetCapital || 50),
-    color: '#00d4aa', label: ''
-  }
-  
-  // NowPayments minimum: charge must be >= $12, so contribution must be >= $11
-  // For CENT pool: if amount < $11, display shows $15 (what server will charge)
-  const NP_MIN_CONTRIBUTION = 11
-  const isCent = payingBatch.category === 'CENT'
-  const displayAmount = rounded || cfg.min
-  const actualAmount = isCent && displayAmount < NP_MIN_CONTRIBUTION ? 11 : displayAmount
-  const wasAdjusted = actualAmount !== displayAmount && displayAmount > 0
-
-  return (
-    <>
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>
-          Your Contribution (USD) — must be in tens (e.g. 10, 20, 30...)
-        </label>
-        <input
-          type="number"
-          placeholder={`$${cfg.min} – $${cfg.max}`}
-          value={amountInput}
-          onChange={e => setAmountInput(e.target.value)}
-          style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '12px 14px', color: '#e2e8f0', fontSize: 19, fontWeight: 700, boxSizing: 'border-box' as const }}
-        />
-        {rounded > 0 && rounded !== parseFloat(amountInput) && (
-          <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 6 }}>→ Rounded to nearest $10: <strong>${rounded}</strong></div>
-        )}
-        {wasAdjusted && (
-          <div style={{ fontSize: 12, color: '#f59e0b', marginTop: 6 }}>
-            ⚠ Minimum gateway amount: contribution adjusted to <strong>${actualAmount}</strong>
-          </div>
-        )}
-        {actualAmount > 0 && rate && (
-          <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(actualAmount * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
-        )}
-      </div>
-
-      <div style={{ background: 'rgba(0,212,170,0.05)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span>Pool contribution</span>
-          <span style={{ color: '#e2e8f0' }}>${actualAmount || cfg.min}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span>Gateway fee</span><span style={{ color: '#e2e8f0' }}>$1</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e2530', paddingTop: 6, fontWeight: 700 }}>
-          <span style={{ color: '#e2e8f0' }}>Total to pay</span>
-          <span style={{ color: '#c9a84c' }}>${(actualAmount || cfg.min) + 1}</span>
-        </div>
-        <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (TRC-20)</strong> via NowPayments</div>
-      </div>
-
-      {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
-      <button
-        onClick={initiatePayment}
-        disabled={payLoading || !amountInput}
-        style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
-      >
-        {payLoading ? 'Redirecting to payment...' : `💎 Pay $${(actualAmount || cfg.min) + 1} in USDT (incl. $1 fee) →`}
-      </button>
-    </>
-  )
-})()}
+            {(() => {
+              const cfg = BATCH_CATEGORY_CONFIG[payingBatch.category] || {
+                min: Number(payingBatch.minContribution || payingBatch.contributionPerMember || 10),
+                max: Number(payingBatch.maxContribution || payingBatch.targetAmount || payingBatch.targetCapital || 50),
+                color: '#00d4aa', label: ''
+              }
+              return (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Contribution (USD)</label>
+                    <input
+                      type="number"
+                      placeholder={`$${cfg.min} – $${cfg.max}`}
+                      value={amountInput}
+                      onChange={e => setAmountInput(e.target.value)}
+                      style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '12px 14px', color: '#e2e8f0', fontSize: 18, fontWeight: 700, boxSizing: 'border-box' as const }}
+                    />
+                    {rounded > 0 && rounded !== parseFloat(amountInput) && (
+                      <div style={{ fontSize: 12, color: '#00d4aa', marginTop: 6 }}>→ Rounded to nearest $10: <strong>${rounded}</strong></div>
+                    )}
+                    {rounded > 0 && rate && (
+                      <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>≈ ₦{(rounded * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
+                    )}
+                  </div>
+                  <div style={{ background: 'rgba(0,212,170,0.05)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#64748b' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span>Pool contribution</span><span style={{ color: '#e2e8f0' }}>${rounded || cfg.min}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span>Gateway fee</span><span style={{ color: '#e2e8f0' }}>$1</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e2530', paddingTop: 6, fontWeight: 700 }}>
+                      <span style={{ color: '#e2e8f0' }}>Total to pay</span><span style={{ color: '#c9a84c' }}>${(rounded || cfg.min) + 1}</span>
+                    </div>
+                    <div style={{ marginTop: 8, color: '#475569' }}>💎 Paid in <strong style={{ color: '#00d4aa' }}>USDT (Solana)</strong> via NowPayments</div>
+                  </div>
+                  {payError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {payError}</div>}
+                  <button
+                    onClick={initiatePayment}
+                    disabled={payLoading || !amountInput}
+                    style={{ width: '100%', background: '#00d4aa', color: '#000', border: 'none', borderRadius: 10, padding: '14px', fontWeight: 800, fontSize: 15, cursor: payLoading ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !amountInput ? 0.6 : 1 }}
+                  >
+                    {payLoading ? 'Redirecting to payment...' : `💎 Pay $${(rounded || cfg.min) + 1} in USDT (incl. $1 fee) →`}
+                  </button>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
@@ -534,7 +514,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, fontSize: 16 }}>{b.name}</span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{b.name}</span>
                     <span style={{ fontSize: 11, color: '#64748b' }}>{b.batchCode}</span>
                     <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : b.status === 'FULL' ? '#f59e0b' : '#64748b')}>{b.status}</span>
                     {b.category && <span style={s.tag(color)}>{cfg?.label || b.category}</span>}
@@ -667,8 +647,8 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
   if (!withdrawal?.active) return (
     <div style={{ textAlign: 'center', padding: '60px 20px' }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-      <div style={{ fontSize: 21, fontWeight: 700, marginBottom: 8 }}>Withdrawals Locked</div>
-      <div style={{ color: '#64748b', fontSize: 16 }}>Admin will notify you when a withdrawal window opens for your batch.</div>
+      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Withdrawals Locked</div>
+      <div style={{ color: '#64748b', fontSize: 14 }}>Admin will notify you when a withdrawal window opens for your batch.</div>
     </div>
   )
 
@@ -677,7 +657,7 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     <div style={{ maxWidth: 480 }}>
       <div style={{ ...s.card, border: '1px solid rgba(0,212,170,0.3)', textAlign: 'center', padding: '40px 24px' }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-        <div style={{ fontSize: 21, fontWeight: 800, color: '#00d4aa', marginBottom: 8 }}>Payment Sent!</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#00d4aa', marginBottom: 8 }}>Payment Sent!</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: '#c9a84c', marginBottom: 4 }}>${parseFloat(withdrawal.amount || 0).toLocaleString()}</div>
         <NgnEquiv usd={parseFloat(withdrawal.amount || 0)} rate={rate} />
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 12, marginBottom: 20 }}>USDT has been sent to your wallet. Please check your wallet balance.</div>
@@ -736,22 +716,22 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
       </div>
 
       <div style={{ ...s.card, marginBottom: 16 }}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to Solana Address</div>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>💎 Sending to USDT Wallet (Solana)</div>
         {user?.walletAddress ? (
           <div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#00d4aa', wordBreak: 'break-all' as const, background: '#080a0f', padding: '10px 12px', borderRadius: 8 }}>{user.walletAddress}</div>
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct Solana address. Funds sent to wrong address cannot be recovered.</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>⚠ Ensure this is your correct USDT Solana address. Funds sent to wrong address cannot be recovered.</div>
           </div>
         ) : (
-          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your Solana wallet address first.</div>
+          <div style={{ color: '#ef4444', fontSize: 13 }}>⚠ No wallet address set. Please go to <strong>Settings</strong> and add your USDT Solana wallet address first.</div>
         )}
       </div>
 
       {/* ── Security Verification Gate ── */}
       <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.2)', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <span style={{ fontSize: 17 }}>🔐</span>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Security Verification Required</span>
+          <span style={{ fontSize: 16 }}>🔐</span>
+          <span style={{ fontWeight: 700, fontSize: 14 }}>Security Verification Required</span>
         </div>
 
         {/* Step indicator */}
@@ -869,7 +849,7 @@ function ReferralSection({ token, user, s }: any) {
   if (step === 'terms') return (
     <div style={{ maxWidth: 600 }}>
       <div style={s.card}>
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 4 }}>📋 Referral Pool Terms & Conditions</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>📋 Referral Pool Terms & Conditions</div>
         <div style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>Read carefully before proceeding</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: '#94a3b8', lineHeight: 1.7, marginBottom: 28 }}>
           {[
@@ -899,7 +879,7 @@ function ReferralSection({ token, user, s }: any) {
     <div style={{ maxWidth: 640 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
         <button onClick={() => setStep('terms')} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}>← Back</button>
-        <div style={{ fontWeight: 700, fontSize: 17 }}>Choose Pool Category</div>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>Choose Pool Category</div>
       </div>
       {createError && (
         <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 16, color: '#ef4444', fontSize: 13 }}>⚠ {createError}</div>
@@ -914,7 +894,7 @@ function ReferralSection({ token, user, s }: any) {
               style={{ background: '#0d1117', border: `1px solid ${hasActive ? '#1e2530' : cat.color + '44'}`, borderRadius: 14, padding: 20, cursor: hasActive ? 'not-allowed' : 'pointer', opacity: hasActive ? 0.5 : 1, transition: 'border-color 0.15s' }}
             >
               <div style={{ fontSize: 28, marginBottom: 10 }}>{cat.icon}</div>
-              <div style={{ fontWeight: 800, fontSize: 17, color: cat.color, marginBottom: 4 }}>{cat.label}</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: cat.color, marginBottom: 4 }}>{cat.label}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>{cat.desc}</div>
               <div style={{ fontSize: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -947,7 +927,7 @@ function ReferralSection({ token, user, s }: any) {
           <div style={{ color: '#64748b', fontSize: 13, marginBottom: 24 }}>Share your link to invite members to your {cat.label}</div>
           <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
             <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Your Referral Link</div>
-            <div style={{ fontSize: 16, color: '#00d4aa', wordBreak: 'break-all', fontWeight: 600, marginBottom: 12 }}>{refUrl}</div>
+            <div style={{ fontSize: 14, color: '#00d4aa', wordBreak: 'break-all', fontWeight: 600, marginBottom: 12 }}>{refUrl}</div>
             <button
               onClick={() => copyLink(refUrl)}
               style={{ background: copied ? 'rgba(0,212,170,0.15)' : 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.3)', borderRadius: 8, padding: '8px 20px', color: '#00d4aa', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -976,7 +956,7 @@ function ReferralSection({ token, user, s }: any) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
             <span style={{ fontSize: 32 }}>{cat.icon}</span>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 17, color: cat.color }}>{cat.label}</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: cat.color }}>{cat.label}</div>
               <div style={{ fontSize: 12, color: '#64748b' }}>Code: {selectedPool.referralCode}</div>
             </div>
             <span style={s.tag(cat.color)}>{selectedPool.status}</span>
@@ -1016,7 +996,7 @@ function ReferralSection({ token, user, s }: any) {
                 ['Server', batch.tradingServer],
               ].map(([label, value]) => value ? (
                 <div key={label} style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px' }}>
-                  <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 4 }}>{label}</div>
+                  <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 4 }}>{label}</div>
                   <div style={{ fontWeight: 700, color: '#e2e8f0', fontFamily: 'monospace', wordBreak: 'break-all' }}>{value}</div>
                 </div>
               ) : null)}
@@ -1082,7 +1062,7 @@ function ReferralSection({ token, user, s }: any) {
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 16, color: '#64748b' }}>{pools.length} referral pool{pools.length !== 1 ? 's' : ''}</div>
+        <div style={{ fontSize: 14, color: '#64748b' }}>{pools.length} referral pool{pools.length !== 1 ? 's' : ''}</div>
         <button style={s.btn()} onClick={() => setStep('terms')}>+ Create Referral Pool</button>
       </div>
 
@@ -1156,7 +1136,7 @@ function ReferralSection({ token, user, s }: any) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 24 }}>{cat.icon}</span>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 16, color: cat.color }}>{cat.label}</div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: cat.color }}>{cat.label}</div>
                         <div style={{ fontSize: 12, color: '#64748b' }}>By {pool?.creator?.fullName} · <strong style={{ color: '#c9a84c' }}>${Number(jm.contribution).toLocaleString()}</strong></div>
                       </div>
                     </div>
@@ -1185,8 +1165,8 @@ function ReferralSection({ token, user, s }: any) {
       {pools.length === 0 && joinedPools.length === 0 && (
         <div style={{ ...s.card, textAlign: 'center', padding: '60px 20px' }}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
-          <div style={{ fontSize: 21, fontWeight: 700, marginBottom: 8 }}>No Referral Pools Yet</div>
-          <div style={{ color: '#64748b', fontSize: 16, marginBottom: 28, maxWidth: 380, margin: '0 auto 28px' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No Referral Pools Yet</div>
+          <div style={{ color: '#64748b', fontSize: 14, marginBottom: 28, maxWidth: 380, margin: '0 auto 28px' }}>
             Create a referral pool, share your link, and earn 10% monthly rebate bonus when your pool trades.
           </div>
           <button style={s.btn()} onClick={() => setStep('terms')}>+ Create Your First Pool</button>
@@ -1196,7 +1176,7 @@ function ReferralSection({ token, user, s }: any) {
   )
 }
 
-function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
+function ReferralPayButton({ token, referralMemberId, amount, color, category }: any) {
   const NP_MIN_CONTRIBUTION = 11
   const isCent = category === 'CENT'
   const actualAmount = isCent && amount < NP_MIN_CONTRIBUTION ? 11 : amount
@@ -1217,6 +1197,11 @@ function ReferralPayButton({ token, referralMemberId, amount, color }: any) {
   }
   return (
     <div>
+      {isCent && amount < NP_MIN_CONTRIBUTION && (
+        <div style={{ fontSize: 11, color: '#f59e0b', marginBottom: 6 }}>
+          ⚠ Min charge is $12 — your contribution is bumped to $11 + $1 fee
+        </div>
+      )}
       {error && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {error}</div>}
       <button
         onClick={pay}
@@ -1333,7 +1318,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </div>
-        <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 10 }}>Settings Locked</div>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 10 }}>Settings Locked</div>
         <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6, marginBottom: 28 }}>
           Verify your identity to edit account settings.
         </div>
@@ -1344,7 +1329,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             setStep('verify')
             if (!hasTwoFa) sendEmailCode()
           }}
-          style={{ ...s.btn(), padding: '12px 32px', fontSize: 16 }}
+          style={{ ...s.btn(), padding: '12px 32px', fontSize: 14 }}
         >
           {hasTwoFa ? '🔐 Verify Identity (TOTP + Email)' : '✉ Send Verification Code'}
         </button>
@@ -1356,7 +1341,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
             { label: 'Full Name', value: user?.fullName },
             { label: 'Email', value: user?.email },
             { label: 'Phone', value: user?.phone || '—' },
-            { label: 'Wallet (Solana)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
+            { label: 'Wallet (USDT Solana)', value: user?.walletAddress ? user.walletAddress.slice(0, 12) + '...' + user.walletAddress.slice(-6) : '—' },
             { label: 'KYC Status', value: user?.kycStatus },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, padding: '10px 0', borderBottom: '1px solid #1e2530', gap: 12 }}>
@@ -1387,7 +1372,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ width: 44, height: 44, borderRadius: '50%', background: dualStep === 'totp' ? 'rgba(0,212,170,0.1)' : 'rgba(201,168,76,0.1)', border: `1px solid ${dualStep === 'totp' ? 'rgba(0,212,170,0.2)' : 'rgba(201,168,76,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 21 }}>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: dualStep === 'totp' ? 'rgba(0,212,170,0.1)' : 'rgba(201,168,76,0.1)', border: `1px solid ${dualStep === 'totp' ? 'rgba(0,212,170,0.2)' : 'rgba(201,168,76,0.2)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 20 }}>
             {dualStep === 'totp' ? '🔐' : '✉'}
           </div>
           <div>
@@ -1415,7 +1400,7 @@ function SettingsSection({ user, token, s, setUser }: any) {
               color: dualStep === 'totp' ? '#00d4aa' : '#c9a84c' }} />
         </div>
         <button onClick={verifyCode} disabled={verifyLoading || codeInput.length < 6}
-          style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 16, opacity: codeInput.length < 6 ? 0.5 : 1 }}>
+          style={{ ...s.btn(), width: '100%', padding: '13px', fontSize: 14, opacity: codeInput.length < 6 ? 0.5 : 1 }}>
           {verifyLoading ? 'Verifying...' : dualStep === 'totp' ? 'Verify Authenticator →' : 'Verify & Unlock Settings'}
         </button>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
@@ -1457,29 +1442,29 @@ function SettingsSection({ user, token, s, setUser }: any) {
           <div><label style={labelStyle}>Phone</label><input style={inputStyle} value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} /></div>
           <div style={{ borderTop: '1px solid #1e2530', paddingTop: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 16 }}>💎</span>
-              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (TRC-20)</span>
+              <span style={{ fontSize: 14 }}>💎</span>
+              <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 600 }}>Withdrawal Wallet — USDT (Solana)</span>
             </div>
 
             {/* Warning */}
             <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#ef4444' }}>
-              ⚠ <strong>Enter your Solana (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
+              ⚠ <strong>Enter your USDT Solana (SOL) address only.</strong> Sending to a wrong address or wrong network will result in permanent loss of funds. Double-check before saving.
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>USDT Wallet Address (TRC-20 Network)</label>
+              <label style={labelStyle}>USDT Wallet Address (Solana Network)</label>
               <input
                 style={inputStyle}
                 value={form.walletAddress}
                 onChange={e => setForm(p => ({ ...p, walletAddress: e.target.value.trim() }))}
-                placeholder="TRC-20 USDT address (starts with a letter/number)"
+                placeholder="Solana USDT address (starts with a letter/number)"
               />
             </div>
 
             {/* Spenda Guide */}
             <div style={{ background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 10, padding: 16, marginBottom: 4 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 17 }}>💡</span>
+                <span style={{ fontSize: 16 }}>💡</span>
                 <span style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa' }}>Don't have a USDT wallet?</span>
               </div>
               <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.7, marginBottom: 12 }}>
@@ -1492,8 +1477,8 @@ function SettingsSection({ user, token, s, setUser }: any) {
                     '1. Download Spenda app (iOS or Android)',
                     '2. Sign up and complete verification',
                     '3. Use referral code below to get started',
-                    '4. Go to Wallet → Receive → Select USDT (TRC-20)',
-                    '5. Copy your TRC-20 address and paste it above',
+                    '4. Go to Wallet → Receive → Select USDT (Solana)',
+                    '5. Copy your Solana address and paste it above',
                   ].map((step, i) => (
                     <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                       <span style={{ color: '#00d4aa', flexShrink: 0 }}>→</span>
@@ -1504,8 +1489,8 @@ function SettingsSection({ user, token, s, setUser }: any) {
               </div>
               <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 2, marginBottom: 2 }}>SPENDA REFERRAL CODE</div>
-                  <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 19, color: '#c9a84c', letterSpacing: 3 }}>18Z5VITD</div>
+                  <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 2, marginBottom: 2 }}>SPENDA REFERRAL CODE</div>
+                  <div style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: 18, color: '#c9a84c', letterSpacing: 3 }}>18Z5VITD</div>
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText('18Z5VITD')}
@@ -1613,9 +1598,9 @@ function TwoFASection({ user, token, s, reload }: any) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 17 }}>🔐</span>
+            <span style={{ fontSize: 16 }}>🔐</span>
             <span style={{ fontWeight: 700, fontSize: 15 }}>Two-Factor Authentication</span>
-            {enabled && <span style={{ background: 'rgba(0,212,170,0.15)', color: '#00d4aa', fontSize: 12, padding: '2px 8px', borderRadius: 20, fontWeight: 700, letterSpacing: 1 }}>ACTIVE</span>}
+            {enabled && <span style={{ background: 'rgba(0,212,170,0.15)', color: '#00d4aa', fontSize: 10, padding: '2px 8px', borderRadius: 20, fontWeight: 700, letterSpacing: 1 }}>ACTIVE</span>}
           </div>
           <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
             {enabled
@@ -1657,7 +1642,7 @@ function TwoFASection({ user, token, s, reload }: any) {
             />
           </div>
           <div style={{ background: '#080a0f', borderRadius: 8, padding: '10px 14px', marginBottom: 14, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#64748b', letterSpacing: 2, marginBottom: 4 }}>MANUAL ENTRY KEY</div>
+            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 2, marginBottom: 4 }}>MANUAL ENTRY KEY</div>
             <div style={{ fontFamily: 'monospace', color: '#c9a84c', fontSize: 13, letterSpacing: 2, wordBreak: 'break-all' as const }}>{qrData.secret}</div>
           </div>
           <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>Enter the 6-digit code from your authenticator app:</div>
@@ -1740,7 +1725,7 @@ function SupportSection({ s }: any) {
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <span style={{ fontSize: 22 }}>💬</span>
-          <span style={{ fontWeight: 800, fontSize: 21, color: '#e2e8f0' }}>Contact Support</span>
+          <span style={{ fontWeight: 800, fontSize: 20, color: '#e2e8f0' }}>Contact Support</span>
         </div>
         <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.7, maxWidth: 520 }}>
           Our support team is available to assist you with account questions, KYC issues, withdrawal inquiries, and general platform guidance.
@@ -1751,7 +1736,7 @@ function SupportSection({ s }: any) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
         {contacts.map(c => (
           <div key={c.label} style={{ ...s.card, display: 'flex', alignItems: 'flex-start', gap: 16, padding: '18px 20px', border: `1px solid rgba(${c.color === '#c9a84c' ? '201,168,76' : c.color === '#2AABEE' ? '42,171,238' : '37,211,102'},0.15)` }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: `rgba(${c.color === '#c9a84c' ? '201,168,76' : c.color === '#2AABEE' ? '42,171,238' : '37,211,102'},0.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: `rgba(${c.color === '#c9a84c' ? '201,168,76' : c.color === '#2AABEE' ? '42,171,238' : '37,211,102'},0.1)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
               {c.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -1772,7 +1757,7 @@ function SupportSection({ s }: any) {
 
       {/* Hours banner */}
       <div style={{ background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 19, flexShrink: 0 }}>🕐</span>
+        <span style={{ fontSize: 18, flexShrink: 0 }}>🕐</span>
         <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>
           <strong style={{ color: '#c9a84c' }}>Support hours:</strong> Monday – Saturday, 9:00 AM – 6:00 PM (WAT).<br />
           We aim to respond to all inquiries within one business day.
@@ -1801,22 +1786,22 @@ function BroadcastBanner({ broadcasts }: { broadcasts: any[] }) {
         const cfg = BROADCAST_COLORS[b.type] || BROADCAST_COLORS.INFO
         return (
           <div key={b.id} style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-            <div style={{ fontSize: 21, flexShrink: 0, marginTop: 1 }}>{cfg.icon}</div>
+            <div style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>{cfg.icon}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: 1.5, fontFamily: "'JetBrains Mono', monospace" }}>
                   FROM NOVA-LITE · {cfg.label.toUpperCase()}
                 </span>
-                <span style={{ fontSize: 12, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
+                <span style={{ fontSize: 10, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
                   {new Date(b.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </span>
               </div>
-              <div style={{ fontWeight: 700, fontSize: 16, color: '#e2e8f0', marginBottom: 4 }}>{b.title}</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginBottom: 4 }}>{b.title}</div>
               <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{b.message}</div>
             </div>
             <button
               onClick={() => setDismissed(prev => new Set(Array.from(prev).concat(b.id)))}
-              style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 17, flexShrink: 0, padding: 4, lineHeight: 1 }}
+              style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 16, flexShrink: 0, padding: 4, lineHeight: 1 }}
               title="Dismiss"
             >✕</button>
           </div>
@@ -1873,7 +1858,7 @@ function NotificationsSection({ token, user, s }: any) {
   }
 
   const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '11px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const, outline: 'none', fontFamily: 'monospace' }
-  const labelStyle: any = { fontSize: 12, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }
+  const labelStyle: any = { fontSize: 10, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1.5, textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }
   const toggle = (key: string) => setForm(p => ({ ...p, [key]: !(p as any)[key] }))
 
   if (loading) return <div style={{ color: '#64748b', padding: 40, textAlign: 'center' }}>Loading…</div>
@@ -1883,11 +1868,11 @@ function NotificationsSection({ token, user, s }: any) {
 
       {/* Status card */}
       <div style={{ ...s.card, display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px' }}>
-        <div style={{ width: 44, height: 44, borderRadius: '50%', background: settings?.isVerified ? 'rgba(0,212,170,0.1)' : 'rgba(100,116,139,0.1)', border: `1px solid ${settings?.isVerified ? 'rgba(0,212,170,0.3)' : '#1e2530'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', background: settings?.isVerified ? 'rgba(0,212,170,0.1)' : 'rgba(100,116,139,0.1)', border: `1px solid ${settings?.isVerified ? 'rgba(0,212,170,0.3)' : '#1e2530'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
           {settings?.isVerified ? '🟢' : '🔕'}
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: settings?.isVerified ? '#00d4aa' : '#64748b' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: settings?.isVerified ? '#00d4aa' : '#64748b' }}>
             {settings?.isVerified ? 'WhatsApp Notifications Active' : 'Notifications Not Set Up'}
           </div>
           <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>
@@ -1913,7 +1898,7 @@ function NotificationsSection({ token, user, s }: any) {
           ['4', 'Enter your number and API key below', 'then click Save & Verify'],
         ].map(([n, text, sub]) => (
           <div key={n} style={{ display: 'flex', gap: 12, marginBottom: 10, alignItems: 'flex-start' }}>
-            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#c9a84c', flexShrink: 0, marginTop: 1 }}>{n}</div>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#c9a84c', flexShrink: 0, marginTop: 1 }}>{n}</div>
             <div>
               <div style={{ fontSize: 12, color: '#94a3b8' }}>{text}</div>
               {sub && <div style={{ fontSize: 11, color: '#c9a84c', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{sub}</div>}
@@ -1924,7 +1909,7 @@ function NotificationsSection({ token, user, s }: any) {
 
       {/* Settings form */}
       <div style={s.card}>
-        <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 20 }}>Notification Settings</div>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 20 }}>Notification Settings</div>
 
         {message && (
           <div style={{ background: msgType === 'success' ? 'rgba(0,212,170,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${msgType === 'success' ? 'rgba(0,212,170,0.25)' : 'rgba(239,68,68,0.25)'}`, borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: msgType === 'success' ? '#00d4aa' : '#ef4444' }}>
@@ -1936,7 +1921,7 @@ function NotificationsSection({ token, user, s }: any) {
           <div>
             <label style={labelStyle}>Your WhatsApp Number</label>
             <input style={inputStyle} placeholder="08012345678" value={form.whatsappNumber} onChange={e => setForm(p => ({ ...p, whatsappNumber: e.target.value }))} />
-            <div style={{ fontSize: 12, color: '#475569', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Nigerian format: 08012345678 (11 digits)</div>
+            <div style={{ fontSize: 10, color: '#475569', marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Nigerian format: 08012345678 (11 digits)</div>
           </div>
           <div>
             <label style={labelStyle}>CallMeBot API Key</label>
@@ -1951,7 +1936,7 @@ function NotificationsSection({ token, user, s }: any) {
               { key: 'notifyWithdrawal', label: 'Withdrawal is processed', icon: '💸' },
             ].map(({ key, label, icon }) => (
               <div key={key} onClick={() => toggle(key)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #1e2530', cursor: 'pointer' }}>
-                <span style={{ fontSize: 17, flexShrink: 0 }}>{icon}</span>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
                 <span style={{ flex: 1, fontSize: 13, color: '#94a3b8' }}>{label}</span>
                 <div style={{ width: 36, height: 20, borderRadius: 10, background: (form as any)[key] ? '#00d4aa' : '#1e2530', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
                   <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: (form as any)[key] ? 18 : 2, transition: 'left 0.2s' }} />
@@ -1961,7 +1946,7 @@ function NotificationsSection({ token, user, s }: any) {
           </div>
 
           <button onClick={save} disabled={saving || !form.whatsappNumber || !form.callmebotApiKey}
-            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 800, fontSize: 16, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !form.whatsappNumber || !form.callmebotApiKey ? 0.5 : 1 }}>
+            style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 800, fontSize: 14, cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit', opacity: !form.whatsappNumber || !form.callmebotApiKey ? 0.5 : 1 }}>
             {saving ? 'Saving & Verifying...' : '💾 Save & Verify via WhatsApp'}
           </button>
         </div>
