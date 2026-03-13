@@ -1,6 +1,6 @@
 //src/app/dashboard/page.tsx
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Section = 'portfolio' | 'batches' | 'withdrawals' | 'settings' | 'support'
@@ -82,6 +82,29 @@ export default function InvestorDashboard() {
   }
 
   function logout() { localStorage.clear(); router.push('/login') }
+
+  // ── INACTIVITY AUTO-LOGOUT (30 min) ──────────────────────
+  const INACTIVE_MS = 30 * 60 * 1000
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const resetTimer = useCallback(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    inactivityTimer.current = setTimeout(() => {
+      localStorage.clear()
+      router.push('/login?reason=timeout')
+    }, INACTIVE_MS)
+  }, [])
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel', 'click']
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }))
+    resetTimer() // start the timer immediately
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    }
+  }, [resetTimer])
+  // ─────────────────────────────────────────────────────────
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : ''
 
@@ -609,11 +632,6 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
     } finally { setOtpLoading(false) }
   }
 
-  // Auto-send email OTP when reaching email step
-  useEffect(() => {
-    if (currentStep === 'email_otp' && !otpSent) requestEmailCode()
-  }, [currentStep])
-
   async function submitWithdrawal() {
     if (!user?.walletAddress) { setError('Please set your USDT wallet address in Settings first.'); return }
     if (!otpCode || otpCode.length !== 6) { setOtpError('Enter the 6-digit code'); return }
@@ -749,39 +767,66 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
           </div>
         )}
 
-        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-          {currentStep === 'totp'
-            ? '🔐 Step 1: Enter code from Google Authenticator'
-            : `📧 ${hasTwoFa ? 'Step 2: ' : ''}Enter the 6-digit code sent to your email`}
-        </div>
-        <input
-          type="text" inputMode="numeric" maxLength={6} placeholder="000000"
-          value={otpCode}
-          onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
-          style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(0,212,170,0.4)', borderRadius: 8, padding: '12px 14px', color: '#00d4aa', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
-        />
-        {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
-        {currentStep === 'email_otp' && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        {currentStep === 'totp' ? (
+          <>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+              🔐 Step 1: Enter code from Google Authenticator
+            </div>
+            <input
+              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={otpCode}
+              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+              style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(0,212,170,0.4)', borderRadius: 8, padding: '12px 14px', color: '#00d4aa', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
+            />
+          </>
+        ) : !otpSent ? (
+          <>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
+              📧 {hasTwoFa ? 'Step 2: ' : ''}We will send a 6-digit code to <strong style={{ color: '#e2e8f0' }}>{user?.email}</strong> to confirm this withdrawal.
+            </div>
             <button
-              onClick={() => { setOtpSent(false); requestEmailCode() }}
-              disabled={otpCountdown > 0}
-              style={{ background: 'none', border: 'none', color: otpCountdown > 0 ? '#334155' : '#64748b', fontSize: 12, cursor: otpCountdown > 0 ? 'default' : 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
-              {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend email code'}
+              onClick={requestEmailCode}
+              disabled={otpLoading}
+              style={{ width: '100%', background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.3)', borderRadius: 8, padding: '12px', color: '#00d4aa', fontSize: 14, fontWeight: 700, cursor: otpLoading ? 'wait' : 'pointer', fontFamily: 'inherit' }}
+            >
+              {otpLoading ? 'Sending...' : '📧 Send Verification Code'}
             </button>
-          </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+              📧 {hasTwoFa ? 'Step 2: ' : ''}Enter the 6-digit code sent to your email
+            </div>
+            <input
+              type="text" inputMode="numeric" maxLength={6} placeholder="000000"
+              value={otpCode}
+              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '')); setOtpError('') }}
+              style={{ width: '100%', background: '#080a0f', border: '1px solid rgba(0,212,170,0.4)', borderRadius: 8, padding: '12px 14px', color: '#00d4aa', fontSize: 22, fontWeight: 800, letterSpacing: 8, textAlign: 'center', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' as const, marginBottom: 8 }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { setOtpSent(false); requestEmailCode() }}
+                disabled={otpCountdown > 0}
+                style={{ background: 'none', border: 'none', color: otpCountdown > 0 ? '#334155' : '#64748b', fontSize: 12, cursor: otpCountdown > 0 ? 'default' : 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}>
+                {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend email code'}
+              </button>
+            </div>
+          </>
         )}
+        {otpError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {otpError}</div>}
       </div>
 
       {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>⚠ {error}</div>}
 
-      <button
-        onClick={submitWithdrawal}
-        disabled={otpLoading || !user?.walletAddress || otpCode.length !== 6}
-        style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpCode.length !== 6 || !user?.walletAddress) ? 0.4 : 1 }}
-      >
-        {otpLoading ? 'Verifying...' : currentStep === 'totp' ? '🔐 Verify Authenticator →' : '🔐 Confirm Withdrawal →'}
-      </button>
+      {(currentStep === 'totp' || otpSent) && (
+        <button
+          onClick={submitWithdrawal}
+          disabled={otpLoading || !user?.walletAddress || otpCode.length !== 6}
+          style={{ ...s.btn(), width: '100%', padding: '14px', fontSize: 15, opacity: (otpCode.length !== 6 || !user?.walletAddress) ? 0.4 : 1 }}
+        >
+          {otpLoading ? 'Verifying...' : currentStep === 'totp' ? '🔐 Verify Authenticator →' : '🔐 Confirm Withdrawal →'}
+        </button>
+      )}
     </div>
   )
 }
