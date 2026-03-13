@@ -11,11 +11,6 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 export async function POST(req: NextRequest) {
-  // Safety guard — only allow in development
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Not available in production' }, { status: 403 })
-  }
-
   const { txRef } = await req.json()
   if (!txRef) return NextResponse.json({ error: 'txRef is required' }, { status: 400 })
 
