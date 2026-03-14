@@ -65,7 +65,6 @@ export default function AdminDashboard() {
     setUser(parsed)
     loadData(token)
 
-    // Background auto-refresh every 1 minute (silent)
     const interval = setInterval(() => {
       const t = localStorage.getItem('token')
       if (!t) return
@@ -106,7 +105,6 @@ export default function AdminDashboard() {
       if (kycRes.ok) { const d = await kycRes.json(); setKycList(d.data || []) }
       if (refRes.ok) { const d = await refRes.json(); setReferralPools(d.data || []) }
       if (broadcastRes?.ok) { const d = await broadcastRes.json(); setBroadcasts(d.data || []) }
-
     } finally { setLoading(false) }
   }
 
@@ -157,50 +155,24 @@ export default function AdminDashboard() {
     <>
       <style>{`
         @media (max-width: 768px) {
-          .admin-sidebar {
-            position: fixed !important;
-            top: 0; left: 0; bottom: 0;
-            z-index: 200;
-            transform: translateX(-100%);
-            transition: transform 0.25s ease !important;
-            width: 260px !important;
-            box-shadow: 4px 0 24px rgba(0,0,0,0.5);
-          }
-          .admin-sidebar.open {
-            transform: translateX(0) !important;
-          }
-          .admin-mobile-overlay {
-            display: none;
-            position: fixed; inset: 0; z-index: 199;
-            background: rgba(0,0,0,0.6);
-          }
+          .admin-sidebar { position: fixed !important; top: 0; left: 0; bottom: 0; z-index: 200; transform: translateX(-100%); transition: transform 0.25s ease !important; width: 260px !important; box-shadow: 4px 0 24px rgba(0,0,0,0.5); }
+          .admin-sidebar.open { transform: translateX(0) !important; }
+          .admin-mobile-overlay { display: none; position: fixed; inset: 0; z-index: 199; background: rgba(0,0,0,0.6); }
           .admin-mobile-overlay.open { display: block; }
           .admin-content { padding: 16px !important; }
           .admin-topbar { padding: 12px 16px !important; }
           .admin-grid2 { grid-template-columns: 1fr !important; }
           .kyc-split { grid-template-columns: 1fr !important; }
         }
-        @media (min-width: 769px) {
-          .admin-mobile-overlay { display: none !important; }
-        }
+        @media (min-width: 769px) { .admin-mobile-overlay { display: none !important; } }
       `}</style>
 
       <div style={s.app}>
-        {/* SIDEBAR */}
         <div className={`admin-mobile-overlay ${sidebarOpen ? 'open' : ''}`} onClick={() => setSidebarOpen(false)} />
         <div className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`} style={s.sidebar}>
           <div style={s.logo}>
-            <img
-              src="/logo.png"
-              alt="Club10"
-              style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain', flexShrink: 0 }}
-              onError={e => {
-                const el = e.target as HTMLImageElement
-                el.style.display = 'none'
-                const fb = el.nextElementSibling as HTMLElement
-                if (fb) fb.style.display = 'flex'
-              }}
-            />
+            <img src="/logo.png" alt="Club10" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain', flexShrink: 0 }}
+              onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; const fb = el.nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex' }} />
             <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#c9a84c,#8b5e1a)', display: 'none', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 15, color: '#fff', flexShrink: 0 }}>C</div>
             {sidebarOpen && (
               <div style={{ overflow: 'hidden' }}>
@@ -209,35 +181,26 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
-
           <div style={s.nav}>
             {navItems.map(item => (
               <div key={item.id} style={s.navItem(section === item.id)} onClick={() => { setSection(item.id); if (window.innerWidth < 768) setSidebarOpen(false) }}>
                 <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
                 {sidebarOpen && <span style={{ flex: 1 }}>{item.label}</span>}
-                {sidebarOpen && item.badge ? (
-                  <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{item.badge}</span>
-                ) : null}
+                {sidebarOpen && item.badge ? <span style={{ background: '#ef4444', color: '#fff', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>{item.badge}</span> : null}
               </div>
             ))}
           </div>
-
           <div style={{ padding: '16px 12px', borderTop: '1px solid #1e2530' }}>
-            {sidebarOpen && (
-              <div style={{ fontSize: 11, color: '#64748b', padding: '0 12px', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>
-            )}
+            {sidebarOpen && <div style={{ fontSize: 11, color: '#64748b', padding: '0 12px', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.fullName}</div>}
             <div style={{ ...s.navItem(false), color: '#ef4444' }} onClick={logout} title="Logout">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
               </svg>
               {sidebarOpen && <span>Logout</span>}
             </div>
           </div>
         </div>
 
-        {/* MAIN */}
         <div style={s.main}>
           <div className="admin-topbar" style={s.topbar}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -258,9 +221,7 @@ export default function AdminDashboard() {
               </div>
               <button onClick={logout} title="Logout" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
               </button>
             </div>
@@ -275,7 +236,7 @@ export default function AdminDashboard() {
                 {section === 'batches' && <BatchSection batches={batches} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'investors' && <InvestorSection investors={investors} batches={batches} s={s} />}
                 {section === 'kyc' && <KYCSection kycList={kycList} token={token!} s={s} reload={() => loadData(token!)} />}
-                {section === 'withdrawals' && <WithdrawalSection batches={batches} token={token!} s={s} />}
+                {section === 'withdrawals' && <WithdrawalSection batches={batches} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'referrals' && <ReferralAdminSection referralPools={referralPools} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'audit' && <AuditSection token={token!} s={s} />}
                 {(section as any) === 'broadcast' && <BroadcastSection token={token!} broadcasts={broadcasts} s={s} reload={() => loadData(token!)} />}
@@ -289,9 +250,6 @@ export default function AdminDashboard() {
 }
 
 // ── OVERVIEW ──────────────────────────────────────────────
-// DROP-IN REPLACEMENT for OverviewSection in src/app/admin/page.tsx
-// Replace the entire `function OverviewSection(...)` block with this.
-
 const CATEGORY_CONFIG_OVERVIEW: Record<string, { label: string; color: string; icon: string }> = {
   CENT:         { label: '$100 Pool',    color: '#00d4aa', icon: '💎' },
   STANDARD_1K:  { label: '$1,000 Pool',  color: '#818cf8', icon: '⭐' },
@@ -309,14 +267,10 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
   const allTimeCapital: number = stats?.allTimeCapital ?? 0
   const capitalByCategory: Record<string, number> = stats?.capitalByCategory ?? {}
   const allTimeByCategory: Record<string, number> = stats?.allTimeByCategory ?? {}
-
-  const allCategories = Array.from(
-    new Set([...Object.keys(capitalByCategory), ...Object.keys(allTimeByCategory)])
-  )
+  const allCategories = Array.from(new Set([...Object.keys(capitalByCategory), ...Object.keys(allTimeByCategory)]))
 
   return (
     <div>
-      {/* Top stat cards */}
       <div style={s.grid4}>
         {[
           { label: 'Total Investors', value: investors.length, usd: null, color: '#c9a84c', icon: '◎' },
@@ -334,7 +288,6 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
         ))}
       </div>
 
-      {/* Capital breakdown card */}
       <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(129,140,248,0.2)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
           <div>
@@ -354,8 +307,6 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
             </div>
           </div>
         </div>
-
-        {/* Per-category breakdown */}
         {allCategories.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
             {allCategories.map(cat => {
@@ -379,7 +330,6 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
                       <span style={{ color: '#94a3b8', fontWeight: 600 }}>${allTime.toLocaleString()}</span>
                     </div>
                   </div>
-                  {/* Mini progress bar showing this category's share of all-time total */}
                   <div style={{ height: 4, background: '#1e2530', borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{ height: '100%', background: cfg.color, width: `${Math.min(100, pct)}%`, borderRadius: 2 }} />
                   </div>
@@ -393,7 +343,6 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
         )}
       </div>
 
-      {/* Alert banners */}
       {pendingKyc > 0 && (
         <div style={{ ...s.card, marginBottom: 16, border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -405,7 +354,6 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
           </div>
         </div>
       )}
-
       {fullPools > 0 && (
         <div style={{ ...s.card, marginBottom: 16, border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -418,16 +366,12 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
         </div>
       )}
 
-      {/* Recent activity grid */}
       <div className="admin-grid2" style={s.grid2}>
         <div style={s.card}>
           <div style={{ fontWeight: 700, marginBottom: 16, color: '#e2e8f0' }}>Recent Batches</div>
           {batches.slice(0, 5).map((b: any) => (
             <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #1e2530' }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{b.name}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{b.batchCode}</div>
-              </div>
+              <div><div style={{ fontSize: 13, fontWeight: 600 }}>{b.name}</div><div style={{ fontSize: 11, color: '#64748b' }}>{b.batchCode}</div></div>
               <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : '#64748b')}>{b.status}</span>
             </div>
           ))}
@@ -437,10 +381,7 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
           <div style={{ fontWeight: 700, marginBottom: 16, color: '#e2e8f0' }}>Recent KYC</div>
           {kycList.slice(0, 5).map((k: any) => (
             <div key={k.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #1e2530' }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{k.fullName}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{k.email}</div>
-              </div>
+              <div><div style={{ fontSize: 13, fontWeight: 600 }}>{k.fullName}</div><div style={{ fontSize: 11, color: '#64748b' }}>{k.email}</div></div>
               <span style={s.tag(k.status === 'APPROVED' ? '#00d4aa' : k.status === 'PENDING' ? '#f59e0b' : '#ef4444')}>{k.status}</span>
             </div>
           ))}
@@ -451,434 +392,7 @@ function OverviewSection({ stats, batches, investors, kycList, referralPools, s,
   )
 }
 
-// ── REFERRAL ADMIN ────────────────────────────────────────
-function ReferralAdminSection({ referralPools, token, s, reload }: any) {
-  const [filter, setFilter] = useState('ALL')
-  const [tab, setTab] = useState<'pools' | 'rebates'>('pools')
-  const [activating, setActivating] = useState<any>(null)
-  const [activateForm, setActivateForm] = useState({ tradingPlatform: 'MT4', brokerName: '', tradingAccountId: '', investorPassword: '', tradingServer: '' })
-  const [activateLoading, setActivateLoading] = useState(false)
-  const [activateError, setActivateError] = useState('')
-  const [activateSuccess, setActivateSuccess] = useState('')
-  const [rebateForm, setRebateForm] = useState({ referralPoolId: '', month: '', totalRebate: '', adminNotes: '' })
-  const [rebateLoading, setRebateLoading] = useState(false)
-  const [rebateError, setRebateError] = useState('')
-  const [rebateSuccess, setRebateSuccess] = useState('')
-
-  const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
-  const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
-
-  async function activatePool() {
-    setActivateError(''); setActivateLoading(true)
-    try {
-      const r = await fetch('/api/batches/admin-activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ referralPoolId: activating.id, ...activateForm }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setActivateError(d.error || 'Activation failed'); return }
-      setActivateSuccess(`✓ Pool activated! Batch ${d.data?.batch?.batchCode} created. All members notified by email.`)
-      setActivating(null)
-      reload()
-    } finally { setActivateLoading(false) }
-  }
-
-  async function submitRebate() {
-    setRebateError(''); setRebateLoading(true)
-    try {
-      const r = await fetch('/api/referrals/rebates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...rebateForm, totalRebate: parseFloat(rebateForm.totalRebate) }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setRebateError(d.error || 'Failed'); return }
-      setRebateSuccess(`✓ Rebate recorded. Creator bonus: $${d.data?.creatorBonus?.toLocaleString()}. Email sent.`)
-      setRebateForm({ referralPoolId: '', month: '', totalRebate: '', adminNotes: '' })
-    } finally { setRebateLoading(false) }
-  }
-
-  const filtered = filter === 'ALL' ? referralPools : referralPools.filter((p: any) => p.status === filter)
-  const activePools = referralPools.filter((p: any) => p.status === 'ACTIVE')
-  const fullPools = referralPools.filter((p: any) => p.status === 'FULL')
-
-  return (
-    <div>
-      {fullPools.length > 0 && (
-        <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.04)' }}>
-          <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>⏳ {fullPools.length} Pool{fullPools.length > 1 ? 's' : ''} Ready for Activation</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>These pools have reached their target and need MT4/MT5 trading account details to go live.</div>
-        </div>
-      )}
-
-      {activateSuccess && (
-        <div style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.25)', borderRadius: 8, padding: '10px 16px', marginBottom: 16, color: '#00d4aa', fontSize: 13 }}>
-          {activateSuccess}
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {(['pools', 'rebates'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ ...s.btn(tab === t ? 'primary' : 'ghost'), padding: '8px 18px', fontSize: 13 }}>
-            {t === 'pools' ? '🔗 Referral Pools' : '💰 Monthly Rebates'}
-          </button>
-        ))}
-      </div>
-
-      {/* POOLS TAB */}
-      {tab === 'pools' && (
-        <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            {['ALL', 'OPEN', 'FULL', 'ACTIVE', 'CLOSED'].map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{ ...s.btn(filter === f ? 'primary' : 'ghost'), padding: '5px 14px', fontSize: 12 }}>{f}</button>
-            ))}
-          </div>
-
-          {/* Activation inline form */}
-          {activating && (
-            <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, color: '#c9a84c' }}>⚡ Activate: {CATEGORY_LABELS[activating.category]} ({activating.referralCode})</div>
-                <button onClick={() => { setActivating(null); setActivateError('') }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>✕</button>
-              </div>
-              {activateError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {activateError}</div>}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
-                <div>
-                  <label style={labelStyle}>Trading Platform</label>
-                  <select value={activateForm.tradingPlatform} onChange={e => setActivateForm(p => ({ ...p, tradingPlatform: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
-                    <option value="MT4">MetaTrader 4 (MT4)</option>
-                    <option value="MT5">MetaTrader 5 (MT5)</option>
-                  </select>
-                </div>
-                {[
-                  { key: 'brokerName', label: 'Broker Name', placeholder: 'e.g. Exness, ICMarkets' },
-                  { key: 'tradingAccountId', label: 'Trading Account ID', placeholder: 'e.g. 12345678' },
-                  { key: 'investorPassword', label: 'Investor Password', placeholder: 'Read-only password' },
-                  { key: 'tradingServer', label: 'Server', placeholder: 'e.g. Exness-Real3' },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label style={labelStyle}>{f.label}</label>
-                    <input style={inputStyle} placeholder={f.placeholder} value={(activateForm as any)[f.key]} onChange={e => setActivateForm(p => ({ ...p, [f.key]: e.target.value }))} />
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 12, color: '#64748b', background: 'rgba(0,212,170,0.04)', border: '1px solid rgba(0,212,170,0.15)', borderRadius: 8, padding: '10px 14px', marginBottom: 16 }}>
-                ℹ️ All members (creator + paid investors) will receive trading credentials by email upon activation.
-              </div>
-              <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={activatePool} disabled={activateLoading}>
-                {activateLoading ? 'Activating...' : '⚡ Activate & Notify All Members'}
-              </button>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {filtered.map((pool: any) => {
-              const color = CATEGORY_COLORS[pool.category] || '#64748b'
-              const paidMembers = pool.members?.filter((m: any) => ['PAID', 'ACTIVE'].includes(m.status)) || []
-              const totalPaid = paidMembers.reduce((sum: number, m: any) => sum + Number(m.contribution), 0)
-              const progress = pool.targetAmount ? (totalPaid / Number(pool.targetAmount)) * 100 : 0
-              return (
-                <div key={pool.id} style={{ ...s.card, border: `1px solid ${pool.status === 'FULL' ? 'rgba(245,158,11,0.4)' : '#1e2530'}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, fontSize: 15, color }}>{CATEGORY_LABELS[pool.category] || pool.category}</span>
-                        <span style={{ fontSize: 12, color: '#64748b' }}>/{pool.referralCode}</span>
-                        <span style={s.tag(color)}>{pool.status}</span>
-                      </div>
-                      <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                        Creator: <strong>{pool.creator?.fullName}</strong> <span style={{ color: '#64748b' }}>({pool.creator?.email})</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                        {paidMembers.length} paid member{paidMembers.length !== 1 ? 's' : ''} · ${totalPaid.toLocaleString()} / ${Number(pool.targetAmount || 0).toLocaleString()}
-                      </div>
-                    </div>
-                    {pool.status === 'FULL' && (
-                      <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={() => { setActivating(pool); setActivateError('') }}>
-                        ⚡ Activate Pool
-                      </button>
-                    )}
-                  </div>
-                  {pool.targetAmount && (
-                    <div style={{ height: 6, background: '#1e2530', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}>
-                      <div style={{ height: '100%', width: `${Math.min(100, progress)}%`, background: color, borderRadius: 3 }} />
-                    </div>
-                  )}
-                  {paidMembers.length > 0 && (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {paidMembers.map((m: any) => (
-                        <div key={m.id} style={{ background: '#080a0f', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: '#94a3b8' }}>
-                          {m.investor?.fullName} · <span style={{ color }}>${Number(m.contribution).toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-            {filtered.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 60 }}>No {filter !== 'ALL' ? filter.toLowerCase() + ' ' : ''}referral pools found</div>}
-          </div>
-        </div>
-      )}
-
-      {/* REBATES TAB */}
-      {tab === 'rebates' && (
-        <div>
-          <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.2)' }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>💰 Record Monthly Rebate</div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              Enter the total trading account rebate for a pool. The system calculates the creator's 10% bonus and emails them automatically.
-            </div>
-            {rebateError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {rebateError}</div>}
-            {rebateSuccess && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12 }}>{rebateSuccess}</div>}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
-              <div>
-                <label style={labelStyle}>Active Referral Pool</label>
-                <select value={rebateForm.referralPoolId} onChange={e => setRebateForm(p => ({ ...p, referralPoolId: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
-                  <option value="">Select pool...</option>
-                  {activePools.map((p: any) => (
-                    <option key={p.id} value={p.id}>{CATEGORY_LABELS[p.category] || p.category} — {p.referralCode} ({p.creator?.fullName})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Month</label>
-                <input type="month" style={inputStyle} value={rebateForm.month.slice(0, 7)} onChange={e => setRebateForm(p => ({ ...p, month: e.target.value + '-01' }))} />
-              </div>
-              <div>
-                <label style={labelStyle}>Total Pool Rebate ($)</label>
-                <input type="number" step="0.01" placeholder="0.00" style={inputStyle} value={rebateForm.totalRebate} onChange={e => setRebateForm(p => ({ ...p, totalRebate: e.target.value }))} />
-              </div>
-              <div>
-                <label style={labelStyle}>Creator Bonus (10% — auto)</label>
-                <div style={{ ...inputStyle, color: '#c9a84c', fontWeight: 700, background: 'rgba(201,168,76,0.06)', cursor: 'default', display: 'flex', alignItems: 'center' }}>
-                  ${rebateForm.totalRebate ? (parseFloat(rebateForm.totalRebate) * 0.1).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
-                </div>
-              </div>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>Admin Notes (optional)</label>
-              <textarea rows={2} style={{ ...inputStyle, resize: 'vertical' as const }} placeholder="Any notes for the creator..." value={rebateForm.adminNotes} onChange={e => setRebateForm(p => ({ ...p, adminNotes: e.target.value }))} />
-            </div>
-            <button
-              style={s.btn()}
-              onClick={submitRebate}
-              disabled={rebateLoading || !rebateForm.referralPoolId || !rebateForm.month || !rebateForm.totalRebate}
-            >
-              {rebateLoading ? 'Recording...' : '💰 Record Rebate & Notify Creator'}
-            </button>
-          </div>
-          {activePools.length === 0 && (
-            <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 40 }}>No active referral pools yet. Activate a pool first.</div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-function KycDocViewer({ url, label, token }: { url: string; label: string; token: string }) {
-  const [loading, setLoading] = useState(false)
-  const [signingError, setSigningError] = useState('')
-
-  const isPdf = url.includes('/raw/') || url.toLowerCase().endsWith('.pdf')
-
-  async function openSigned() {
-    setLoading(true); setSigningError('')
-    try {
-      const r = await fetch('/api/kyc/signed-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ url }),
-      })
-      const d = await r.json()
-      if (!r.ok) { setSigningError(d.error || 'Failed to get link'); return }
-      window.open(d.data.signedUrl, '_blank')
-    } catch { setSigningError('Network error') }
-    finally { setLoading(false) }
-  }
-
-if (isPdf) {
-  return (
-    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-        <span style={{ fontSize: 28 }}>📄</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 2 }}>{label}</div>
-          <div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div>
-        </div>
-        <button
-          onClick={async () => {
-  try {
-    // Get a signed URL first
-    const r = await fetch('/api/kyc/signed-url', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ url }),
-    })
-    const d = await r.json()
-    const signedUrl = d.data?.signedUrl || url
-
-    // Fetch the actual file using the signed URL
-    const res = await fetch(signedUrl)
-    if (!res.ok) { window.open(signedUrl, '_blank'); return }
-    const blob = await res.blob()
-    if (blob.size === 0) { window.open(signedUrl, '_blank'); return }
-    const blobUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = `${label.replace(/\s+/g, '-')}.pdf`
-    a.click()
-    URL.revokeObjectURL(blobUrl)
-  } catch {
-    window.open(url, '_blank')
-  }
-}}
-          style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}
-        >
-          ⬇ Download PDF
-        </button>
-      </div>
-    </div>
-  )
-}
-
-  return (
-    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
-      <div onClick={openSigned} style={{ cursor: loading ? 'wait' : 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
-        <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; const fb = el.nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex' }} />
-        <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}>
-          <span style={{ fontSize: 28 }}>🖼</span><span>Click to open</span>
-        </div>
-        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>
-          {loading ? '⏳ Loading...' : '🔍 View Full'}
-        </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
-        <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
-        <button onClick={openSigned} disabled={loading} style={{ background: 'none', border: 'none', fontSize: 11, color: '#c9a84c', cursor: 'pointer', padding: 0 }}>
-          {loading ? 'Loading...' : 'Open ↗'}
-        </button>
-      </div>
-      {signingError && <div style={{ fontSize: 11, color: '#ef4444', padding: '4px 14px 8px' }}>⚠ {signingError}</div>}
-    </div>
-  )
-}
-// ── KYC ──────────────────────────────────────────────────
-function KYCSection({ kycList, token, s, reload }: any) {
-  const [selected, setSelected] = useState<any>(null)
-  const [notes, setNotes] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [filter, setFilter] = useState('PENDING')
-
-  async function handleAction(action: 'approve' | 'reject') {
-    if (!selected) return
-    setLoading(true)
-    try {
-      const r = await fetch('/api/kyc/admin', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ investorId: selected.investorId, action, adminNotes: notes }),
-      })
-      if (r.ok) { setSelected(null); setNotes(''); reload() }
-    } finally { setLoading(false) }
-  }
-
-  const filtered = kycList.filter((k: any) => filter === 'ALL' || k.status === filter)
-  const idTypeLabel: any = { voters_card: "Voter's Card", nin: 'NIN', drivers_licence: "Driver's Licence", international_passport: 'Int. Passport' }
-
-  const docs = selected ? [
-    { label: 'ID Front',         url: selected.idFrontUrl },
-    { label: 'ID Back',          url: selected.idBackUrl },
-    { label: 'Passport Photo',   url: selected.passportPhotoUrl },
-    { label: 'Proof of Address', url: selected.proofOfAddressUrl },
-  ].filter(d => d.url) : []
-
-  return (
-    <>
-      
-      <div className="kyc-split" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 420px' : '1fr', gap: 20 }}>
-        <div style={s.card}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-            {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{ ...s.btn(filter === f ? 'primary' : 'ghost'), padding: '6px 14px', fontSize: 12 }}>{f}</button>
-            ))}
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={s.table}>
-              <thead>
-                <tr>{['Investor', 'ID Type', 'Submitted', 'Status', 'Action'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {filtered.map((k: any) => (
-                  <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => { setSelected(k); setNotes('') }}>
-                    <td style={s.td}>
-                      <div style={{ fontWeight: 600 }}>{k.fullName}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>{k.email}</div>
-                    </td>
-                    <td style={s.td}><span style={{ color: '#94a3b8' }}>{idTypeLabel[k.idType] || k.idType}</span></td>
-                    <td style={s.td}><span style={{ color: '#64748b', fontSize: 12 }}>{new Date(k.submittedAt).toLocaleDateString()}</span></td>
-                    <td style={s.td}><span style={s.tag(k.status === 'APPROVED' ? '#00d4aa' : k.status === 'PENDING' ? '#f59e0b' : '#ef4444')}>{k.status}</span></td>
-                    <td style={s.td}><button style={{ ...s.btn('ghost'), fontSize: 12 }}>View →</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!filtered.length && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No {filter.toLowerCase()} submissions</div>}
-        </div>
-
-        {selected && (
-          <div style={{ ...s.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>KYC Review</div>
-              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
-            </div>
-            <div style={{ background: '#080a0f', borderRadius: 8, padding: 14 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selected.fullName}</div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>{selected.email}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ID Type: {idTypeLabel[selected.idType] || selected.idType}</div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-  <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Documents</div>
-  {docs.map(doc => (
-    <KycDocViewer key={doc.label} url={doc.url} label={doc.label} token={token} />
-  ))}
-  {docs.length === 0 && (
-    <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>No documents found</div>
-  )}
-</div>
-            
-            {selected.status === 'PENDING' && (
-              <>
-                <div>
-                  <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Admin Notes (optional)</label>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-                    style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' as const }}
-                    placeholder="Reason for rejection etc..." />
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => handleAction('approve')} disabled={loading} style={{ ...s.btn('primary'), flex: 1 }}>✓ Approve</button>
-                  <button onClick={() => handleAction('reject')} disabled={loading} style={{ ...s.btn('danger'), flex: 1 }}>✕ Reject</button>
-                </div>
-              </>
-            )}
-            {selected.status !== 'PENDING' && (
-              <div style={{ background: '#080a0f', borderRadius: 8, padding: 12 }}>
-                <div style={{ fontSize: 12, color: '#64748b' }}>Reviewed: {selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleDateString() : 'N/A'}</div>
-                {selected.adminNotes && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{selected.adminNotes}</div>}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
-
-// ── BATCHES ───────────────────────────────────────────────
+// ── BATCH SECTION ─────────────────────────────────────────
 const ADMIN_CATEGORY_CONFIG: Record<string, { target: number; min: number; max: number; label: string; color: string }> = {
   CENT:         { target: 100,   min: 10,   max: 50,   label: '$100 Pool',    color: '#00d4aa' },
   STANDARD_1K:  { target: 1000,  min: 100,  max: 500,  label: '$1,000 Pool',  color: '#818cf8' },
@@ -901,22 +415,11 @@ function BatchSection({ batches, token, s, reload }: any) {
       const r = await fetch('/api/batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          ...form,
-          category,
-          targetMembers: 10,
-          contributionPerMember: cfg.min,
-          targetCapital: cfg.target,
-          targetAmount: cfg.target,
-          minContribution: cfg.min,
-          maxContribution: cfg.max,
-        }),
+        body: JSON.stringify({ ...form, category, targetMembers: 10, contributionPerMember: cfg.min, targetCapital: cfg.target, targetAmount: cfg.target, minContribution: cfg.min, maxContribution: cfg.max }),
       })
       const d = await r.json()
       if (!r.ok) return setError(d.error)
-      setShowCreate(false)
-      setForm({ batchCode: '', name: '', description: '', brokerName: '' })
-      reload()
+      setShowCreate(false); setForm({ batchCode: '', name: '', description: '', brokerName: '' }); reload()
     } finally { setLoading(false) }
   }
 
@@ -939,9 +442,7 @@ function BatchSection({ batches, token, s, reload }: any) {
             <div>
               <label style={labelStyle}>Pool Category</label>
               <select value={category} onChange={e => setCategory(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                {Object.entries(ADMIN_CATEGORY_CONFIG).map(([key, val]) => (
-                  <option key={key} value={key}>{val.label}</option>
-                ))}
+                {Object.entries(ADMIN_CATEGORY_CONFIG).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
               </select>
             </div>
             {[
@@ -984,28 +485,29 @@ function BatchSection({ batches, token, s, reload }: any) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontWeight: 700, fontSize: 15 }}>{b.name}</span>
                     <span style={{ fontSize: 12, color: '#64748b' }}>{b.batchCode}</span>
-                    <span style={s.tag(b.status === 'ACTIVE' ? '#00d4aa' : b.status === 'FORMING' ? '#818cf8' : b.status === 'FULL' ? '#f59e0b' : '#64748b')}>{b.status}</span>
+                    <span style={s.tag(
+                      b.status === 'ACTIVE' ? '#00d4aa' :
+                      b.status === 'FORMING' ? '#818cf8' :
+                      b.status === 'FULL' ? '#f59e0b' :
+                      b.status === 'DISTRIBUTING' ? '#c9a84c' :
+                      b.status === 'CLOSED' ? '#64748b' : '#64748b'
+                    )}>{b.status}</span>
                     {b.category && <span style={s.tag(color)}>{bCfg?.label || b.category}</span>}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-                    {bCfg
-                      ? `Contribution $${bCfg.min}–$${bCfg.max} · Target $${target.toLocaleString()}`
-                      : `$${parseFloat(b.contributionPerMember || 0).toLocaleString()} · Target $${target.toLocaleString()}`
-                    }
+                    {bCfg ? `Contribution $${bCfg.min}–$${bCfg.max} · Target $${target.toLocaleString()}` : `$${parseFloat(b.contributionPerMember || 0).toLocaleString()} · Target $${target.toLocaleString()}`}
                     {b.brokerName && ` · ${b.brokerName}`}
                   </div>
                   {target > 0 && (
                     <div style={{ maxWidth: 320 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-                        <span>Pool filled</span>
-                        <span style={{ color }}>${current.toLocaleString()} / ${target.toLocaleString()}</span>
+                        <span>Pool filled</span><span style={{ color }}>${current.toLocaleString()} / ${target.toLocaleString()}</span>
                       </div>
                       <div style={{ background: '#080a0f', borderRadius: 6, height: 5, overflow: 'hidden' }}>
                         <div style={{ height: '100%', background: color, width: `${Math.min(100, progress)}%`, borderRadius: 6 }} />
                       </div>
                     </div>
                   )}
-                  {/* Show trading details if active */}
                   {b.status === 'ACTIVE' && b.tradingAccountId && (
                     <div style={{ marginTop: 10, background: '#080a0f', borderRadius: 8, padding: '10px 12px', fontSize: 12 }}>
                       <div style={{ color: '#00d4aa', fontWeight: 700, marginBottom: 6 }}>📊 {b.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'}</div>
@@ -1028,16 +530,25 @@ function BatchSection({ batches, token, s, reload }: any) {
   )
 }
 
+// ── BATCH ACTIVATE / FORCE CLOSE ─────────────────────────
 function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
   const [showActivate, setShowActivate] = useState(false)
   const [activateForm, setActivateForm] = useState({ tradingPlatform: 'MT4', brokerName: batch.brokerName || '', tradingAccountId: '', investorPassword: '', tradingServer: '' })
   const [activateLoading, setActivateLoading] = useState(false)
   const [activateError, setActivateError] = useState('')
-  const [statusLoading, setStatusLoading] = useState(false)
 
-  const next: any = { FORMING: null, FULL: null, ACTIVE: 'DISTRIBUTING', DISTRIBUTING: 'CLOSED' }
-  const nextStatus = next[batch.status]
+  // Force close state
+  const [showForceClose, setShowForceClose] = useState(false)
+  const [capitalLeft, setCapitalLeft] = useState('')
+  const [confirmZero, setConfirmZero] = useState(false)
+  const [forceLoading, setForceLoading] = useState(false)
+  const [forceError, setForceError] = useState('')
+
   const canActivate = ['FORMING', 'FULL'].includes(batch.status)
+  // Force close only available on ACTIVE or DISTRIBUTING batches
+  const canForceClose = ['ACTIVE', 'DISTRIBUTING'].includes(batch.status)
+  // Hide actions on CLOSED batches
+  if (batch.status === 'CLOSED') return null
 
   const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
 
@@ -1055,22 +566,26 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
     } finally { setActivateLoading(false) }
   }
 
-  async function advanceStatus() {
-    setStatusLoading(true)
+  async function forceClose() {
+    const cap = parseFloat(capitalLeft)
+    if (isNaN(cap) || cap < 0) { setForceError('Enter a valid capital amount (0 or more)'); return }
+    if (cap === 0 && !confirmZero) { setConfirmZero(true); return }
+    setForceLoading(true); setForceError('')
     try {
-      await fetch(`/api/batches/${batch.id}`, {
-        method: 'PATCH',
+      const r = await fetch('/api/batches/force-close', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ batchId: batch.id, capitalLeft: cap }),
       })
-      reload()
-    } finally { setStatusLoading(false) }
+      const d = await r.json()
+      if (!r.ok) { setForceError(d.error || 'Failed'); return }
+      setShowForceClose(false); setCapitalLeft(''); setConfirmZero(false); reload()
+    } finally { setForceLoading(false) }
   }
 
-  if (batch.status === 'CLOSED') return null
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, alignItems: 'flex-end' }}>
+      {/* Activate MT4/MT5 — only for FORMING/FULL */}
       {canActivate && (
         <button
           style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontSize: 12, whiteSpace: 'nowrap' as const }}
@@ -1079,9 +594,18 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
           ⚡ {showActivate ? 'Cancel' : 'Activate with MT4/MT5'}
         </button>
       )}
-      {nextStatus && (
-        <button style={{ ...s.btn('ghost'), fontSize: 12 }} onClick={advanceStatus} disabled={statusLoading}>→ {nextStatus}</button>
+
+      {/* Force Close — only for ACTIVE/DISTRIBUTING */}
+      {canForceClose && (
+        <button
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 14px', color: '#ef4444', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap' as const }}
+          onClick={() => { setShowForceClose(p => !p); setCapitalLeft(''); setConfirmZero(false); setForceError('') }}
+        >
+          🔴 {showForceClose ? 'Cancel' : 'Force Close & Open Withdrawal'}
+        </button>
       )}
+
+      {/* Activate form */}
       {showActivate && (
         <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 14, minWidth: 260 }}>
           {activateError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {activateError}</div>}
@@ -1090,17 +614,49 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
               <option value="MT4">MetaTrader 4 (MT4)</option>
               <option value="MT5">MetaTrader 5 (MT5)</option>
             </select>
-            {[
-              ['brokerName', 'Broker Name'],
-              ['tradingAccountId', 'Account ID'],
-              ['investorPassword', 'Investor Password'],
-              ['tradingServer', 'Server'],
-            ].map(([key, placeholder]) => (
+            {[['brokerName', 'Broker Name'], ['tradingAccountId', 'Account ID'], ['investorPassword', 'Investor Password'], ['tradingServer', 'Server']].map(([key, placeholder]) => (
               <input key={key} style={inputStyle} placeholder={placeholder} value={(activateForm as any)[key]} onChange={e => setActivateForm(p => ({ ...p, [key]: e.target.value }))} />
             ))}
           </div>
           <button style={{ ...s.btn(), width: '100%', fontSize: 12, padding: '8px' }} onClick={activateBatch} disabled={activateLoading}>
             {activateLoading ? 'Activating...' : '⚡ Activate & Notify Members'}
+          </button>
+        </div>
+      )}
+
+      {/* Force close form */}
+      {showForceClose && (
+        <div style={{ background: '#080a0f', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: 14, minWidth: 280 }}>
+          <div style={{ fontSize: 12, color: '#ef4444', fontWeight: 700, marginBottom: 8 }}>🔴 Force Close Batch</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.5 }}>
+            Enter the total capital remaining in the pool. This will immediately open a withdrawal window for all investors.
+          </div>
+          {forceError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {forceError}</div>}
+          {confirmZero && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: '#ef4444' }}>
+              ⚠ You entered $0 capital. This means investors will only receive their profit share (if any). The batch will be fully closed. Are you sure?
+            </div>
+          )}
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Capital left in pool ($)"
+            value={capitalLeft}
+            onChange={e => { setCapitalLeft(e.target.value); setConfirmZero(false); setForceError('') }}
+            style={{ ...inputStyle, marginBottom: 10 }}
+          />
+          {capitalLeft !== '' && rate && parseFloat(capitalLeft) > 0 && (
+            <div style={{ fontSize: 11, color: '#475569', marginBottom: 10 }}>
+              ≈ ₦{(parseFloat(capitalLeft) * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })} total to distribute
+            </div>
+          )}
+          <button
+            onClick={forceClose}
+            disabled={forceLoading || capitalLeft === ''}
+            style={{ width: '100%', background: confirmZero ? '#ef4444' : 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '10px', color: confirmZero ? '#fff' : '#ef4444', fontSize: 13, fontWeight: 700, cursor: forceLoading ? 'wait' : 'pointer', fontFamily: 'inherit' }}
+          >
+            {forceLoading ? 'Processing...' : confirmZero ? '⚠ Yes, Close with $0 Capital' : '🔴 Force Close & Open Withdrawal'}
           </button>
         </div>
       )}
@@ -1114,7 +670,6 @@ function InvestorSection({ investors, batches, s }: any) {
   const filtered = investors.filter((inv: any) =>
     inv.fullName?.toLowerCase().includes(search.toLowerCase()) || inv.email?.toLowerCase().includes(search.toLowerCase())
   )
-
   return (
     <div style={s.card}>
       <div style={{ marginBottom: 20 }}>
@@ -1123,25 +678,15 @@ function InvestorSection({ investors, batches, s }: any) {
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={s.table}>
-          <thead>
-            <tr>{['Investor', 'Phone', 'Nationality', 'Date of Birth', 'Wallet (TRC-20)', 'KYC Status', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
-          </thead>
+          <thead><tr>{['Investor', 'Phone', 'Nationality', 'Date of Birth', 'Wallet (SOL)', 'KYC Status', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
           <tbody>
             {filtered.map((inv: any) => (
               <tr key={inv.id}>
-                <td style={s.td}>
-                  <div style={{ fontWeight: 600 }}>{inv.fullName}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{inv.email}</div>
-                </td>
+                <td style={s.td}><div style={{ fontWeight: 600 }}>{inv.fullName}</div><div style={{ fontSize: 11, color: '#64748b' }}>{inv.email}</div></td>
                 <td style={s.td}><span style={{ color: '#94a3b8', fontSize: 12 }}>{inv.phone || '—'}</span></td>
                 <td style={s.td}><span style={{ fontSize: 12, color: '#94a3b8' }}>{inv.nationality || 'Nigeria'}</span></td>
                 <td style={s.td}><span style={{ fontSize: 12, color: '#94a3b8' }}>{inv.dateOfBirth || '—'}</span></td>
-                <td style={s.td}>
-                  {inv.walletAddress
-                    ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }} title={inv.walletAddress}>{inv.walletAddress.slice(0, 8)}...{inv.walletAddress.slice(-5)}</span>
-                    : <span style={{ color: '#475569', fontSize: 12 }}>Not set</span>
-                  }
-                </td>
+                <td style={s.td}>{inv.walletAddress ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }} title={inv.walletAddress}>{inv.walletAddress.slice(0, 8)}...{inv.walletAddress.slice(-5)}</span> : <span style={{ color: '#475569', fontSize: 12 }}>Not set</span>}</td>
                 <td style={s.td}><span style={s.tag(inv.kycStatus === 'APPROVED' ? '#00d4aa' : inv.kycStatus === 'PENDING' ? '#f59e0b' : '#ef4444')}>{inv.kycStatus || 'NOT_SUBMITTED'}</span></td>
                 <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(inv.createdAt).toLocaleDateString()}</span></td>
               </tr>
@@ -1155,14 +700,14 @@ function InvestorSection({ investors, batches, s }: any) {
 }
 
 // ── WITHDRAWALS ───────────────────────────────────────────
-function WithdrawalSection({ batches, token, s }: any) {
+function WithdrawalSection({ batches, token, s, reload }: any) {
   const [form, setForm] = useState({ batchCode: '', profitAmount: '' })
   const [loading, setLoading] = useState(false)
   const [paymentDoneLoading, setPaymentDoneLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [payouts, setPayouts] = useState<any[]>([])
-  const [batchTotals, setBatchTotals] = useState<Record<string,number>>({})
+  const [batchTotals, setBatchTotals] = useState<Record<string, number>>({})
   const rate = useUsdNgnRate()
 
   useEffect(() => { loadPayouts() }, [])
@@ -1184,10 +729,10 @@ function WithdrawalSection({ batches, token, s }: any) {
         body: JSON.stringify(form),
       })
       const d = await r.json()
-      if (!r.ok) return setError(d.error)
-      setMessage(`Withdrawal activated for ${form.batchCode}`)
+      if (!r.ok) { setError(d.error); return }
+      setMessage(`✓ Withdrawal window opened for ${form.batchCode}`)
       setForm({ batchCode: '', profitAmount: '' })
-      loadPayouts()
+      loadPayouts(); reload()
     } finally { setLoading(false) }
   }
 
@@ -1201,7 +746,7 @@ function WithdrawalSection({ batches, token, s }: any) {
       })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Failed'); return }
-      setMessage(`Payment marked as done for ${batchCode} — investors notified`)
+      setMessage(`✓ Payment marked done for ${batchCode} — investors notified`)
       loadPayouts()
     } finally { setPaymentDoneLoading(false) }
   }
@@ -1209,34 +754,24 @@ function WithdrawalSection({ batches, token, s }: any) {
   function exportWallets(batchCode: string) {
     const batchPayouts = payouts.filter((p: any) => p.batchCode === batchCode && p.status === 'CONFIRMED')
     if (!batchPayouts.length) { setError('No confirmed payouts to export for ' + batchCode); return }
-    // NowPayments batch payout template format
-    // Ticker, Wallet Address, ExtraId, Amount in crypto (6 decimals), Fiat amount, Fiat currency, Payout description
-    const rows = [
-      'Ticker,Wallet Address,ExtraId (memo etc.),Amount in crypto (6 decimals only!),Fiat amount,Fiat currency,Payout description'
-    ]
+    const rows = ['Ticker,Wallet Address,ExtraId (memo etc.),Amount in crypto (6 decimals only!),Fiat amount,Fiat currency,Payout description']
     batchPayouts.forEach((p: any) => {
-      rows.push([
-        'SOL',
-        p.walletAddress || '',
-        '',                             // no memo needed for SOL
-        '',                             // leave blank — NowPayments will auto-calc from fiat
-        parseFloat(p.amount).toFixed(2),
-        'USD',
-        `Club10 Pool ${batchCode} withdrawal — ${p.investorName}`
-      ].join(','))
+      rows.push(['SOL', p.walletAddress || '', '', '', parseFloat(p.amount).toFixed(2), 'USD', `Club10 Pool ${batchCode} withdrawal — ${p.investorName}`].join(','))
     })
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a'); a.href = url
-    a.download = `nowpayments-payout-${batchCode}-${new Date().toISOString().slice(0,10)}.csv`
+    a.download = `nowpayments-payout-${batchCode}-${new Date().toISOString().slice(0, 10)}.csv`
     a.click(); URL.revokeObjectURL(url)
   }
 
   const inputStyle = { background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13 }
   const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
-  const activeBatches = batches.filter((b: any) => ['ACTIVE', 'DISTRIBUTING'].includes(b.status))
 
-  // Group payouts by batch
+  // Only ACTIVE batches can have a new withdrawal window opened manually
+  // (DISTRIBUTING means window already open; CLOSED means done)
+  const activeBatches = batches.filter((b: any) => b.status === 'ACTIVE')
+
   const batchGroups: Record<string, any[]> = {}
   payouts.forEach((p: any) => {
     if (!batchGroups[p.batchCode]) batchGroups[p.batchCode] = []
@@ -1245,12 +780,14 @@ function WithdrawalSection({ batches, token, s }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-      {/* Activate withdrawal */}
       <div style={{ ...s.card, border: '1px solid rgba(201,168,76,0.2)' }}>
-        <div style={{ fontWeight: 700, marginBottom: 16 }}>Open Withdrawal Window</div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Open Withdrawal Window</div>
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+          Manually open a withdrawal window for an active batch — use this for monthly profit distribution.
+          To force-close a batch, go to <strong style={{ color: '#e2e8f0' }}>Batch Management</strong> and click "Force Close".
+        </div>
         {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {error}</div>}
-        {message && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12 }}>✓ {message}</div>}
+        {message && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12 }}>{message}</div>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, alignItems: 'flex-end' }}>
           <div>
             <label style={labelStyle}>Batch</label>
@@ -1263,18 +800,19 @@ function WithdrawalSection({ batches, token, s }: any) {
             <label style={labelStyle}>Total Profit ($)</label>
             <input type="number" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' as const }} placeholder="0.00" value={form.profitAmount} onChange={e => setForm(p => ({ ...p, profitAmount: e.target.value }))} />
           </div>
-          <button style={s.btn()} onClick={activateWithdrawal} disabled={loading}>{loading ? '...' : 'Open Window'}</button>
+          <button style={s.btn()} onClick={activateWithdrawal} disabled={loading || !form.batchCode || !form.profitAmount}>
+            {loading ? '...' : 'Open Window'}
+          </button>
         </div>
       </div>
 
-      {/* Payout groups by batch */}
       {Object.entries(batchGroups).map(([batchCode, batchPayouts]) => {
         const totalCount = batchTotals[batchCode] || batchPayouts.length
         const confirmedCount = batchPayouts.filter((p: any) => p.status === 'CONFIRMED').length
         const totalAmount = batchPayouts.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0)
         const paymentDone = batchPayouts.every((p: any) => p.paymentDone)
-        const allConfirmed = confirmedCount === totalCount
-        const progress = Math.round((confirmedCount / totalCount) * 100)
+        const allConfirmed = confirmedCount >= totalCount && totalCount > 0
+        const progress = totalCount > 0 ? Math.round((confirmedCount / totalCount) * 100) : 0
 
         return (
           <div key={batchCode} style={s.card}>
@@ -1287,23 +825,15 @@ function WithdrawalSection({ batches, token, s }: any) {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button style={{ ...s.btn('ghost'), fontSize: 12 }} onClick={() => exportWallets(batchCode)}>
-                  📥 Export Wallets CSV
-                </button>
+                <button style={{ ...s.btn('ghost'), fontSize: 12 }} onClick={() => exportWallets(batchCode)}>📥 Export CSV</button>
                 {!paymentDone && allConfirmed && (
-                  <button
-                    style={{ ...s.btn(), background: 'linear-gradient(135deg,#00d4aa,#0099aa)', color: '#000', fontSize: 12 }}
-                    onClick={() => markPaymentDone(batchCode)}
-                    disabled={paymentDoneLoading}
-                  >
+                  <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#00d4aa,#0099aa)', color: '#000', fontSize: 12 }} onClick={() => markPaymentDone(batchCode)} disabled={paymentDoneLoading}>
                     {paymentDoneLoading ? '...' : '✓ Mark Payment Done'}
                   </button>
                 )}
                 {paymentDone && <span style={s.tag('#00d4aa')}>PAID</span>}
               </div>
             </div>
-
-            {/* Progress bar */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 6 }}>
                 <span>Confirmations received</span>
@@ -1313,27 +843,23 @@ function WithdrawalSection({ batches, token, s }: any) {
                 <div style={{ height: '100%', background: progress === 100 ? '#00d4aa' : 'linear-gradient(90deg,#f59e0b,#c9a84c)', width: `${progress}%`, borderRadius: 6, transition: 'width 0.5s' }} />
               </div>
             </div>
-
-            {/* Table */}
             <div style={{ overflowX: 'auto' }}>
               <table style={s.table}>
-                <thead>
-                  <tr>{['Investor', 'Amount', 'USDT Wallet (TRC-20)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
-                </thead>
+                <thead><tr>{['Investor', 'Type', 'Amount', 'USDT Wallet (SOL)', 'Status', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
                 <tbody>
                   {batchPayouts.map((p: any) => (
                     <tr key={p.id}>
                       <td style={s.td}><div style={{ fontWeight: 600, fontSize: 13 }}>{p.investorName}</div><div style={{ fontSize: 11, color: '#64748b' }}>{p.email}</div></td>
                       <td style={s.td}>
+                        <span style={{ fontSize: 11, color: p.withdrawalType === 'PROFIT_ONLY' ? '#818cf8' : '#ef4444', fontWeight: 600 }}>
+                          {p.withdrawalType === 'PROFIT_ONLY' ? '📊 Profit Only' : '🚪 Full Exit'}
+                        </span>
+                      </td>
+                      <td style={s.td}>
                         <span style={{ color: '#c9a84c', fontWeight: 600 }}>${parseFloat(p.amount || 0).toLocaleString()}</span>
                         <NgnEquiv usd={parseFloat(p.amount || 0)} rate={rate} />
                       </td>
-                      <td style={s.td}>
-                        {p.walletAddress
-                          ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }}>{p.walletAddress.slice(0, 10)}...{p.walletAddress.slice(-6)}</span>
-                          : <span style={{ color: '#ef4444', fontSize: 12 }}>⚠ Not set</span>
-                        }
-                      </td>
+                      <td style={s.td}>{p.walletAddress ? <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#00d4aa' }}>{p.walletAddress.slice(0, 10)}...{p.walletAddress.slice(-6)}</span> : <span style={{ color: '#ef4444', fontSize: 12 }}>⚠ Not set</span>}</td>
                       <td style={s.td}><span style={s.tag(p.paymentDone ? '#00d4aa' : p.status === 'CONFIRMED' ? '#f59e0b' : '#64748b')}>{p.paymentDone ? 'PAID' : p.status}</span></td>
                       <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(p.createdAt).toLocaleDateString()}</span></td>
                     </tr>
@@ -1344,9 +870,294 @@ function WithdrawalSection({ batches, token, s }: any) {
           </div>
         )
       })}
+      {!Object.keys(batchGroups).length && <div style={{ ...s.card, textAlign: 'center', padding: 60, color: '#64748b' }}>No withdrawal requests yet</div>}
+    </div>
+  )
+}
 
-      {!Object.keys(batchGroups).length && (
-        <div style={{ ...s.card, textAlign: 'center', padding: 60, color: '#64748b' }}>No withdrawal requests yet</div>
+// ── KYC ──────────────────────────────────────────────────
+function KycDocViewer({ url, label, token }: { url: string; label: string; token: string }) {
+  const [loading, setLoading] = useState(false)
+  const [signingError, setSigningError] = useState('')
+  const isPdf = url.includes('/raw/') || url.toLowerCase().endsWith('.pdf')
+
+  async function openSigned() {
+    setLoading(true); setSigningError('')
+    try {
+      const r = await fetch('/api/kyc/signed-url', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ url }) })
+      const d = await r.json()
+      if (!r.ok) { setSigningError(d.error || 'Failed to get link'); return }
+      window.open(d.data.signedUrl, '_blank')
+    } catch { setSigningError('Network error') } finally { setLoading(false) }
+  }
+
+  if (isPdf) return (
+    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+        <span style={{ fontSize: 28 }}>📄</span>
+        <div style={{ flex: 1 }}><div style={{ fontSize: 12, color: '#e2e8f0', marginBottom: 2 }}>{label}</div><div style={{ fontSize: 11, color: '#475569', fontFamily: 'monospace' }}>PDF Document</div></div>
+        <button onClick={async () => {
+          try {
+            const r = await fetch('/api/kyc/signed-url', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ url }) })
+            const d = await r.json()
+            const signedUrl = d.data?.signedUrl || url
+            const res = await fetch(signedUrl)
+            if (!res.ok) { window.open(signedUrl, '_blank'); return }
+            const blob = await res.blob()
+            if (blob.size === 0) { window.open(signedUrl, '_blank'); return }
+            const blobUrl = URL.createObjectURL(blob)
+            const a = document.createElement('a'); a.href = blobUrl; a.download = `${label.replace(/\s+/g, '-')}.pdf`; a.click(); URL.revokeObjectURL(blobUrl)
+          } catch { window.open(url, '_blank') }
+        }} style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 7, padding: '7px 14px', fontWeight: 700, fontSize: 11, cursor: 'pointer' }}>
+          ⬇ Download PDF
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, overflow: 'hidden' }}>
+      <div onClick={openSigned} style={{ cursor: loading ? 'wait' : 'zoom-in', background: '#0a0d14', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, overflow: 'hidden', position: 'relative' }}>
+        <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { const el = e.target as HTMLImageElement; el.style.display = 'none'; const fb = el.nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex' }} />
+        <div style={{ display: 'none', flexDirection: 'column', alignItems: 'center', gap: 6, color: '#475569', fontSize: 12, position: 'absolute', inset: 0, justifyContent: 'center' }}><span style={{ fontSize: 28 }}>🖼</span><span>Click to open</span></div>
+        <div style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 10, color: '#94a3b8' }}>{loading ? '⏳ Loading...' : '🔍 View Full'}</div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>{label}</span>
+        <button onClick={openSigned} disabled={loading} style={{ background: 'none', border: 'none', fontSize: 11, color: '#c9a84c', cursor: 'pointer', padding: 0 }}>{loading ? 'Loading...' : 'Open ↗'}</button>
+      </div>
+      {signingError && <div style={{ fontSize: 11, color: '#ef4444', padding: '4px 14px 8px' }}>⚠ {signingError}</div>}
+    </div>
+  )
+}
+
+function KYCSection({ kycList, token, s, reload }: any) {
+  const [selected, setSelected] = useState<any>(null)
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [filter, setFilter] = useState('PENDING')
+
+  async function handleAction(action: 'approve' | 'reject') {
+    if (!selected) return
+    setLoading(true)
+    try {
+      const r = await fetch('/api/kyc/admin', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ investorId: selected.investorId, action, adminNotes: notes }) })
+      if (r.ok) { setSelected(null); setNotes(''); reload() }
+    } finally { setLoading(false) }
+  }
+
+  const filtered = kycList.filter((k: any) => filter === 'ALL' || k.status === filter)
+  const idTypeLabel: any = { voters_card: "Voter's Card", nin: 'NIN', drivers_licence: "Driver's Licence", international_passport: 'Int. Passport' }
+  const docs = selected ? [
+    { label: 'ID Front', url: selected.idFrontUrl },
+    { label: 'ID Back', url: selected.idBackUrl },
+    { label: 'Passport Photo', url: selected.passportPhotoUrl },
+    { label: 'Proof of Address', url: selected.proofOfAddressUrl },
+  ].filter(d => d.url) : []
+
+  return (
+    <div className="kyc-split" style={{ display: 'grid', gridTemplateColumns: selected ? '1fr 420px' : '1fr', gap: 20 }}>
+      <div style={s.card}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          {['PENDING', 'APPROVED', 'REJECTED', 'ALL'].map(f => <button key={f} onClick={() => setFilter(f)} style={{ ...s.btn(filter === f ? 'primary' : 'ghost'), padding: '6px 14px', fontSize: 12 }}>{f}</button>)}
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={s.table}>
+            <thead><tr>{['Investor', 'ID Type', 'Submitted', 'Status', 'Action'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {filtered.map((k: any) => (
+                <tr key={k.id} style={{ cursor: 'pointer' }} onClick={() => { setSelected(k); setNotes('') }}>
+                  <td style={s.td}><div style={{ fontWeight: 600 }}>{k.fullName}</div><div style={{ fontSize: 11, color: '#64748b' }}>{k.email}</div></td>
+                  <td style={s.td}><span style={{ color: '#94a3b8' }}>{idTypeLabel[k.idType] || k.idType}</span></td>
+                  <td style={s.td}><span style={{ color: '#64748b', fontSize: 12 }}>{new Date(k.submittedAt).toLocaleDateString()}</span></td>
+                  <td style={s.td}><span style={s.tag(k.status === 'APPROVED' ? '#00d4aa' : k.status === 'PENDING' ? '#f59e0b' : '#ef4444')}>{k.status}</span></td>
+                  <td style={s.td}><button style={{ ...s.btn('ghost'), fontSize: 12 }}>View →</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!filtered.length && <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No {filter.toLowerCase()} submissions</div>}
+      </div>
+      {selected && (
+        <div style={{ ...s.card, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>KYC Review</div>
+            <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+          </div>
+          <div style={{ background: '#080a0f', borderRadius: 8, padding: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selected.fullName}</div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{selected.email}</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>ID Type: {idTypeLabel[selected.idType] || selected.idType}</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' }}>Documents</div>
+            {docs.map(doc => <KycDocViewer key={doc.label} url={doc.url} label={doc.label} token={token} />)}
+            {docs.length === 0 && <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>No documents found</div>}
+          </div>
+          {selected.status === 'PENDING' && (
+            <>
+              <div>
+                <label style={{ fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }}>Admin Notes (optional)</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+                  style={{ width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, resize: 'vertical', boxSizing: 'border-box' as const }}
+                  placeholder="Reason for rejection etc..." />
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => handleAction('approve')} disabled={loading} style={{ ...s.btn('primary'), flex: 1 }}>✓ Approve</button>
+                <button onClick={() => handleAction('reject')} disabled={loading} style={{ ...s.btn('danger'), flex: 1 }}>✕ Reject</button>
+              </div>
+            </>
+          )}
+          {selected.status !== 'PENDING' && (
+            <div style={{ background: '#080a0f', borderRadius: 8, padding: 12 }}>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Reviewed: {selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleDateString() : 'N/A'}</div>
+              {selected.adminNotes && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>{selected.adminNotes}</div>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── REFERRAL ADMIN ────────────────────────────────────────
+function ReferralAdminSection({ referralPools, token, s, reload }: any) {
+  const [filter, setFilter] = useState('ALL')
+  const [tab, setTab] = useState<'pools' | 'rebates'>('pools')
+  const [activating, setActivating] = useState<any>(null)
+  const [activateForm, setActivateForm] = useState({ tradingPlatform: 'MT4', brokerName: '', tradingAccountId: '', investorPassword: '', tradingServer: '' })
+  const [activateLoading, setActivateLoading] = useState(false)
+  const [activateError, setActivateError] = useState('')
+  const [activateSuccess, setActivateSuccess] = useState('')
+  const [rebateForm, setRebateForm] = useState({ referralPoolId: '', month: '', totalRebate: '', adminNotes: '' })
+  const [rebateLoading, setRebateLoading] = useState(false)
+  const [rebateError, setRebateError] = useState('')
+  const [rebateSuccess, setRebateSuccess] = useState('')
+
+  const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
+  const labelStyle = { fontSize: 11, color: '#64748b', display: 'block', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' as const }
+
+  async function activatePool() {
+    setActivateError(''); setActivateLoading(true)
+    try {
+      const r = await fetch('/api/batches/admin-activate', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ referralPoolId: activating.id, ...activateForm }) })
+      const d = await r.json()
+      if (!r.ok) { setActivateError(d.error || 'Activation failed'); return }
+      setActivateSuccess(`✓ Pool activated! Batch ${d.data?.batch?.batchCode} created. All members notified.`)
+      setActivating(null); reload()
+    } finally { setActivateLoading(false) }
+  }
+
+  async function submitRebate() {
+    setRebateError(''); setRebateLoading(true)
+    try {
+      const r = await fetch('/api/referrals/rebates', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...rebateForm, totalRebate: parseFloat(rebateForm.totalRebate) }) })
+      const d = await r.json()
+      if (!r.ok) { setRebateError(d.error || 'Failed'); return }
+      setRebateSuccess(`✓ Rebate recorded. Creator bonus: $${d.data?.creatorBonus?.toLocaleString()}. Email sent.`)
+      setRebateForm({ referralPoolId: '', month: '', totalRebate: '', adminNotes: '' })
+    } finally { setRebateLoading(false) }
+  }
+
+  const filtered = filter === 'ALL' ? referralPools : referralPools.filter((p: any) => p.status === filter)
+  const activePools = referralPools.filter((p: any) => p.status === 'ACTIVE')
+  const fullPools = referralPools.filter((p: any) => p.status === 'FULL')
+
+  return (
+    <div>
+      {fullPools.length > 0 && (
+        <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(245,158,11,0.35)', background: 'rgba(245,158,11,0.04)' }}>
+          <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>⏳ {fullPools.length} Pool{fullPools.length > 1 ? 's' : ''} Ready for Activation</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>These pools have reached their target and need MT4/MT5 trading account details to go live.</div>
+        </div>
+      )}
+      {activateSuccess && <div style={{ background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.25)', borderRadius: 8, padding: '10px 16px', marginBottom: 16, color: '#00d4aa', fontSize: 13 }}>{activateSuccess}</div>}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {(['pools', 'rebates'] as const).map(t => <button key={t} onClick={() => setTab(t)} style={{ ...s.btn(tab === t ? 'primary' : 'ghost'), padding: '8px 18px', fontSize: 13 }}>{t === 'pools' ? '🔗 Referral Pools' : '💰 Monthly Rebates'}</button>)}
+      </div>
+      {tab === 'pools' && (
+        <div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            {['ALL', 'OPEN', 'FULL', 'ACTIVE', 'CLOSED'].map(f => <button key={f} onClick={() => setFilter(f)} style={{ ...s.btn(filter === f ? 'primary' : 'ghost'), padding: '5px 14px', fontSize: 12 }}>{f}</button>)}
+          </div>
+          {activating && (
+            <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.3)', background: 'rgba(201,168,76,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, color: '#c9a84c' }}>⚡ Activate: {CATEGORY_LABELS[activating.category]} ({activating.referralCode})</div>
+                <button onClick={() => { setActivating(null); setActivateError('') }} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>✕</button>
+              </div>
+              {activateError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {activateError}</div>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+                <div>
+                  <label style={labelStyle}>Trading Platform</label>
+                  <select value={activateForm.tradingPlatform} onChange={e => setActivateForm(p => ({ ...p, tradingPlatform: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                    <option value="MT4">MetaTrader 4 (MT4)</option><option value="MT5">MetaTrader 5 (MT5)</option>
+                  </select>
+                </div>
+                {[{ key: 'brokerName', label: 'Broker Name', placeholder: 'e.g. Exness' }, { key: 'tradingAccountId', label: 'Account ID', placeholder: 'e.g. 12345678' }, { key: 'investorPassword', label: 'Investor Password', placeholder: 'Read-only password' }, { key: 'tradingServer', label: 'Server', placeholder: 'e.g. Exness-Real3' }].map(f => (
+                  <div key={f.key}><label style={labelStyle}>{f.label}</label><input style={inputStyle} placeholder={f.placeholder} value={(activateForm as any)[f.key]} onChange={e => setActivateForm(p => ({ ...p, [f.key]: e.target.value }))} /></div>
+                ))}
+              </div>
+              <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={activatePool} disabled={activateLoading}>{activateLoading ? 'Activating...' : '⚡ Activate & Notify All Members'}</button>
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filtered.map((pool: any) => {
+              const color = CATEGORY_COLORS[pool.category] || '#64748b'
+              const paidMembers = pool.members?.filter((m: any) => ['PAID', 'ACTIVE'].includes(m.status)) || []
+              const totalPaid = paidMembers.reduce((sum: number, m: any) => sum + Number(m.contribution), 0)
+              const progress = pool.targetAmount ? (totalPaid / Number(pool.targetAmount)) * 100 : 0
+              return (
+                <div key={pool.id} style={{ ...s.card, border: `1px solid ${pool.status === 'FULL' ? 'rgba(245,158,11,0.4)' : '#1e2530'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: 15, color }}>{CATEGORY_LABELS[pool.category] || pool.category}</span>
+                        <span style={{ fontSize: 12, color: '#64748b' }}>/{pool.referralCode}</span>
+                        <span style={s.tag(color)}>{pool.status}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#94a3b8' }}>Creator: <strong>{pool.creator?.fullName}</strong> <span style={{ color: '#64748b' }}>({pool.creator?.email})</span></div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{paidMembers.length} paid member{paidMembers.length !== 1 ? 's' : ''} · ${totalPaid.toLocaleString()} / ${Number(pool.targetAmount || 0).toLocaleString()}</div>
+                    </div>
+                    {pool.status === 'FULL' && <button style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000' }} onClick={() => { setActivating(pool); setActivateError('') }}>⚡ Activate Pool</button>}
+                  </div>
+                  {pool.targetAmount && <div style={{ height: 6, background: '#1e2530', borderRadius: 3, overflow: 'hidden', marginBottom: 10 }}><div style={{ height: '100%', width: `${Math.min(100, progress)}%`, background: color, borderRadius: 3 }} /></div>}
+                  {paidMembers.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{paidMembers.map((m: any) => <div key={m.id} style={{ background: '#080a0f', borderRadius: 6, padding: '4px 10px', fontSize: 11, color: '#94a3b8' }}>{m.investor?.fullName} · <span style={{ color }}>${Number(m.contribution).toLocaleString()}</span></div>)}</div>}
+                </div>
+              )
+            })}
+            {filtered.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 60 }}>No {filter !== 'ALL' ? filter.toLowerCase() + ' ' : ''}referral pools found</div>}
+          </div>
+        </div>
+      )}
+      {tab === 'rebates' && (
+        <div>
+          <div style={{ ...s.card, marginBottom: 20, border: '1px solid rgba(201,168,76,0.2)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>💰 Record Monthly Rebate</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Enter the total trading account rebate for a pool. System calculates creator's 10% bonus and emails them.</div>
+            {rebateError && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>⚠ {rebateError}</div>}
+            {rebateSuccess && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 12 }}>{rebateSuccess}</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+              <div><label style={labelStyle}>Active Referral Pool</label>
+                <select value={rebateForm.referralPoolId} onChange={e => setRebateForm(p => ({ ...p, referralPoolId: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                  <option value="">Select pool...</option>
+                  {activePools.map((p: any) => <option key={p.id} value={p.id}>{CATEGORY_LABELS[p.category] || p.category} — {p.referralCode} ({p.creator?.fullName})</option>)}
+                </select>
+              </div>
+              <div><label style={labelStyle}>Month</label><input type="month" style={inputStyle} value={rebateForm.month.slice(0, 7)} onChange={e => setRebateForm(p => ({ ...p, month: e.target.value + '-01' }))} /></div>
+              <div><label style={labelStyle}>Total Pool Rebate ($)</label><input type="number" step="0.01" placeholder="0.00" style={inputStyle} value={rebateForm.totalRebate} onChange={e => setRebateForm(p => ({ ...p, totalRebate: e.target.value }))} /></div>
+              <div><label style={labelStyle}>Creator Bonus (10% — auto)</label>
+                <div style={{ ...inputStyle, color: '#c9a84c', fontWeight: 700, background: 'rgba(201,168,76,0.06)', cursor: 'default', display: 'flex', alignItems: 'center' }}>
+                  ${rebateForm.totalRebate ? (parseFloat(rebateForm.totalRebate) * 0.1).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}><label style={labelStyle}>Admin Notes (optional)</label><textarea rows={2} style={{ ...inputStyle, resize: 'vertical' as const }} placeholder="Any notes for the creator..." value={rebateForm.adminNotes} onChange={e => setRebateForm(p => ({ ...p, adminNotes: e.target.value }))} /></div>
+            <button style={s.btn()} onClick={submitRebate} disabled={rebateLoading || !rebateForm.referralPoolId || !rebateForm.month || !rebateForm.totalRebate}>{rebateLoading ? 'Recording...' : '💰 Record Rebate & Notify Creator'}</button>
+          </div>
+          {activePools.length === 0 && <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 40 }}>No active referral pools yet.</div>}
+        </div>
       )}
     </div>
   )
@@ -1356,31 +1167,15 @@ function WithdrawalSection({ batches, token, s }: any) {
 function AuditSection({ token, s }: any) {
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/audit', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(d => { setLogs(d.data || []); setLoading(false) })
-  }, [])
-
+  useEffect(() => { fetch('/api/audit', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => { setLogs(d.data || []); setLoading(false) }) }, [])
   return (
     <div style={s.card}>
       <div style={{ fontWeight: 700, marginBottom: 16 }}>Audit Trail</div>
       {loading ? <div style={{ color: '#64748b', textAlign: 'center', padding: 40 }}>Loading...</div> : (
         <div style={{ overflowX: 'auto' }}>
           <table style={s.table}>
-            <thead>
-              <tr>{['Actor', 'Action', 'Entity', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {logs.map((log: any) => (
-                <tr key={log.id}>
-                  <td style={s.td}><span style={{ fontSize: 13 }}>{log.actorEmail}</span></td>
-                  <td style={s.td}><span style={{ color: '#c9a84c', fontSize: 13 }}>{log.action}</span></td>
-                  <td style={s.td}><span style={{ color: '#64748b', fontSize: 12 }}>{log.entityType || '—'}</span></td>
-                  <td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(log.createdAt).toLocaleString()}</span></td>
-                </tr>
-              ))}
-            </tbody>
+            <thead><tr>{['Actor', 'Action', 'Entity', 'Date'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+            <tbody>{logs.map((log: any) => (<tr key={log.id}><td style={s.td}><span style={{ fontSize: 13 }}>{log.actorEmail}</span></td><td style={s.td}><span style={{ color: '#c9a84c', fontSize: 13 }}>{log.action}</span></td><td style={s.td}><span style={{ color: '#64748b', fontSize: 12 }}>{log.entityType || '—'}</span></td><td style={s.td}><span style={{ fontSize: 12, color: '#64748b' }}>{new Date(log.createdAt).toLocaleString()}</span></td></tr>))}</tbody>
           </table>
         </div>
       )}
@@ -1389,7 +1184,7 @@ function AuditSection({ token, s }: any) {
   )
 }
 
-// ── BROADCAST SECTION ─────────────────────────────────────
+// ── BROADCAST ─────────────────────────────────────────────
 const BROADCAST_TYPE_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
   INFO:    { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', label: 'Notice' },
   SUCCESS: { color: '#00d4aa', bg: 'rgba(0,212,170,0.08)',   border: 'rgba(0,212,170,0.25)',   label: 'Update' },
@@ -1407,26 +1202,16 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     if (!form.title || !form.message) { setError('Title and message required'); return }
     setSending(true); setError(''); setSuccess('')
     try {
-      const r = await fetch('/api/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ ...form, expiresInHours: form.expiresInHours ? parseInt(form.expiresInHours) : null }),
-      })
+      const r = await fetch('/api/broadcast', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...form, expiresInHours: form.expiresInHours ? parseInt(form.expiresInHours) : null }) })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Failed to send'); return }
       setSuccess('Broadcast sent to all investors!')
-      setForm({ title: '', message: '', type: 'INFO', expiresInHours: '' })
-      reload()
+      setForm({ title: '', message: '', type: 'INFO', expiresInHours: '' }); reload()
     } finally { setSending(false) }
   }
 
   async function deactivate(id: string) {
-    await fetch('/api/broadcast', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id }),
-    })
-    reload()
+    await fetch('/api/broadcast', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ id }) }); reload()
   }
 
   const inputStyle: any = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '10px 14px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }
@@ -1434,77 +1219,32 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720 }}>
-
-      {/* Compose */}
       <div style={s.card}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 20 }}>📢 Send Broadcast to All Investors</div>
         {error && <div style={{ color: '#ef4444', fontSize: 13, marginBottom: 14, padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: 8 }}>⚠ {error}</div>}
         {success && <div style={{ color: '#00d4aa', fontSize: 13, marginBottom: 14, padding: '10px 14px', background: 'rgba(0,212,170,0.08)', borderRadius: 8 }}>✓ {success}</div>}
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={labelStyle}>Notification Title</label>
-            <input style={inputStyle} placeholder="e.g. System Maintenance Notice" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
-          </div>
-          <div>
-            <label style={labelStyle}>Type</label>
+          <div style={{ gridColumn: 'span 2' }}><label style={labelStyle}>Notification Title</label><input style={inputStyle} placeholder="e.g. System Maintenance Notice" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
+          <div><label style={labelStyle}>Type</label>
             <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-              <option value="INFO">ℹ️ Info / Notice</option>
-              <option value="SUCCESS">✅ Good News / Update</option>
-              <option value="WARNING">⚠️ Warning / Alert</option>
-              <option value="URGENT">🚨 Urgent</option>
+              <option value="INFO">ℹ️ Info / Notice</option><option value="SUCCESS">✅ Good News / Update</option><option value="WARNING">⚠️ Warning / Alert</option><option value="URGENT">🚨 Urgent</option>
             </select>
           </div>
-          <div>
-            <label style={labelStyle}>Auto-Expire After</label>
+          <div><label style={labelStyle}>Auto-Expire After</label>
             <select style={{ ...inputStyle, cursor: 'pointer' }} value={form.expiresInHours} onChange={e => setForm(p => ({ ...p, expiresInHours: e.target.value }))}>
-              <option value="">Never (manual removal)</option>
-              <option value="6">6 hours</option>
-              <option value="24">24 hours</option>
-              <option value="48">48 hours</option>
-              <option value="168">1 week</option>
+              <option value="">Never</option><option value="6">6 hours</option><option value="24">24 hours</option><option value="48">48 hours</option><option value="168">1 week</option>
             </select>
           </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={labelStyle}>Message</label>
-            <textarea
-              style={{ ...inputStyle, minHeight: 100, resize: 'vertical', lineHeight: 1.6 }}
-              placeholder="Write your message to investors here..."
-              value={form.message}
-              onChange={e => setForm(p => ({ ...p, message: e.target.value }))}
-            />
-          </div>
+          <div style={{ gridColumn: 'span 2' }}><label style={labelStyle}>Message</label><textarea style={{ ...inputStyle, minHeight: 100, resize: 'vertical', lineHeight: 1.6 }} placeholder="Write your message to investors here..." value={form.message} onChange={e => setForm(p => ({ ...p, message: e.target.value }))} /></div>
         </div>
-
-        {/* Preview */}
-        {(form.title || form.message) && (() => {
-          const cfg = BROADCAST_TYPE_CONFIG[form.type]
-          return (
-            <div style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
-              <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1.5, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>
-                PREVIEW — AS SEEN BY INVESTORS
-              </div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginBottom: 4 }}>{form.title || 'Untitled'}</div>
-              <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{form.message || '…'}</div>
-            </div>
-          )
-        })()}
-
-        <button
-          onClick={send}
-          disabled={sending || !form.title || !form.message}
-          style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '13px 28px', fontWeight: 800, fontSize: 14, cursor: sending ? 'wait' : 'pointer', opacity: !form.title || !form.message ? 0.5 : 1, fontFamily: 'inherit' }}
-        >
+        {(form.title || form.message) && (() => { const cfg = BROADCAST_TYPE_CONFIG[form.type]; return <div style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}><div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1.5, fontFamily: "'JetBrains Mono', monospace", marginBottom: 6 }}>PREVIEW</div><div style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginBottom: 4 }}>{form.title || 'Untitled'}</div><div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{form.message || '…'}</div></div> })()}
+        <button onClick={send} disabled={sending || !form.title || !form.message} style={{ background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', border: 'none', borderRadius: 10, padding: '13px 28px', fontWeight: 800, fontSize: 14, cursor: sending ? 'wait' : 'pointer', opacity: !form.title || !form.message ? 0.5 : 1, fontFamily: 'inherit' }}>
           {sending ? 'Sending...' : '📢 Broadcast to All Investors →'}
         </button>
       </div>
-
-      {/* Active broadcasts */}
       <div style={s.card}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Active Broadcasts ({broadcasts.filter((b: any) => b).length})</div>
-        {broadcasts.length === 0 ? (
-          <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>No active broadcasts</div>
-        ) : (
+        {broadcasts.length === 0 ? <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: '24px 0' }}>No active broadcasts</div> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {broadcasts.map((b: any) => {
               const cfg = BROADCAST_TYPE_CONFIG[b.type] || BROADCAST_TYPE_CONFIG.INFO
@@ -1513,24 +1253,13 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, letterSpacing: 1 }}>{cfg.label.toUpperCase()}</span>
-                      <span style={{ fontSize: 10, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>
-                        {new Date(b.createdAt).toLocaleString('en-GB')}
-                      </span>
-                      {b.expiresAt && (
-                        <span style={{ fontSize: 10, color: '#64748b', fontFamily: "'JetBrains Mono', monospace" }}>
-                          · Expires {new Date(b.expiresAt).toLocaleString('en-GB')}
-                        </span>
-                      )}
+                      <span style={{ fontSize: 10, color: '#475569', fontFamily: "'JetBrains Mono', monospace" }}>{new Date(b.createdAt).toLocaleString('en-GB')}</span>
+                      {b.expiresAt && <span style={{ fontSize: 10, color: '#64748b', fontFamily: "'JetBrains Mono', monospace" }}>· Expires {new Date(b.expiresAt).toLocaleString('en-GB')}</span>}
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0', marginBottom: 4 }}>{b.title}</div>
                     <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.5 }}>{b.message}</div>
                   </div>
-                  <button
-                    onClick={() => deactivate(b.id)}
-                    style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: 6, padding: '5px 12px', fontSize: 11, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', fontWeight: 600 }}
-                  >
-                    Remove
-                  </button>
+                  <button onClick={() => deactivate(b.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', borderRadius: 6, padding: '5px 12px', fontSize: 11, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', fontWeight: 600 }}>Remove</button>
                 </div>
               )
             })}
@@ -1540,11 +1269,3 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
-
-
-
-
-
-
-
-
