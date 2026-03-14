@@ -9,32 +9,40 @@ export async function GET(req: NextRequest) {
   if (!auth) return unauthorized()
   if (!requireAdmin(auth)) return forbidden()
 
-  // Get all payout requests grouped with investor wallet
+  // Get all payout requests with withdrawalType and amounts
   const payouts = await prisma.$queryRaw<any[]>`
-    SELECT 
-      pr.id, pr.amount, pr.status, pr."batchCode", 
+    SELECT
+      pr.id, pr.amount, pr.status, pr."batchCode",
       pr."paymentDone", pr."paidAt", pr."createdAt",
       pr."walletAddress",
-      i."fullName" as "investorName", i.email
+      pr."withdrawalType",
+      pr."capitalAmount",
+      pr."profitAmount",
+      i."fullName" AS "investorName", i.email
     FROM payout_requests pr
     JOIN investors i ON i.id = pr."investorId"
     ORDER BY pr."batchCode" ASC, pr."createdAt" DESC
   `
 
-  // Also get total members per batch for progress tracking
+  // Total members per batch (from withdrawal_requests — the active window)
   const batchTotals = await prisma.$queryRaw<any[]>`
-    SELECT 
+    SELECT
       wr."batchCode",
-      COUNT(bm.id) as "totalMembers"
+      COUNT(wr.id) AS "totalMembers"
     FROM withdrawal_requests wr
-    JOIN batches b ON b."batchCode" = wr."batchCode"
-    JOIN batch_members bm ON bm."batchId" = b.id AND bm.status = 'ACTIVE'
     WHERE wr.active = true
     GROUP BY wr."batchCode"
   `
-
   const totalsMap: Record<string, number> = {}
   batchTotals.forEach((t: any) => { totalsMap[t.batchCode] = Number(t.totalMembers) })
 
-  return ok({ payouts, batchTotals: totalsMap })
+  // Fetch live SOL/USD rate for NowPayments display
+  let solRate: number | null = null
+  try {
+    const rateRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd', { next: { revalidate: 300 } })
+    const rateData = await rateRes.json()
+    solRate = rateData?.solana?.usd || null
+  } catch { solRate = null }
+
+  return ok({ payouts, batchTotals: totalsMap, solRate })
 }
