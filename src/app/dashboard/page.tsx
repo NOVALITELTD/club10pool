@@ -13,6 +13,7 @@ export default function InvestorDashboard() {
   const [myBatch, setMyBatch] = useState<any>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [withdrawal, setWithdrawal] = useState<any>(null)
+  const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([])
   const [broadcasts, setBroadcasts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -45,13 +46,15 @@ export default function InvestorDashboard() {
         fetch('/api/batches', { headers }).then(r => r.ok ? r.json() : null),
         fetch('/api/transactions/my', { headers }).then(r => r.ok ? r.json() : null),
         fetch('/api/withdrawals/my', { headers }).then(r => r.ok ? r.json() : null),
-      ]).then(([batchData, txData, wdData]) => {
+        fetch('/api/withdrawals/history', { headers }).then(r => r.ok ? r.json() : null),
+      ]).then(([batchData, txData, wdData, histData]) => {
         if (batchData?.data) {
           setBatches(batchData.data)
           setMyBatch(batchData.data.find((b: any) => b.myMembership) || null)
         }
         if (txData?.data) setTransactions(txData.data)
         if (wdData?.data) setWithdrawal(wdData.data)
+        if (histData?.data) setWithdrawalHistory(histData.data)
       }).catch(() => {})
     }, 5 * 60 * 1000)
 
@@ -77,6 +80,8 @@ export default function InvestorDashboard() {
       }
       if (txRes.ok) { const d = await txRes.json(); setTransactions(d.data || []) }
       if (wdRes.ok) { const d = await wdRes.json(); setWithdrawal(d.data || null) }
+      const histRes = await fetch('/api/withdrawals/history', { headers })
+      if (histRes.ok) { const d = await histRes.json(); setWithdrawalHistory(d.data || []) }
       if (broadcastRes.ok) { const d = await broadcastRes.json(); setBroadcasts(d.data || []) }
     } finally { setLoading(false) }
   }
@@ -112,6 +117,7 @@ export default function InvestorDashboard() {
     { id: 'portfolio', label: 'My Portfolio', icon: '◈' },
     { id: 'batches', label: 'Batches', icon: '⬡' },
     { id: 'withdrawals', label: 'Withdrawals', icon: '⟁' },
+    { id: 'trading' as any, label: 'Trading History', icon: '📈' },
     { id: 'referral' as any, label: 'Referral', icon: '🔗' },
     { id: 'notifications' as any, label: 'Notifications', icon: '🔔' },
     { id: 'settings', label: 'Settings', icon: '⚙' },
@@ -292,7 +298,8 @@ export default function InvestorDashboard() {
                 {broadcasts.length > 0 && <BroadcastBanner broadcasts={broadcasts} />}
 
                 {section === 'batches' && <BatchesSection batches={batches} myBatch={myBatch} token={token!} s={s} reload={() => loadData(token!)} />}
-                {section === 'withdrawals' && <WithdrawalsSection withdrawal={withdrawal} myBatch={myBatch} user={user} token={token!} s={s} reload={() => loadData(token!)} />}
+                {section === 'withdrawals' && <WithdrawalsSection withdrawal={withdrawal} withdrawalHistory={withdrawalHistory} myBatch={myBatch} user={user} token={token!} s={s} reload={() => loadData(token!)} />}
+                {(section as any) === 'trading' && <TradingHistorySection myBatch={myBatch} s={s} />}
                 {(section as any) === 'referral' && <ReferralSection token={token!} user={user} s={s} />}
                 {(section as any) === 'notifications' && <NotificationsSection token={token!} user={user} s={s} />}
                 {section === 'settings' && <SettingsSection user={user} token={token!} s={s} setUser={setUser} />}
@@ -357,7 +364,9 @@ function PortfolioSection({ myBatch, transactions, s, setSection }: any) {
 
   const membership = myBatch.myMembership
   const capital = parseFloat(membership?.capitalAmount || 0)
-  const sharePercent = parseFloat(membership?.sharePercent || 0)
+  // Calculate share percent from capital vs total pool amount
+  const totalPoolAmount = parseFloat(myBatch.currentAmount || myBatch.targetAmount || myBatch.targetCapital || 0)
+  const sharePercent = totalPoolAmount > 0 ? (capital / totalPoolAmount) * 100 : parseFloat(membership?.sharePercent || 0)
   const totalProfit = transactions.filter((t: any) => t.type === 'PROFIT_SHARE').reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0)
 
   return (
@@ -595,7 +604,7 @@ function BatchesSection({ batches, myBatch, token, s, reload }: any) {
 }
 
 // ── WITHDRAWALS ───────────────────────────────────────────
-function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any) {
+function WithdrawalsSection({ withdrawal, withdrawalHistory, myBatch, user, token, s, reload }: any) {
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')
@@ -678,10 +687,13 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
 
   // ── LOCKED ──
   if (!withdrawal?.active) return (
-    <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Withdrawals Locked</div>
-      <div style={{ color: '#64748b', fontSize: 14 }}>Admin will notify you when a withdrawal window opens for your batch.</div>
+    <div>
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+        <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Withdrawals Locked</div>
+        <div style={{ color: '#64748b', fontSize: 14 }}>Admin will notify you when a withdrawal window opens for your batch.</div>
+      </div>
+      <WithdrawalHistoryList history={withdrawalHistory} s={s} rate={rate} />
     </div>
   )
 
@@ -983,6 +995,71 @@ function WithdrawalsSection({ withdrawal, myBatch, user, token, s, reload }: any
           {otpLoading ? 'Verifying...' : currentStep === 'totp' ? '🔐 Verify Authenticator →' : '🔐 Confirm Withdrawal →'}
         </button>
       )}
+    </div>
+  )
+}
+
+// ── WITHDRAWAL HISTORY LIST ───────────────────────────────
+  function WithdrawalHistoryList({ history, s, rate }: any) {
+  if (!history || history.length === 0) return null
+ 
+  return (
+    <div style={{ maxWidth: 520, marginTop: 24 }}>
+      <div style={{ ...s.card, border: '1px solid #1e2530' }}>
+        <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>📋</span> Withdrawal History
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {history.map((h: any) => {
+            const isProfitOnly = h.withdrawalType === 'PROFIT_ONLY'
+            const isPaid = h.paymentDone
+            const amount = parseFloat(h.amount || 0)
+            const profit = parseFloat(h.profitAmount || 0)
+            const capital = parseFloat(h.capitalAmount || 0)
+            return (
+              <div key={h.id} style={{ background: '#080a0f', border: `1px solid ${isPaid ? 'rgba(0,212,170,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                  <div style={{ flex: 1 }}>
+                    {/* Batch + type */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, color: '#e2e8f0', fontSize: 13 }}>{h.batchCode}</span>
+                      <span style={{ fontSize: 11, color: isProfitOnly ? '#818cf8' : '#ef4444', background: isProfitOnly ? 'rgba(129,140,248,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${isProfitOnly ? 'rgba(129,140,248,0.3)' : 'rgba(239,68,68,0.3)'}`, borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>
+                        {isProfitOnly ? '📊 Profit Only' : '🚪 Full Exit'}
+                      </span>
+                      <span style={{ fontSize: 11, color: isPaid ? '#00d4aa' : '#f59e0b', background: isPaid ? 'rgba(0,212,170,0.1)' : 'rgba(245,158,11,0.1)', border: `1px solid ${isPaid ? 'rgba(0,212,170,0.3)' : 'rgba(245,158,11,0.3)'}`, borderRadius: 20, padding: '2px 10px', fontWeight: 700 }}>
+                        {isPaid ? '✓ PAID' : 'PENDING'}
+                      </span>
+                    </div>
+                    {/* Amounts breakdown */}
+                    <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#64748b', flexWrap: 'wrap' }}>
+                      <span>Profit: <strong style={{ color: '#c9a84c' }}>${profit.toLocaleString()}</strong></span>
+                      {!isProfitOnly && capital > 0 && (
+                        <span>Capital: <strong style={{ color: '#c9a84c' }}>${capital.toLocaleString()}</strong></span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Total */}
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: isPaid ? '#00d4aa' : '#c9a84c' }}>${amount.toLocaleString()}</div>
+                    {rate && amount > 0 && (
+                      <div style={{ fontSize: 11, color: '#475569' }}>≈ ₦{(amount * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
+                    )}
+                    <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                      {new Date(h.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+                </div>
+                {/* Wallet */}
+                {h.walletAddress && isPaid && (
+                  <div style={{ marginTop: 8, fontSize: 11, fontFamily: 'monospace', color: '#475569', wordBreak: 'break-all' as const }}>
+                    → {h.walletAddress.slice(0, 12)}...{h.walletAddress.slice(-8)}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
@@ -2008,6 +2085,36 @@ function BroadcastBanner({ broadcasts }: { broadcasts: any[] }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// ── TRADING HISTORY — COMING SOON ────────────────────────
+function TradingHistorySection({ myBatch, s }: any) {
+  return (
+    <div style={{ maxWidth: 560 }}>
+      <div style={{ ...s.card, textAlign: 'center', padding: '60px 32px', border: '1px solid rgba(201,168,76,0.2)' }}>
+        <div style={{ fontSize: 56, marginBottom: 20 }}>📈</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#c9a84c', marginBottom: 10 }}>Trading History</div>
+        <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24, lineHeight: 1.7, maxWidth: 400, margin: '0 auto 24px' }}>
+          Live trading activity from your MT4/MT5 account will appear here — daily summaries at 8:00 PM and weekly reports every Saturday at 9:00 AM.
+        </div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 20, padding: '8px 20px' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#c9a84c', display: 'inline-block' }} />
+          <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 700, letterSpacing: 1 }}>COMING SOON</span>
+        </div>
+        {myBatch?.tradingAccountId && (
+          <div style={{ marginTop: 24, background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, padding: '14px 18px', textAlign: 'left' }}>
+            <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>Your Active Trading Account</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+              <div><span style={{ color: '#64748b' }}>Platform: </span><span style={{ color: '#e2e8f0' }}>{myBatch.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'}</span></div>
+              <div><span style={{ color: '#64748b' }}>Broker: </span><span style={{ color: '#e2e8f0' }}>{myBatch.brokerName}</span></div>
+              <div><span style={{ color: '#64748b' }}>Account: </span><span style={{ color: '#00d4aa', fontFamily: 'monospace' }}>{myBatch.tradingAccountId}</span></div>
+              <div><span style={{ color: '#64748b' }}>Batch: </span><span style={{ color: '#e2e8f0' }}>{myBatch.batchCode}</span></div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
