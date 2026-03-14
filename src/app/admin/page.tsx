@@ -533,25 +533,35 @@ function BatchSection({ batches, token, s, reload }: any) {
 // ── BATCH ACTIVATE / FORCE CLOSE ─────────────────────────
 function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
   const [showActivate, setShowActivate] = useState(false)
-  const [activateForm, setActivateForm] = useState({ tradingPlatform: 'MT4', brokerName: batch.brokerName || '', tradingAccountId: '', investorPassword: '', tradingServer: '' })
+  const [activateForm, setActivateForm] = useState({
+    tradingPlatform: 'MT4',
+    brokerName: batch.brokerName || '',
+    tradingAccountId: '',
+    investorPassword: '',
+    tradingServer: '',
+  })
   const [activateLoading, setActivateLoading] = useState(false)
   const [activateError, setActivateError] = useState('')
-
+ 
   // Force close state
   const [showForceClose, setShowForceClose] = useState(false)
   const [capitalLeft, setCapitalLeft] = useState('')
   const [confirmZero, setConfirmZero] = useState(false)
   const [forceLoading, setForceLoading] = useState(false)
   const [forceError, setForceError] = useState('')
-
+ 
   const canActivate = ['FORMING', 'FULL'].includes(batch.status)
-  // Force close only available on ACTIVE or DISTRIBUTING batches
   const canForceClose = ['ACTIVE', 'DISTRIBUTING'].includes(batch.status)
-  // Hide actions on CLOSED batches
+  const alreadyHasCredentials = !!(batch.tradingAccountId && batch.tradingPlatform)
+ 
   if (batch.status === 'CLOSED') return null
-
-  const inputStyle = { width: '100%', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13, boxSizing: 'border-box' as const }
-
+ 
+  const inputStyle = {
+    width: '100%', background: '#080a0f', border: '1px solid #1e2530',
+    borderRadius: 8, padding: '8px 12px', color: '#e2e8f0', fontSize: 13,
+    boxSizing: 'border-box' as const,
+  }
+ 
   async function activateBatch() {
     setActivateError(''); setActivateLoading(true)
     try {
@@ -565,7 +575,29 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
       setShowActivate(false); reload()
     } finally { setActivateLoading(false) }
   }
-
+ 
+  async function reactivateBatch() {
+    setActivateLoading(true)
+    try {
+      const r = await fetch('/api/batches/admin-activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        // Send existing credentials back — route will detect they're already set
+        body: JSON.stringify({
+          batchId: batch.id,
+          tradingPlatform:  batch.tradingPlatform,
+          brokerName:       batch.brokerName,
+          tradingAccountId: batch.tradingAccountId,
+          investorPassword: batch.investorPassword,
+          tradingServer:    batch.tradingServer,
+        }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setActivateError(d.error || 'Failed'); return }
+      reload()
+    } finally { setActivateLoading(false) }
+  }
+ 
   async function forceClose() {
     const cap = parseFloat(capitalLeft)
     if (isNaN(cap) || cap < 0) { setForceError('Enter a valid capital amount (0 or more)'); return }
@@ -582,19 +614,80 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
       setShowForceClose(false); setCapitalLeft(''); setConfirmZero(false); reload()
     } finally { setForceLoading(false) }
   }
-
+ 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, alignItems: 'flex-end' }}>
-      {/* Activate MT4/MT5 — only for FORMING/FULL */}
+ 
       {canActivate && (
-        <button
-          style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontSize: 12, whiteSpace: 'nowrap' as const }}
-          onClick={() => setShowActivate(p => !p)}
-        >
-          ⚡ {showActivate ? 'Cancel' : 'Activate with MT4/MT5'}
-        </button>
+        <>
+          {alreadyHasCredentials ? (
+            // ── Already has credentials — single reactivate button, no form ──
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              <button
+                style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontSize: 12, whiteSpace: 'nowrap' as const }}
+                onClick={reactivateBatch}
+                disabled={activateLoading}
+              >
+                {activateLoading ? 'Activating...' : '⚡ Reactivate & Notify Members'}
+              </button>
+              {/* Show locked credentials as read-only reminder */}
+              <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', textAlign: 'right' as const }}>
+                <div style={{ color: '#475569', marginBottom: 3 }}>🔒 Using saved credentials:</div>
+                <div>{batch.tradingPlatform} · {batch.brokerName}</div>
+                <div style={{ fontFamily: 'monospace', color: '#c9a84c' }}>{batch.tradingAccountId}</div>
+              </div>
+              {activateError && <div style={{ color: '#ef4444', fontSize: 11 }}>⚠ {activateError}</div>}
+            </div>
+          ) : (
+            // ── First time activation — needs credentials form ──
+            <>
+              <button
+                style={{ ...s.btn(), background: 'linear-gradient(135deg,#c9a84c,#a07830)', color: '#000', fontSize: 12, whiteSpace: 'nowrap' as const }}
+                onClick={() => setShowActivate(p => !p)}
+              >
+                ⚡ {showActivate ? 'Cancel' : 'Activate with MT4/MT5'}
+              </button>
+              {showActivate && (
+                <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 14, minWidth: 260 }}>
+                  {activateError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {activateError}</div>}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                    <select
+                      value={activateForm.tradingPlatform}
+                      onChange={e => setActivateForm(p => ({ ...p, tradingPlatform: e.target.value }))}
+                      style={{ ...inputStyle, cursor: 'pointer' }}
+                    >
+                      <option value="MT4">MetaTrader 4 (MT4)</option>
+                      <option value="MT5">MetaTrader 5 (MT5)</option>
+                    </select>
+                    {[
+                      ['brokerName',       'Broker Name'],
+                      ['tradingAccountId', 'Account ID'],
+                      ['investorPassword', 'Investor Password'],
+                      ['tradingServer',    'Server'],
+                    ].map(([key, placeholder]) => (
+                      <input
+                        key={key}
+                        style={inputStyle}
+                        placeholder={placeholder}
+                        value={(activateForm as any)[key]}
+                        onChange={e => setActivateForm(p => ({ ...p, [key]: e.target.value }))}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    style={{ ...s.btn(), width: '100%', fontSize: 12, padding: '8px' }}
+                    onClick={activateBatch}
+                    disabled={activateLoading}
+                  >
+                    {activateLoading ? 'Activating...' : '⚡ Activate & Notify Members'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </>
       )}
-
+ 
       {/* Force Close — only for ACTIVE/DISTRIBUTING */}
       {canForceClose && (
         <button
@@ -604,26 +697,7 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
           🔴 {showForceClose ? 'Cancel' : 'Force Close & Open Withdrawal'}
         </button>
       )}
-
-      {/* Activate form */}
-      {showActivate && (
-        <div style={{ background: '#080a0f', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: 14, minWidth: 260 }}>
-          {activateError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {activateError}</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
-            <select value={activateForm.tradingPlatform} onChange={e => setActivateForm(p => ({ ...p, tradingPlatform: e.target.value }))} style={{ ...inputStyle, cursor: 'pointer' }}>
-              <option value="MT4">MetaTrader 4 (MT4)</option>
-              <option value="MT5">MetaTrader 5 (MT5)</option>
-            </select>
-            {[['brokerName', 'Broker Name'], ['tradingAccountId', 'Account ID'], ['investorPassword', 'Investor Password'], ['tradingServer', 'Server']].map(([key, placeholder]) => (
-              <input key={key} style={inputStyle} placeholder={placeholder} value={(activateForm as any)[key]} onChange={e => setActivateForm(p => ({ ...p, [key]: e.target.value }))} />
-            ))}
-          </div>
-          <button style={{ ...s.btn(), width: '100%', fontSize: 12, padding: '8px' }} onClick={activateBatch} disabled={activateLoading}>
-            {activateLoading ? 'Activating...' : '⚡ Activate & Notify Members'}
-          </button>
-        </div>
-      )}
-
+ 
       {/* Force close form */}
       {showForceClose && (
         <div style={{ background: '#080a0f', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: 14, minWidth: 280 }}>
@@ -634,13 +708,11 @@ function BatchActivateOrAdvance({ batch, token, s, reload, rate }: any) {
           {forceError && <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>⚠ {forceError}</div>}
           {confirmZero && (
             <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: '#ef4444' }}>
-              ⚠ You entered $0 capital. This means investors will only receive their profit share (if any). The batch will be fully closed. Are you sure?
+              ⚠ You entered $0 capital. Investors will only receive their profit share (if any). Are you sure?
             </div>
           )}
           <input
-            type="number"
-            min="0"
-            step="0.01"
+            type="number" min="0" step="0.01"
             placeholder="Capital left in pool ($)"
             value={capitalLeft}
             onChange={e => { setCapitalLeft(e.target.value); setConfirmZero(false); setForceError('') }}
@@ -1363,4 +1435,5 @@ function BroadcastSection({ token, broadcasts, s, reload }: any) {
     </div>
   )
 }
+
 
