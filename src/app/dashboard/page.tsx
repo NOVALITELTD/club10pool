@@ -2089,23 +2089,61 @@ function BroadcastBanner({ broadcasts }: { broadcasts: any[] }) {
   )
 }
 
-// ── TRADING HISTORY — COMING SOON ────────────────────────
+// ── TRADING HISTORY───────────────────────────────────
 function TradingHistorySection({ myBatch, s }: any) {
-  return (
+  const rate = useUsdNgnRate()
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : ''
+  const [reports, setReports] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedReport, setSelectedReport] = useState<any>(null)
+  const [trades, setTrades] = useState<any[]>([])
+  const [tradesLoading, setTradesLoading] = useState(false)
+  const [filter, setFilter] = useState<'ALL' | 'DAILY' | 'WEEKLY'>('ALL')
+
+  useEffect(() => {
+    if (!token) return
+    fetch('/api/trading/history', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.data?.reports) setReports(d.data.reports) })
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function loadTrades(report: any) {
+    if (selectedReport?.id === report.id) {
+      setSelectedReport(null); setTrades([]); return
+    }
+    setSelectedReport(report); setTradesLoading(true)
+    try {
+      const r = await fetch(`/api/trading/history?reportId=${report.id}`,
+        { headers: { Authorization: `Bearer ${token}` } })
+      const d = await r.json()
+      setTrades(d?.data?.trades || [])
+    } finally { setTradesLoading(false) }
+  }
+
+  const filtered = filter === 'ALL' ? reports : reports.filter(r => r.reportType === filter)
+
+  // No batch
+  if (!myBatch) return (
+    <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>📈</div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: '#64748b' }}>No Active Batch</div>
+      <div style={{ color: '#475569', fontSize: 14 }}>Join a batch to see trading history.</div>
+    </div>
+  )
+
+  // Batch active but no reports yet
+  if (!loading && reports.length === 0) return (
     <div style={{ maxWidth: 560 }}>
       <div style={{ ...s.card, textAlign: 'center', padding: '60px 32px', border: '1px solid rgba(201,168,76,0.2)' }}>
         <div style={{ fontSize: 56, marginBottom: 20 }}>📈</div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#c9a84c', marginBottom: 10 }}>Trading History</div>
-        <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24, lineHeight: 1.7, maxWidth: 400, margin: '0 auto 24px' }}>
-          Live trading activity from your MT4/MT5 account will appear here — daily summaries at 8:00 PM and weekly reports every Saturday at 9:00 AM.
-        </div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 20, padding: '8px 20px' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#c9a84c', display: 'inline-block' }} />
-          <span style={{ fontSize: 12, color: '#c9a84c', fontWeight: 700, letterSpacing: 1 }}>COMING SOON</span>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#c9a84c', marginBottom: 10 }}>Trading History</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.7 }}>
+          No reports yet. Daily summaries arrive at <strong style={{ color: '#e2e8f0' }}>8:00 PM</strong> and weekly reports every <strong style={{ color: '#e2e8f0' }}>Saturday at 9:00 AM</strong>.
         </div>
         {myBatch?.tradingAccountId && (
-          <div style={{ marginTop: 24, background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, padding: '14px 18px', textAlign: 'left' }}>
-            <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 10 }}>Your Active Trading Account</div>
+          <div style={{ background: '#080a0f', border: '1px solid #1e2530', borderRadius: 10, padding: '14px 18px', textAlign: 'left' }}>
+            <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' as const, marginBottom: 10 }}>Your Active Account</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
               <div><span style={{ color: '#64748b' }}>Platform: </span><span style={{ color: '#e2e8f0' }}>{myBatch.tradingPlatform === 'MT4' ? 'MetaTrader 4' : 'MetaTrader 5'}</span></div>
               <div><span style={{ color: '#64748b' }}>Broker: </span><span style={{ color: '#e2e8f0' }}>{myBatch.brokerName}</span></div>
@@ -2115,6 +2153,156 @@ function TradingHistorySection({ myBatch, s }: any) {
           </div>
         )}
       </div>
+    </div>
+  )
+
+  return (
+    <div style={{ maxWidth: 680 }}>
+      {/* Header stats from latest daily report */}
+      {reports.length > 0 && (() => {
+        const latest = reports.find(r => r.reportType === 'DAILY') || reports[0]
+        const isProfit = parseFloat(latest.netPnl) >= 0
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: 'Account Balance', value: `$${parseFloat(latest.accountBalance).toLocaleString()}`, color: '#00d4aa' },
+              { label: 'Account Equity', value: `$${parseFloat(latest.accountEquity).toLocaleString()}`, color: '#818cf8' },
+              { label: 'Latest Net P&L', value: `${isProfit ? '+' : ''}$${parseFloat(latest.netPnl).toLocaleString()}`, color: isProfit ? '#00d4aa' : '#ef4444' },
+              { label: 'Trades Today', value: latest.totalTrades, color: '#c9a84c' },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: '#0d1117', border: '1px solid #1e2530', borderRadius: 12, padding: 16 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: stat.color, marginBottom: 2 }}>{stat.value}</div>
+                {(stat.label === 'Account Balance' || stat.label === 'Latest Net P&L') && rate && (
+                  <div style={{ fontSize: 10, color: '#475569' }}>≈ ₦{(Math.abs(parseFloat(String(stat.value).replace(/[^0-9.-]/g, ''))) * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>
+                )}
+                <div style={{ fontSize: 10, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase' as const, marginTop: 4 }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* Filter tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {(['ALL', 'DAILY', 'WEEKLY'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            style={{ ...s.btn(filter === f ? 'primary' : 'ghost'), padding: '6px 16px', fontSize: 12 }}>
+            {f === 'ALL' ? 'All Reports' : f === 'DAILY' ? '📅 Daily' : '📆 Weekly'}
+          </button>
+        ))}
+      </div>
+
+      {/* Reports list */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading...</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(report => {
+            const netPnl = parseFloat(report.netPnl)
+            const isProfit = netPnl >= 0
+            const isSelected = selectedReport?.id === report.id
+            const isWeekly = report.reportType === 'WEEKLY'
+
+            return (
+              <div key={report.id} style={{ background: '#0d1117', border: `1px solid ${isSelected ? 'rgba(0,212,170,0.3)' : '#1e2530'}`, borderRadius: 12, overflow: 'hidden' }}>
+                {/* Report header — clickable to expand trades */}
+                <div
+                  onClick={() => loadTrades(report)}
+                  style={{ padding: '16px 18px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0' }}>
+                        {new Date(report.reportDate).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                        padding: '2px 10px', borderRadius: 20,
+                        background: isWeekly ? 'rgba(201,168,76,0.1)' : 'rgba(129,140,248,0.1)',
+                        color: isWeekly ? '#c9a84c' : '#818cf8',
+                        border: `1px solid ${isWeekly ? 'rgba(201,168,76,0.3)' : 'rgba(129,140,248,0.3)'}`,
+                      }}>
+                        {isWeekly ? '📆 WEEKLY' : '📅 DAILY'}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>{report.batchCode} · {report.platform}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 20, fontSize: 12, flexWrap: 'wrap' }}>
+                      <span style={{ color: '#64748b' }}>Balance: <strong style={{ color: '#e2e8f0' }}>${parseFloat(report.accountBalance).toLocaleString()}</strong></span>
+                      <span style={{ color: '#64748b' }}>Trades: <strong style={{ color: '#e2e8f0' }}>{report.totalTrades}</strong></span>
+                      {report.totalProfit > 0 && <span style={{ color: '#64748b' }}>Profit: <strong style={{ color: '#00d4aa' }}>+${parseFloat(report.totalProfit).toLocaleString()}</strong></span>}
+                      {report.totalLoss > 0 && <span style={{ color: '#64748b' }}>Loss: <strong style={{ color: '#ef4444' }}>-${parseFloat(report.totalLoss).toLocaleString()}</strong></span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: isProfit ? '#00d4aa' : '#ef4444' }}>
+                      {isProfit ? '+' : ''}${netPnl.toLocaleString()}
+                    </div>
+                    {rate && <div style={{ fontSize: 10, color: '#475569' }}>≈ ₦{(Math.abs(netPnl) * rate).toLocaleString('en-NG', { maximumFractionDigits: 0 })}</div>}
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                      {isSelected ? '▲ Hide trades' : `▼ ${report.tradesCount} trade${report.tradesCount !== 1 ? 's' : ''}`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trades list — expands on click */}
+                {isSelected && (
+                  <div style={{ borderTop: '1px solid #1e2530', background: '#080a0f' }}>
+                    {tradesLoading ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>Loading trades...</div>
+                    ) : trades.length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: 13 }}>No individual trades recorded for this session.</div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ ...s.table, fontSize: 12 }}>
+                          <thead>
+                            <tr>
+                              {['#', 'Symbol', 'Type', 'Lots', 'Open', 'Close', 'Open Price', 'Close Price', 'P&L'].map(h => (
+                                <th key={h} style={{ ...s.th, fontSize: 10 }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {trades.map((t: any, i: number) => {
+                              const tradePnl = parseFloat(t.profit || 0) + parseFloat(t.commission || 0) + parseFloat(t.swap || 0)
+                              const isWin = tradePnl >= 0
+                              return (
+                                <tr key={t.ticket || i}>
+                                  <td style={s.td}><span style={{ color: '#64748b', fontSize: 11 }}>{i + 1}</span></td>
+                                  <td style={s.td}><strong style={{ color: '#e2e8f0' }}>{t.symbol}</strong></td>
+                                  <td style={s.td}>
+                                    <span style={{ color: t.tradeType === 'BUY' ? '#00d4aa' : '#ef4444', fontWeight: 700 }}>
+                                      {t.tradeType === 'BUY' ? '▲' : '▼'} {t.tradeType}
+                                    </span>
+                                  </td>
+                                  <td style={s.td}><span style={{ color: '#94a3b8' }}>{parseFloat(t.lots).toFixed(2)}</span></td>
+                                  <td style={s.td}><span style={{ color: '#64748b', fontSize: 11 }}>{t.openTime ? new Date(t.openTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}</span></td>
+                                  <td style={s.td}><span style={{ color: '#64748b', fontSize: 11 }}>{t.closeTime ? new Date(t.closeTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}</span></td>
+                                  <td style={s.td}><span style={{ fontFamily: 'monospace', fontSize: 11 }}>{parseFloat(t.openPrice).toFixed(5)}</span></td>
+                                  <td style={s.td}><span style={{ fontFamily: 'monospace', fontSize: 11 }}>{parseFloat(t.closePrice).toFixed(5)}</span></td>
+                                  <td style={s.td}>
+                                    <span style={{ fontWeight: 700, color: isWin ? '#00d4aa' : '#ef4444' }}>
+                                      {isWin ? '+' : ''}${tradePnl.toFixed(2)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {filtered.length === 0 && (
+            <div style={{ ...s.card, textAlign: 'center', color: '#64748b', padding: 40 }}>
+              No {filter.toLowerCase()} reports yet.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
