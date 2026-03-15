@@ -124,6 +124,7 @@ export default function AdminDashboard() {
     { id: 'referrals', label: 'Referral Pools', icon: '🔗', badge: fullPools || undefined },
     { id: 'audit', label: 'Audit Logs', icon: '≡' },
     { id: 'broadcast', label: 'Broadcast', icon: '📢' },
+    { id: 'trading' as any, label: 'EA Status', icon: '📡' },
   ]
 
   const s: any = {
@@ -240,6 +241,7 @@ export default function AdminDashboard() {
                 {section === 'referrals' && <ReferralAdminSection referralPools={referralPools} token={token!} s={s} reload={() => loadData(token!)} />}
                 {section === 'audit' && <AuditSection token={token!} s={s} />}
                 {(section as any) === 'broadcast' && <BroadcastSection token={token!} broadcasts={broadcasts} s={s} reload={() => loadData(token!)} />}
+                {(section as any) === 'trading' && <EAStatusSection token={token!} s={s} />}
               </>
             )}
           </div>
@@ -398,6 +400,123 @@ const ADMIN_CATEGORY_CONFIG: Record<string, { target: number; min: number; max: 
   STANDARD_1K:  { target: 1000,  min: 100,  max: 500,  label: '$1,000 Pool',  color: '#818cf8' },
   STANDARD_5K:  { target: 5000,  min: 1000, max: 2500, label: '$5,000 Pool',  color: '#f59e0b' },
   STANDARD_10K: { target: 10000, min: 2500, max: 5000, label: '$10,000 Pool', color: '#c9a84c' },
+}
+
+function EAStatusSection({ token, s }: any) {
+  const [statuses, setStatuses] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const rate = useUsdNgnRate()
+ 
+  useEffect(() => { load() }, [])
+ 
+  function load() {
+    setLoading(true)
+    fetch('/api/trading/ping', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setStatuses(d?.data || []))
+      .finally(() => setLoading(false))
+  }
+ 
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: '#e2e8f0', marginBottom: 4 }}>📡 EA Connection Status</div>
+          <div style={{ fontSize: 12, color: '#64748b' }}>Each active batch should show Online. EA pings every hour.</div>
+        </div>
+        <button onClick={load} style={{ ...s.btn('ghost'), fontSize: 12 }}>↻ Refresh</button>
+      </div>
+ 
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading...</div>
+      ) : statuses.length === 0 ? (
+        <div style={{ ...s.card, textAlign: 'center', padding: 60, color: '#64748b' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>No EA connections yet</div>
+          <div style={{ fontSize: 13 }}>Install the Club10Reporter EA on each MT4/MT5 account. It will appear here within 1 minute of attaching.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {statuses.map((ea: any) => {
+            const isOnline = ea.isOnline
+            const mins = Math.round(parseFloat(ea.minutesSincePing))
+            const lastSeen = mins < 60
+              ? `${mins}m ago`
+              : mins < 1440
+              ? `${Math.round(mins / 60)}h ago`
+              : `${Math.round(mins / 1440)}d ago`
+ 
+            return (
+              <div key={ea.batchCode} style={{ ...s.card, border: `1px solid ${isOnline ? 'rgba(0,212,170,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    {/* Status badge + batch info */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: isOnline ? '#00d4aa' : '#ef4444', boxShadow: isOnline ? '0 0 6px #00d4aa' : 'none' }} />
+                        <span style={{ fontWeight: 700, fontSize: 14, color: isOnline ? '#00d4aa' : '#ef4444' }}>
+                          {isOnline ? 'ONLINE' : 'OFFLINE'}
+                        </span>
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0' }}>{ea.batchCode}</span>
+                      {ea.batchName && <span style={{ fontSize: 12, color: '#64748b' }}>{ea.batchName}</span>}
+                      <span style={{ fontSize: 11, color: '#64748b', background: '#080a0f', border: '1px solid #1e2530', borderRadius: 6, padding: '2px 8px' }}>
+                        {ea.platform}
+                      </span>
+                    </div>
+ 
+                    {/* Account details */}
+                    <div style={{ display: 'flex', gap: 20, fontSize: 12, flexWrap: 'wrap' }}>
+                      {ea.accountId && (
+                        <span style={{ color: '#64748b' }}>Account: <strong style={{ color: '#00d4aa', fontFamily: 'monospace' }}>{ea.accountId}</strong></span>
+                      )}
+                      <span style={{ color: '#64748b' }}>Balance: <strong style={{ color: '#c9a84c' }}>${parseFloat(ea.balance).toLocaleString()}</strong></span>
+                      <span style={{ color: '#64748b' }}>Equity: <strong style={{ color: '#818cf8' }}>${parseFloat(ea.equity).toLocaleString()}</strong></span>
+                    </div>
+                  </div>
+ 
+                  {/* Last ping time */}
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>Last ping</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: isOnline ? '#00d4aa' : '#ef4444' }}>{lastSeen}</div>
+                    <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                      {new Date(ea.lastPingAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+ 
+                {/* Warning if offline */}
+                {!isOnline && (
+                  <div style={{ marginTop: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#ef4444' }}>
+                    ⚠ EA has not pinged in {lastSeen}. Check that MT4/MT5 is running, the EA is attached to a chart, and AutoTrading is enabled.
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+ 
+      {/* Setup guide */}
+      <div style={{ ...s.card, marginTop: 20, background: 'rgba(0,212,170,0.03)', border: '1px solid rgba(0,212,170,0.12)' }}>
+        <div style={{ fontWeight: 700, fontSize: 13, color: '#00d4aa', marginBottom: 12 }}>📋 EA Setup Checklist</div>
+        {[
+          ['1', 'Open MetaEditor (F4 in MT4/MT5)'],
+          ['2', 'Paste Club10Reporter.mq4 or .mq5 — set ServerURL, PingURL, EASecret, BatchCode'],
+          ['3', 'Compile (F7) — no errors should appear'],
+          ['4', 'In MT4/MT5: Tools → Options → Expert Advisors → Allow WebRequest → add your domain'],
+          ['5', 'Drag EA onto any chart — enable AutoTrading (green play button)'],
+          ['6', 'Check MT4/MT5 Journal tab — should show "Club10Reporter: Ping OK"'],
+          ['7', 'EA appears here as ONLINE within 1 minute'],
+        ].map(([n, text]) => (
+          <div key={n} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,212,170,0.1)', border: '1px solid rgba(0,212,170,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#00d4aa', flexShrink: 0 }}>{n}</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>{text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function BatchSection({ batches, token, s, reload }: any) {
