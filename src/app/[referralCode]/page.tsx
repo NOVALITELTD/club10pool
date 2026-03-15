@@ -1,7 +1,6 @@
-'use client'
 // src/app/[referralCode]/page.tsx
 // Public landing page for referral links — /{referralCode}
-
+'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
