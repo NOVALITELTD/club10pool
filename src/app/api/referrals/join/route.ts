@@ -36,24 +36,31 @@ export async function POST(req: NextRequest) {
   }
 
   // Check not already in a referral pool of same category
-  const existingReferral = await prisma.referralMember.findFirst({
-    where: {
-      investorId: auth.memberId,
-      referralPool: { category: pool.category },
-      status: { in: ['PENDING_PAYMENT', 'PAID', 'ACTIVE'] },
-    },
-  })
-  if (existingReferral) return error(`You are already in a ${pool.category} referral pool`)
+  // Use $queryRaw to avoid enum casting issue
+  const existingReferral = await prisma.$queryRaw<any[]>`
+    SELECT rm.id FROM referral_members rm
+    JOIN referral_pools rp ON rp.id = rm."referralPoolId"
+    WHERE rm."investorId" = ${auth.memberId}
+      AND rp.category = ${pool.category}::"BatchCategory"
+      AND rm.status IN ('PENDING_PAYMENT', 'PAID', 'ACTIVE')
+    LIMIT 1
+  `
+  if (existingReferral.length) {
+    return error(`You are already in a ${pool.category} referral pool`)
+  }
 
-  // Check not already in an admin batch of same category
-  const existingBatch = await prisma.batchMember.findFirst({
-    where: {
-      investorId: auth.memberId,
-      batch: { category: pool.category },
-      status: 'ACTIVE',
-    },
-  })
-  if (existingBatch) return error(`You already have an active position in a ${pool.category} batch`)
+  // Check not already in an admin batch of same category — raw query to avoid enum cast error
+  const existingBatch = await prisma.$queryRaw<any[]>`
+    SELECT bm.id FROM batch_members bm
+    JOIN batches b ON b.id = bm."batchId"
+    WHERE bm."investorId" = ${auth.memberId}
+      AND b.category = ${pool.category}::"BatchCategory"
+      AND bm.status = 'ACTIVE'
+    LIMIT 1
+  `
+  if (existingBatch.length) {
+    return error(`You already have an active position in a ${pool.category} batch`)
+  }
 
   // Check not already in this specific pool
   const alreadyMember = await prisma.referralMember.findUnique({
@@ -68,7 +75,7 @@ export async function POST(req: NextRequest) {
   const min = CATEGORY_MIN[pool.category] ?? 10
   const max = CATEGORY_MAX[pool.category] ?? 50
   const contribution = contributionUSD
-    ? Math.ceil(parseFloat(contributionUSD) / 10) * 10  // round up to nearest $10
+    ? Math.ceil(parseFloat(contributionUSD) / 10) * 10
     : min
   if (contribution < min || contribution > max) {
     return error(`Contribution must be $${min}–$${max} for this pool`)
